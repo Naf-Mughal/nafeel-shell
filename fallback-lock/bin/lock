@@ -1,0 +1,22 @@
+#!/bin/sh
+# The fallback lock: cave-abode's standalone Quickshell lock (quickshell/Lock.qml),
+# kept from the retired nafeel/cave-abode Noctalia plugin. shell-msg runs it only
+# when the shell isn't there to lock. One lock at a time (a second call while
+# locked does nothing); if Quickshell is missing or the lock fails, falls back to
+# Noctalia's own lock when that's still installed, so the session never stays
+# unlocked. The last run's log is in $CAVE_ABODE_STATE.
+set -u
+root="$(cd "$(dirname "$0")/.." && pwd)"
+export CAVE_ABODE_STATE="${CAVE_ABODE_STATE:-$HOME/.local/state/noctalia/plugins/data/nafeel/cave-abode}"
+mkdir -p "$CAVE_ABODE_STATE"
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/cave-abode-lock.lock"
+flock -n 9 || exit 0
+
+last_resort() { command -v noctalia >/dev/null 2>&1 && noctalia msg session lock; }
+
+command -v quickshell >/dev/null 2>&1 || { last_resort; exit 1; }
+quickshell -p "$root/quickshell/Lock.qml" >"$CAVE_ABODE_STATE/lock.log" 2>&1
+status=$?
+[ "$status" -eq 0 ] || last_resort
+exit "$status"

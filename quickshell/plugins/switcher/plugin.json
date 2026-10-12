@@ -1,0 +1,23 @@
+{
+  "id": "switcher",
+  "name": "Window switcher",
+  "gloss": "换窗",
+  "icon": "tab",
+  "description": "Alt+Tab: live pictures of your windows, most recent first; a quick tap flips to the last one without the panel showing.",
+  "default": true,
+  "root": "Plugin.qml",
+  "overlays": ["SwitcherKeys.qml"],
+  "drawers": [
+    {
+      "name": "switcher",
+      "entry": "SwitcherView.qml",
+      "edge": "top",
+      "width": "content",
+      "height": "content",
+      "keyboard": true,
+      "hoverZone": false,
+      "openIf": "shown",
+      "overFullscreen": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "apps",
+  "name": "Apps",
+  "gloss": "应用",
+  "icon": "apps",
+  "description": "Qt and KDE apps follow the theme (qtengine), and the default apps: the file manager for Mod+E, folders and Show in folder.",
+  "default": true,
+  "root": "Plugin.qml"
+}

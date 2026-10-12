@@ -1,0 +1,23 @@
+{
+  "id": "workspaces",
+  "name": "Workspaces",
+  "gloss": "洞天",
+  "icon": "grid_view",
+  "description": "The bar's workspaces as Chinese numerals, and their previews in the top-left corner.",
+  "default": true,
+  "slots": [
+    {
+      "slot": "bar.top",
+      "entry": "Workspaces.qml",
+      "order": 0
+    }
+  ],
+  "popouts": [
+    {
+      "name": "workspaces",
+      "corner": "topLeft",
+      "entry": "WorkspacesPopout.qml",
+      "width": 620
+    }
+  ]
+}

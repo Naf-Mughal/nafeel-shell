@@ -1,0 +1,71 @@
+#!/bin/sh
+# The shell's capture notifications (as the nafeel/capture plugin posted
+# them): a preview and Open / Edit / Folder / Delete, handled here so a click
+# still works after the shell restarts. notify-send waits up to 10 min for a
+# click (buttons stay usable from the notification history).
+#
+#   capture-notify shot FILE [copied]
+#   capture-notify record FILE
+kind=$1
+f=$2
+copied=$3
+app="Capture"
+name=$(basename "$f")
+thumbs="${XDG_STATE_HOME:-$HOME/.local/state}/nafeel-shell/capture/thumbs"
+[ -s "$f" ] || exit 1
+
+if [ "$kind" = shot ]; then
+    dims=$(magick identify -format '%wx%h' "$f[0]" 2>/dev/null | sed 's/x/×/')
+    title="Screenshot saved"
+    body="$name${dims:+ · $dims}${copied:+ · copied}"
+    img="$f"
+    set -- --action=open=Open --action=edit=Edit --action=folder=Folder --action=delete=Delete
+else
+    mkdir -p "$thumbs"
+    thumb="$thumbs/${name%.*}.jpg"
+    secs=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" 2>/dev/null)
+    ffmpeg -y -loglevel error -ss 0.5 -i "$f" -frames:v 1 -vf scale=480:-2 "$thumb" >/dev/null 2>&1 ||
+        ffmpeg -y -loglevel error -i "$f" -frames:v 1 -vf scale=480:-2 "$thumb" >/dev/null 2>&1
+    dur=""
+    if [ -n "$secs" ]; then
+        s=$(printf '%.0f' "$secs")
+        if [ "$s" -ge 3600 ]; then
+            dur=$(printf '%d:%02d:%02d' $((s / 3600)) $((s / 60 % 60)) $((s % 60)))
+        else
+            dur=$(printf '%d:%02d' $((s / 60)) $((s % 60)))
+        fi
+    fi
+    bytes=$(stat -c %s "$f")
+    if [ "$bytes" -ge 1048576 ]; then
+        size=$(awk "BEGIN { printf \"%.1f MB\", $bytes / 1048576 }")
+    else
+        size="$((bytes / 1024 > 0 ? bytes / 1024 : 1)) KB"
+    fi
+    title="Recording saved"
+    body="$name${dur:+ · $dur} · $size"
+    img=$([ -s "$thumb" ] && echo "$thumb")
+    set -- --action=open=Open --action=folder=Folder --action=delete=Delete
+fi
+
+if [ -n "$img" ]; then
+    set -- "$@" --icon="$img" --hint=string:image-path:"$img"
+fi
+action=$(timeout 600 notify-send --app-name="$app" --expire-time=8000 --wait "$@" "$title" "$body")
+
+case "$action" in
+open) xdg-open "$f" ;;
+edit)
+    # The shell's annotator.
+    root=$(dirname "$(dirname "$(readlink -f "$0")")")
+    qs -p "$root/quickshell" ipc call capture request annotate "$f" >/dev/null 2>&1 || xdg-open "$f"
+    ;;
+folder)
+    uri="file://$(printf '%s' "$f" | sed 's/ /%20/g')"
+    gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 \
+        --method org.freedesktop.FileManager1.ShowItems "['$uri']" "" >/dev/null 2>&1 || xdg-open "$(dirname "$f")"
+    ;;
+delete)
+    rm -f "$f" ${thumb:+"$thumb"}
+    notify-send --app-name="$app" --expire-time=4000 "Deleted" "$name"
+    ;;
+esac

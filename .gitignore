@@ -1,0 +1,8 @@
+# Built or downloaded beside the code; not source.
+/native/build/
+/palette-venv/
+/templates/
+/quickshell/PluginModules.qml
+__pycache__/
+*.bak*
+*.pre-*

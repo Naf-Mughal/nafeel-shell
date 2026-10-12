@@ -1,0 +1,84 @@
+#!/bin/sh
+# The login screen: an SDDM theme that is the shell's own lock (cave abode),
+# showing what the shell exports (services/GreeterExport). Built from sddm/
+# and the shell's lock files (shared, not copied by hand).
+#
+#   nafeel-greeter assemble DIR [DATA_DIR] [test]   build the theme into DIR
+#   nafeel-greeter test                             try it in a window
+#                                                   (sddm-greeter --test-mode;
+#                                                   "wrong" fails, any other
+#                                                   password passes)
+#   sudo nafeel-greeter install    install the theme (/usr/share/sddm/themes/
+#                                  nafeel), make /var/lib/nafeel-greeter for
+#                                  the shell's export, and make it SDDM's theme
+#   sudo nafeel-greeter switch     greetd off, SDDM on (from the next boot)
+set -eu
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+lock="$root/quickshell/plugins/lock"
+
+assemble() {
+    out=$1
+    data=${2:-/var/lib/nafeel-greeter}
+    test=${3:-false}
+    rm -rf "$out"
+    mkdir -p "$out/modules/lock/themes/xianxia" "$out/modules/background" "$out/shaders"
+    cp "$root/sddm/Main.qml" "$root/sddm/GreeterContext.qml" "$root/sddm/GreeterHost.qml" "$root/sddm/metadata.desktop" "$out/"
+    sed -e "s|^dataDir=.*|dataDir=$data|" -e "s|^testMode=.*|testMode=$test|" "$root/sddm/theme.conf" >"$out/theme.conf"
+    for f in Glyph HoldArea CaptureImage LockInput LockTheme; do
+        cp "$lock/$f.qml" "$out/modules/lock/"
+    done
+    for f in Xian XianxiaSurface Formation IncenseSticks; do
+        cp "$lock/themes/xianxia/$f.qml" "$out/modules/lock/themes/xianxia/"
+    done
+    # The live wallpaper's player (QtQuick + QtMultimedia only).
+    cp "$root/quickshell/modules/background/VideoLayer.qml" "$out/modules/background/"
+    echo "VideoLayer 1.0 VideoLayer.qml" >"$out/modules/background/qmldir"
+    cp "$root/quickshell/shaders/lock_ink_backdrop.frag.qsb" "$root/quickshell/shaders/lock_ink_dissolve.frag.qsb" "$out/shaders/"
+    # Plain Qt (no Quickshell) needs the types listed, singletons marked.
+    printf '%s\n' "singleton LockTheme 1.0 LockTheme.qml" "Glyph 1.0 Glyph.qml" "HoldArea 1.0 HoldArea.qml" \
+        "CaptureImage 1.0 CaptureImage.qml" "LockInput 1.0 LockInput.qml" >"$out/modules/lock/qmldir"
+    printf '%s\n' "singleton Xian 1.0 Xian.qml" "XianxiaSurface 1.0 XianxiaSurface.qml" "Formation 1.0 Formation.qml" \
+        "IncenseSticks 1.0 IncenseSticks.qml" >"$out/modules/lock/themes/xianxia/qmldir"
+}
+
+case "${1:-}" in
+assemble)
+    assemble "${2:?usage: nafeel-greeter assemble DIR [DATA_DIR] [test]}" "${3:-}" "${4:-false}"
+    ;;
+test)
+    dir="${XDG_RUNTIME_DIR:-/tmp}/nafeel-greeter-test"
+    assemble "$dir" "${XDG_STATE_HOME:-$HOME/.local/state}/nafeel-shell/greeter" true
+    exec sddm-greeter-qt6 --test-mode --theme "$dir"
+    ;;
+install)
+    [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
+    user=${SUDO_USER:?run with sudo from your account}
+    assemble /usr/share/sddm/themes/nafeel /var/lib/nafeel-greeter false
+    chmod -R a+rX /usr/share/sddm/themes/nafeel
+    # The shell writes here (the greeter can't read your home); SDDM reads.
+    mkdir -p /var/lib/nafeel-greeter
+    # What the shell has exported so far, so the first login already shows it.
+    home=$(getent passwd "$user" | cut -d: -f6)
+    [ -d "$home/.local/state/nafeel-shell/greeter" ] && cp -a "$home/.local/state/nafeel-shell/greeter/." /var/lib/nafeel-greeter/
+    chown -R "$user:" /var/lib/nafeel-greeter
+    chmod -R a+rX /var/lib/nafeel-greeter
+    mkdir -p /etc/sddm.conf.d
+    cat >/etc/sddm.conf.d/10-nafeel.conf <<EOF
+# Written by nafeel-greeter install: the shell's lock as the login screen.
+[Theme]
+Current=nafeel
+EOF
+    echo "installed; the shell fills /var/lib/nafeel-greeter within a few seconds"
+    ;;
+switch)
+    [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
+    systemctl disable greetd.service
+    systemctl enable sddm.service
+    echo "greetd off, SDDM on: it takes over at the next boot (or: systemctl stop greetd; systemctl start sddm)"
+    ;;
+*)
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac

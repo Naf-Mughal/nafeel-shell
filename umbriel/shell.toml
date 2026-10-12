@@ -1,0 +1,25 @@
+# Installed by nafeel-shell's install.sh (from umbriel/shell.toml); a rerun replaces it.
+# Included from ~/.config/umbriel/config.toml.
+# The shell's frame: the bar on the left (windows flush against it), a thin
+# border elsewhere.
+[layout.struts]
+left = 52
+top = 14
+right = 14
+bottom = 14
+
+# The shell's window switcher (live previews, most recent first): Alt+Tab
+# opens it on the previous window, letting go of Alt switches. While it's
+# open the shell holds umbriel in the "switcher" submap, so Tab goes to it
+# directly; Ctrl+Alt+Escape leaves that submap if the shell ever can't.
+[keybinds]
+"Alt+Tab" = { action = "spawn:shell-msg switch next", allow_when_inhibited = true }
+# The dashboard, and the desktop: an empty workspace, and back again.
+"Mod+Shift+D" = "spawn:shell-msg dashboard"
+"Mod+D" = "spawn:shell-msg desktop"
+"Alt+Shift+Tab" = { action = "spawn:shell-msg switch prev", allow_when_inhibited = true }
+"Mod+Tab" = { action = "spawn:sh -c 'umbriel msg overview-open; umbriel msg window-focus-next'", allow_when_inhibited = true }
+"Ctrl+Alt+Escape" = { action = "submap:reset", submap = "switcher" }
+
+# The frosted-paper blur is the shell's own fragment (plugins/shell-frost.toml,
+# written by the shell as its paper setting changes).

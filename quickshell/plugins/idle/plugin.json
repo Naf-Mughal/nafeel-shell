@@ -1,0 +1,9 @@
+{
+  "id": "idle",
+  "name": "Idle",
+  "gloss": "入定",
+  "icon": "bedtime",
+  "description": "Dim, lock, turn the screen off and sleep when you step away, plugged in and on battery (the Power & idle page), with a warning fade; held off while an app keeps the screen awake.",
+  "default": true,
+  "root": "Plugin.qml"
+}

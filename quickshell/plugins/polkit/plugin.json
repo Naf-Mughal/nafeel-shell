@@ -1,0 +1,20 @@
+{
+  "id": "polkit",
+  "name": "Authentication",
+  "gloss": "授权",
+  "icon": "admin_panel_settings",
+  "description": "The shell's polkit agent: password prompts for admin actions, out of the bottom centre. Off: no agent, so such actions can't ask.",
+  "default": true,
+  "root": "Plugin.qml",
+  "drawers": [
+    {
+      "name": "polkit",
+      "entry": "PolkitPrompt.qml",
+      "edge": "bottom",
+      "width": 500,
+      "height": "content",
+      "openWhen": "active",
+      "modal": true
+    }
+  ]
+}

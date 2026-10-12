@@ -1,0 +1,21 @@
+{
+  "id": "osd",
+  "name": "On-screen display",
+  "gloss": "提示",
+  "icon": "picture_in_picture_alt",
+  "description": "A pill out of the top bar when the volume, brightness or a toggle changes; inside the dashboard's and the wallpaper picker's headings while they're open.",
+  "default": true,
+  "root": "Plugin.qml",
+  "drawers": [
+    {
+      "name": "osd",
+      "entry": "OsdView.qml",
+      "edge": "top",
+      "width": "content",
+      "height": "content",
+      "padding": 0,
+      "openWhen": "shown",
+      "yieldTo": ["dashboard", "wallpapers"]
+    }
+  ]
+}

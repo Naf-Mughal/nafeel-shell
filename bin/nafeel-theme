@@ -1,0 +1,1108 @@
+#!/usr/bin/env python3
+"""nafeel-theme: the shell's theme engine.
+
+One token document, every surface. The palette step (wallpaper-palette's
+extract.py + pigment.py) gives the Material scheme and the wallpaper's
+pigments; this turns them, with the shell's settings, into theme.json (the
+shell reads it) and renders the app templates from the same tokens.
+
+Built on all three engines it replaces or learned from:
+  Noctalia   the template language (matugen-compatible: colors.<role>.<mode>.
+             <format>, filters), its template manifests (template.toml:
+             input/output paths, requires_path, post hooks, the KDE colour
+             scheme merge) and its built-in templates (MIT, theme/templates/
+             builtin), so its community templates work unchanged
+  Ryoku      core templates always render; app templates sit behind one
+             switch ("apps"); kdeglobals is merged, never replaced
+  Caelestia  open terminals are recoloured live (OSC sequences to every pty),
+             `{{ $role }}` templates, a user template dir, one post hook
+
+and the shell's own tokens on top, so a template can follow the shell rather
+than only Material roles:
+  colors.paper_0..4 / paper   the sheets (surface container levels / surface)
+  colors.ink / ink_sub / ink_faint / rule      text and hairlines
+  colors.lead / pop / second  the wallpaper's real pigments (accent roles
+                              when the wallpaper has none)
+  {{ alpha.base }} {{ alpha.layers }}         the frosted paper's opacity
+  {{ alpha.apps }} {{ alpha.gtk }}            apps' window opacity (the Theme
+                                              page; gtk is 1 unless GTK apps
+                                              are made translucent too)
+  {{ radius.control|card|panel|frame }}       the corner radius setting
+  {{ font.sans|serif|mono|cjk }}              the type
+  short forms: {{ paper.2.hex }}, {{ ink.sub.rgba }}, {{ accent.lead.hex }}
+  a colour filter takes a token as its number: | set_alpha alpha.base
+
+Usage:
+  nafeel-theme update  [--wallpaper PATH] [--force]   the whole step: palette
+                       (only when the wallpaper or variant changed), build, apply
+  nafeel-theme update --stage --wallpaper PATH   make theme-next.json only (the
+                       shell stages a wallpaper while its picker is open)
+  nafeel-theme commit  theme-next.json becomes theme.json; apply
+  nafeel-theme build   [--scheme FILE] [--mode dark|light]   write theme.json
+  nafeel-theme apply   [--force] [--only ID ...] [--dry-run DIR]
+  nafeel-theme render  TEMPLATE [--mode dark|light]           print one
+  nafeel-theme list   [--json]                               what's known
+  nafeel-theme catalog                     the community catalog (JSON, cached a day)
+
+Files:
+  ~/.local/state/nafeel-shell/theme.json        the token document
+  ~/.config/nafeel-shell/theme.toml             which templates, live options
+  ~/.config/nafeel-shell/templates/             your own (Caelestia-style):
+                                                 every file is rendered to
+                                                 ~/.local/state/nafeel-shell/
+                                                 themes/<name>
+  ~/.local/share/nafeel-shell/templates/community/<id>   community templates
+"""
+
+from __future__ import annotations
+
+import argparse
+import colorsys
+import fcntl
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+HOME = Path.home()
+XDG_CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or HOME / ".config")
+XDG_DATA = Path(os.environ.get("XDG_DATA_HOME") or HOME / ".local/share")
+XDG_STATE = Path(os.environ.get("XDG_STATE_HOME") or HOME / ".local/state")
+XDG_CACHE = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache")
+
+ROOT = Path(__file__).resolve().parent.parent  # the plugin
+BUILTIN = ROOT / "theme/templates/builtin"
+STATE = XDG_STATE / "nafeel-shell"
+THEME_JSON = STATE / "theme.json"
+THEME_NEXT = STATE / "theme-next.json"
+SCHEME_JSON = STATE / "wallpaper-scheme.json"
+# The shell's settings (its Settings panel); the plugin used to write them
+# to the state dir.
+SETTINGS_JSON = XDG_CONFIG / "nafeel-shell/settings.json"
+OLD_SETTINGS_JSON = STATE / "settings.json"
+CONFIG = XDG_CONFIG / "nafeel-shell/theme.toml"
+USER_TEMPLATES = XDG_CONFIG / "nafeel-shell/templates"
+USER_OUT = STATE / "themes"
+COMMUNITY = XDG_DATA / "nafeel-shell/templates/community"
+APPLIED = STATE / "theme-applied.json"
+PALETTE = ROOT / "theme/palette/extract.py"
+VENV = XDG_DATA / "nafeel-shell/palette-venv"
+OLD_VENV = XDG_STATE / "noctalia/plugins/data/nafeel/wallpaper-palette/venv"
+PALETTE_CACHE = XDG_CACHE / "nafeel-shell/palette"
+PALETTE_KEY = STATE / "palette-key.json"
+
+DEFAULT_CONFIG = """\
+# nafeel-theme: which templates render from the shell's theme.
+#
+# core  always (the desktop itself: terminal, toolkits, compositor)
+# apps  third-party apps; all of them off with apps = false
+# Ids are Noctalia's built-in ones (theme/templates/builtin/builtin.toml) and
+# community template ids (~/.local/share/nafeel-shell/templates/community).
+
+mode = "dark"          # dark | light
+# The palette from the wallpaper (theme/palette/extract.py): pigment |
+# pigment-vibrant | pigment-expressive | pigment-fruitsalad | pigment-soft |
+# auto | tonalspot | vibrant | expressive | fidelity | content | fruitsalad |
+# rainbow | neutral | monochrome
+variant = "pigment"
+flavour = "default"    # default | hard (Caelestia's terminal colours)
+contrast = 0.0         # -1 .. 1
+apps = true
+# Recolour open terminals at once (OSC 4/10/11/12 to every pty you own).
+live_terminals = true
+# Run after every apply that changed something (THEME_JSON is in its env).
+post_hook = ""
+
+core = {core}
+community = {community}
+"""
+
+# The Settings panel's Theme page (settings.json key -> theme.toml key).
+SETTING_KEYS = {
+    "theme.mode": "mode",
+    "theme.variant": "variant",
+    "theme.flavour": "flavour",
+    "theme.contrast": "contrast",
+    "theme.apps": "apps",
+    "theme.liveTerminals": "live_terminals",
+    "theme.core": "core",
+    "theme.community": "community",
+}
+
+# The community catalog (Noctalia's: the same templates, the same files).
+CATALOG_URL = "https://api.noctalia.dev/templates"
+CATALOG_CACHE = XDG_CACHE / "nafeel-shell/community-catalog.json"
+
+CORE_DEFAULT = ["foot", "gtk3", "gtk4", "qt", "kcolorscheme", "umbriel", "btop", "cava"]
+
+# The shell's settings, as the shell reads them (config/Tokens.qml).
+SHAPES = {
+    "tight": {"frame": 8, "panel": 4, "card": 4, "control": 4, "morph": 8},
+    "compact": {"frame": 12, "panel": 6, "card": 6, "control": 6, "morph": 12},
+    "restrained": {"frame": 16, "panel": 12, "card": 10, "control": 8, "morph": 14},
+    "relaxed": {"frame": 20, "panel": 16, "card": 14, "control": 12, "morph": 18},
+    "generous": {"frame": 24, "panel": 24, "card": 18, "control": 16, "morph": 24},
+}
+PAPER_ALPHA = {"90": 0.9, "85": 0.85, "80": 0.8, "solid": 1.0}
+FONTS = {"sans": "Google Sans Flex", "serif": "Noto Serif", "cjk": "Noto Serif CJK SC", "mono": "JetBrainsMono Nerd Font"}
+
+ANSI = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+
+
+def log(*a):
+    print("nafeel-theme:", *a, file=sys.stderr)
+
+
+# ── Colour ──────────────────────────────────────────────────────────────────
+
+
+class Colour:
+    __slots__ = ("r", "g", "b", "a")
+
+    def __init__(self, r: int, g: int, b: int, a: float = 1.0):
+        self.r, self.g, self.b, self.a = r, g, b, a
+
+    @staticmethod
+    def hex(s: str) -> "Colour":
+        s = s.strip().lstrip("#")
+        if len(s) == 3:
+            s = "".join(c * 2 for c in s)
+        if not re.fullmatch(r"[0-9a-fA-F]{6}([0-9a-fA-F]{2})?", s):
+            raise ValueError(f"not a colour: {s!r}")
+        a = int(s[6:8], 16) / 255 if len(s) == 8 else 1.0
+        return Colour(int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16), a)
+
+    def to_hex(self) -> str:
+        return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
+
+    def hsl(self) -> tuple[float, float, float]:
+        h, l, s = colorsys.rgb_to_hls(self.r / 255, self.g / 255, self.b / 255)
+        return h * 360, s, l
+
+    @staticmethod
+    def from_hsl(h: float, s: float, l: float, a: float = 1.0) -> "Colour":
+        r, g, b = colorsys.hls_to_rgb((h % 360) / 360, l, s)
+        return Colour(round(r * 255), round(g * 255), round(b * 255), a)
+
+    def luminance(self) -> float:
+        def ch(c):
+            c /= 255
+            return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+        return 0.2126 * ch(self.r) + 0.7152 * ch(self.g) + 0.0722 * ch(self.b)
+
+    def mix(self, other: "Colour", t: float) -> "Colour":
+        return Colour(*(round(x + (y - x) * t) for x, y in ((self.r, other.r), (self.g, other.g), (self.b, other.b))), self.a)
+
+
+def dot(x: float) -> str:
+    """A decimal the way Noctalia prints one: no trailing zeros."""
+    s = f"{x:.4f}".rstrip("0").rstrip(".")
+    return s or "0"
+
+
+def fmt(c: Colour, form: str) -> str:
+    h, s, l = c.hsl()
+    match form:
+        case "hex":
+            return c.to_hex()
+        case "hex_stripped":
+            return c.to_hex()[1:]
+        case "hex_alpha" | "hexa":
+            return c.to_hex() + f"{round(c.a * 255):02x}"
+        case "rgb":
+            return f"rgb({c.r}, {c.g}, {c.b})"
+        case "rgb_csv":
+            return f"{c.r},{c.g},{c.b}"
+        case "rgba":
+            return f"rgba({c.r}, {c.g}, {c.b}, {dot(c.a)})"
+        case "hsl":
+            return f"hsl({int(h)}, {int(s * 100)}%, {int(l * 100)}%)"
+        case "hsla":
+            return f"hsla({int(h)}, {int(s * 100)}%, {int(l * 100)}%, {dot(c.a)})"
+        case "hue":
+            return str(int(h))
+        case "saturation":
+            return str(int(s * 100))
+        case "lightness":
+            return str(int(l * 100))
+        case "red":
+            return str(c.r)
+        case "green":
+            return str(c.g)
+        case "blue":
+            return str(c.b)
+        case "alpha":
+            return dot(c.a)
+    raise KeyError(form)
+
+
+FORMATS = {"hex", "hex_stripped", "hex_alpha", "hexa", "rgb", "rgb_csv", "rgba", "hsl", "hsla", "hue", "saturation", "lightness", "red", "green", "blue", "alpha"}
+
+
+def colour_filter(c: Colour, name: str, arg: str | None, number) -> Colour:
+    """Noctalia's colour filters, with the same units (percent for l/s)."""
+    h, s, l = c.hsl()
+    if name == "grayscale":
+        g = round(0.299 * c.r + 0.587 * c.g + 0.114 * c.b)
+        return Colour(g, g, g, c.a)
+    if name == "invert":
+        return Colour(255 - c.r, 255 - c.g, 255 - c.b, c.a)
+    if name in ("blend", "harmonize"):
+        parts = (arg or "").split()
+        target = Colour.hex(parts[0]) if parts and parts[0].lstrip("#") else c
+        th = target.hsl()[0]
+        diff = (th - h + 540) % 360 - 180
+        if name == "blend":
+            amount = max(0.0, min(1.0, number(parts[1]) if len(parts) > 1 else 0.0))
+            nh = h + diff * amount
+        else:
+            nh = h + max(-15.0, min(15.0, diff * 0.5))
+        return Colour.from_hsl(nh, s, l, c.a)
+    n = number(arg)
+    clamp = lambda x: max(0.0, min(1.0, x))  # noqa: E731
+    match name:
+        case "set_alpha" | "alpha":
+            return Colour(c.r, c.g, c.b, clamp(n))
+        case "set_lightness":
+            return Colour.from_hsl(h, s, clamp(n / 100), c.a)
+        case "set_hue":
+            return Colour.from_hsl(n, s, l, c.a)
+        case "rotate_hue":
+            return Colour.from_hsl(h + n, s, l, c.a)
+        case "set_saturation":
+            return Colour.from_hsl(h, clamp(n / 100), l, c.a)
+        case "lighten":
+            return Colour.from_hsl(h, s, clamp(l + n / 100), c.a)
+        case "darken":
+            return Colour.from_hsl(h, s, clamp(l - n / 100), c.a)
+        case "saturate":
+            return Colour.from_hsl(h, clamp(s + n / 100), l, c.a)
+        case "desaturate":
+            return Colour.from_hsl(h, clamp(s - n / 100), l, c.a)
+        case "auto_lightness":
+            return Colour.from_hsl(h, s, clamp(l + n / 100 if l < 0.5 else l - n / 100), c.a)
+        case "set_red":
+            return Colour(max(0, min(255, round(n))), c.g, c.b, c.a)
+        case "set_green":
+            return Colour(c.r, max(0, min(255, round(n))), c.b, c.a)
+        case "set_blue":
+            return Colour(c.r, c.g, max(0, min(255, round(n))), c.a)
+        case "mix":
+            # nafeel: mix toward another colour or token: | mix paper_0 0.3
+            raise ValueError("mix needs the token table")
+    raise KeyError(name)
+
+
+# ── The token document ─────────────────────────────────────────────────────
+
+
+def snake(name: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def contrast(a: Colour, b: Colour) -> float:
+    la, lb = sorted((a.luminance(), b.luminance()), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def readable_on(c: Colour, bg: Colour, ratio: float = 3.0) -> Colour:
+    """Nudge `c`'s lightness until it reads on `bg` (terminal ANSI colours)."""
+    h, s, l = c.hsl()
+    up = bg.luminance() < 0.5
+    out = c
+    for _ in range(40):
+        if contrast(out, bg) >= ratio:
+            break
+        l = min(1.0, l + 0.02) if up else max(0.0, l - 0.02)
+        out = Colour.from_hsl(h, s, l)
+    return out
+
+
+def mode_tokens(scheme: dict, pigment: dict | None, dark: bool) -> dict[str, str]:
+    """Every colour token for one mode: the Material roles (matugen's snake
+    names), what Noctalia adds (hover, terminal_*), and the shell's own."""
+    m = {snake(k): v for k, v in scheme.items() if isinstance(v, str) and v.startswith("#")}
+    t = {k: v for k, v in m.items() if not k.startswith("term") and not k.endswith("palette_key_color")}
+    c = lambda k: Colour.hex(t[k])  # noqa: E731
+
+    t["source_color"] = m.get("primary_palette_key_color", t["primary"])
+    # Noctalia's extra roles: hover is the tertiary, as its palettes map it.
+    t["hover"] = t["tertiary"]
+    t["on_hover"] = t["on_tertiary"]
+
+    # Terminal: the scheme's harmonized 16 (Caelestia's), else synthesized as
+    # Noctalia does it (roles, kept readable on the background).
+    bg, fg = c("surface"), c("on_surface")
+    t["terminal_foreground"] = t["on_surface"]
+    t["terminal_background"] = t["surface"]
+    t["terminal_cursor"] = t["secondary"]
+    t["terminal_cursor_text"] = t["on_secondary"]
+    t["terminal_selection_bg"] = t["secondary"]
+    t["terminal_selection_fg"] = t["on_secondary"]
+    if all(f"term{i}" in m for i in range(16)):
+        for i, name in enumerate(ANSI):
+            t[f"terminal_normal_{name}"] = m[f"term{i}"]
+            t[f"terminal_bright_{name}"] = m[f"term{i + 8}"]
+    else:
+        roles = ["surface_variant", "error", "primary", "secondary", "tertiary", "primary_fixed_dim", "secondary_fixed_dim", "on_surface"]
+        for name, role in zip(ANSI, roles):
+            col = c(role) if name in ("black", "white") else readable_on(c(role), bg)
+            t[f"terminal_normal_{name}"] = col.to_hex()
+            t[f"terminal_bright_{name}"] = (c("outline") if name == "black" else col).to_hex()
+
+    # ── The shell's tokens ──
+    levels = ["surface_container_lowest", "surface_container_low", "surface_container", "surface_container_high", "surface_container_highest"]
+    for i, role in enumerate(levels):
+        t[f"paper_{i}"] = t[role]
+    t["paper"] = t["surface"]
+    t["ink"] = t["on_surface"]
+    t["ink_sub"] = t["on_surface_variant"]
+    t["ink_faint"] = t["outline"]
+    t["rule"] = t["outline_variant"]
+    # The wallpaper's real pigments, when it has them; else the accent roles.
+    pig = pigment or {}
+    for key, role in (("lead", "primary"), ("pop", "tertiary"), ("second", "secondary")):
+        val = pig.get(key)
+        hexv = val.get("hex") if isinstance(val, dict) else val if isinstance(val, str) else None
+        t[key] = hexv if isinstance(hexv, str) and hexv.startswith("#") else t[role]
+    return t
+
+
+def load_settings() -> dict:
+    for path in (SETTINGS_JSON, OLD_SETTINGS_JSON):
+        try:
+            return json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+    return {}
+
+
+def load_config() -> dict:
+    if not CONFIG.exists():
+        CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        core, community = adopt_noctalia_ids()
+        CONFIG.write_text(DEFAULT_CONFIG.format(core=json.dumps(core), community=json.dumps(community)))
+        log(f"wrote {CONFIG} (templates taken from Noctalia's settings)")
+    try:
+        cfg = tomllib.loads(CONFIG.read_text())
+    except tomllib.TOMLDecodeError as e:
+        log(f"bad {CONFIG}: {e}")
+        cfg = {}
+    # The shell's Theme settings page wins over the file (the template lists
+    # stay here).
+    settings = load_settings()
+    for key, name in SETTING_KEYS.items():
+        if key in settings:
+            cfg[name] = settings[key]
+    return cfg
+
+
+def adopt_noctalia_ids() -> tuple[list[str], list[str]]:
+    """First run: the templates Noctalia had on, so nothing goes unthemed."""
+    try:
+        cfg = tomllib.loads((XDG_STATE / "noctalia/settings.toml").read_text())
+        tpl = cfg.get("theme", {}).get("templates", {})
+        return list(tpl.get("builtin_ids", CORE_DEFAULT)), list(tpl.get("community_ids", []))
+    except (OSError, tomllib.TOMLDecodeError):
+        return list(CORE_DEFAULT), []
+
+
+def build(scheme_path: Path, mode: str | None, out: Path = THEME_JSON, wallpaper: str | None = None) -> dict:
+    scheme = json.loads(scheme_path.read_text())
+    settings = load_settings()
+    cfg = load_config()
+    mode = mode or cfg.get("mode") or "dark"
+    if mode == "auto":
+        mode = "light" if is_day() else "dark"
+    pigment = scheme.get("pigment") or {}
+    apps_alpha = max(0.3, min(1.0, float(settings.get("theme.appOpacity", 78)) / 100))
+    paper = PAPER_ALPHA.get(str(settings.get("paper", "85")), 0.85)
+    shape = SHAPES.get(settings.get("radius", "restrained"), SHAPES["restrained"])
+    doc = {
+        "version": 1,
+        "mode": mode,
+        "wallpaper": wallpaper or _current_wallpaper(),
+        "variant": scheme.get("variant", ""),
+        "seed": scheme.get("seed", ""),
+        "dark": mode_tokens(scheme["dark"], pigment, True),
+        "light": mode_tokens(scheme["light"], pigment, False),
+        "alpha": {"base": paper, "layers": min(1.0, paper + 0.05), "solid": paper >= 1.0, "apps": apps_alpha,
+                  "gtk": apps_alpha if settings.get("theme.gtkTranslucent", False) else 1.0},
+        "radius": dict(shape),
+        "font": dict(FONTS),
+        "pigment": pigment,
+    }
+    write_if_changed(out, json.dumps(doc, indent=2) + "\n")
+    return doc
+
+
+def is_day() -> bool:
+    """Auto mode: between today's sunrise and sunset (the shell's weather
+    cache), else 07:00..19:00."""
+    import datetime as dt
+
+    now = dt.datetime.now()
+    try:
+        w = json.loads((XDG_CACHE / "nafeel-shell/weather.json").read_text())
+        today = (w.get("forecast_days") or [{}])[0]
+        up = dt.datetime.fromisoformat(today["sunrise_iso"])
+        down = dt.datetime.fromisoformat(today["sunset_iso"])
+        if up.date() == now.date():
+            return up <= now < down
+    except (OSError, ValueError, KeyError, IndexError, TypeError):
+        pass
+    return 7 <= now.hour < 19
+
+
+def _current_wallpaper() -> str:
+    try:
+        return json.loads((STATE / "wallpaper.json").read_text()).get("path", "")
+    except (OSError, ValueError):
+        return ""
+
+
+def load_doc() -> dict:
+    return json.loads(THEME_JSON.read_text())
+
+
+# ── Templates ──────────────────────────────────────────────────────────────
+
+EXPR = re.compile(r"\{\{\s*(.*?)\s*\}\}", re.S)
+
+
+class Renderer:
+    def __init__(self, doc: dict, mode: str | None = None, config_dir: Path | None = None):
+        self.doc = doc
+        self.mode = mode or doc.get("mode", "dark")
+        self.config_dir = config_dir
+        self.errors: list[str] = []
+
+    # A number argument: a literal, or a scalar token (alpha.base, radius.card).
+    def number(self, arg) -> float:
+        if arg is None:
+            return 0.0
+        arg = str(arg).strip().strip("'\"")
+        try:
+            return float(arg)
+        except ValueError:
+            v = self.scalar(arg)
+            if v is None:
+                raise ValueError(f"not a number: {arg}")
+            return float(v)
+
+    def scalar(self, path: str):
+        parts = path.split(".")
+        if parts[0] in ("alpha", "radius", "font") and len(parts) == 2:
+            return self.doc.get(parts[0], {}).get(parts[1])
+        return None
+
+    def colour(self, role: str, mode: str) -> Colour | None:
+        m = self.mode if mode == "default" else mode
+        v = self.doc.get(m, {}).get(role)
+        return Colour.hex(v) if v else None
+
+    def eval(self, expr: str) -> str:
+        parts = [p.strip() for p in expr.split("|")]
+        head, filters = parts[0], parts[1:]
+
+        # Caelestia: {{ $primary }} (camelCase or snake) -> "rrggbb"
+        if head.startswith("$"):
+            col = self.colour(snake(head[1:]), "default")
+            if col is None:
+                raise KeyError(head)
+            return fmt(col, "hex_stripped")
+
+        match head:
+            case "mode":
+                return self.mode
+            case "config_dir":
+                return str(self.config_dir or "")
+            case "wallpaper" | "image":
+                return self.doc.get("wallpaper", "")
+            case "variant":
+                return str(self.doc.get("variant", ""))
+            case "is_dark_mode":
+                return "true" if self.mode == "dark" else "false"
+
+        sc = self.scalar(head)
+        if sc is not None:
+            return dot(sc) if isinstance(sc, float) else str(sc)
+
+        bits = head.split(".")
+        role = mode = form = None
+        if bits[0] == "colors" and len(bits) == 4:
+            role, mode, form = bits[1], bits[2], bits[3]
+        elif bits[0] == "colors" and len(bits) == 3:
+            role, mode, form = bits[1], "default", bits[2]
+        # nafeel short forms: paper.2.hex, ink.sub.rgba, accent.lead.hex, paper.hex, ink.hex
+        elif bits[0] == "paper" and len(bits) in (2, 3):
+            role = f"paper_{bits[1]}" if len(bits) == 3 else "paper"
+            mode, form = "default", bits[-1]
+        elif bits[0] == "ink" and len(bits) in (2, 3):
+            role = f"ink_{bits[1]}" if len(bits) == 3 else "ink"
+            mode, form = "default", bits[-1]
+        elif bits[0] == "accent" and len(bits) == 3:
+            role, mode, form = bits[1], "default", bits[2]
+        if role is None or form not in FORMATS:
+            raise KeyError(head)
+        col = self.colour(role, mode)
+        if col is None:
+            raise KeyError(head)
+        for f in filters:
+            name, _, arg = f.partition(" ")
+            if name == "mix":
+                a = arg.split()
+                other = self.colour(a[0], "default") if not a[0].startswith("#") else Colour.hex(a[0])
+                col = col.mix(other, self.number(a[1]) if len(a) > 1 else 0.5)
+            else:
+                col = colour_filter(col, name, arg or None, self.number)
+        return fmt(col, form)
+
+    def render(self, text: str) -> str:
+        def sub(m: re.Match) -> str:
+            try:
+                return self.eval(m.group(1))
+            except (KeyError, ValueError) as e:
+                self.errors.append(f"{{{{ {m.group(1)} }}}}: {e}")
+                return m.group(0)
+
+        return EXPR.sub(sub, text)
+
+
+def expand(p: str) -> Path:
+    env = dict(os.environ)
+    env.setdefault("XDG_CONFIG_HOME", str(XDG_CONFIG))
+    env.setdefault("XDG_DATA_HOME", str(XDG_DATA))
+    env.setdefault("XDG_STATE_HOME", str(XDG_STATE))
+    env.setdefault("XDG_CACHE_HOME", str(XDG_CACHE))
+    p = re.sub(r"\$\{?([A-Z_]+)\}?", lambda m: env.get(m.group(1), m.group(0)), p)
+    return Path(os.path.expanduser(p))
+
+
+def write_if_changed(path: Path, text: str) -> bool:
+    try:
+        if path.read_text() == text:
+            return False
+    except (OSError, UnicodeDecodeError):
+        pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink():
+        path.unlink()
+    tmp = path.with_name(f".{path.name}.nafeel-tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+    return True
+
+
+class Template:
+    """One [templates.<name>] entry of a manifest."""
+
+    def __init__(self, tid: str, name: str, entry: dict, base: Path):
+        self.id, self.name, self.entry, self.base = tid, name, entry, base
+
+    def outputs(self, r: Renderer) -> list[Path]:
+        out = self.entry.get("output_path")
+        if out is None and "output_path_dynamic" in self.entry:
+            cmd = r.render(self.entry["output_path_dynamic"])
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            out = [line for line in res.stdout.splitlines() if line.strip()]
+        if isinstance(out, str):
+            out = [out]
+        # Relative outputs land next to the manifest (papirus-icons does that).
+        return [p if p.is_absolute() else self.base / p for p in (expand(o) for o in out or [])]
+
+    def wanted(self) -> bool:
+        req = self.entry.get("requires_path")
+        return req is None or expand(req).exists()
+
+    # Set for entries that share their input with others in the manifest (one
+    # theme for many clients, as Discord's): an output only goes where that
+    # client is already set up, so absent apps get no folders (Noctalia's rule).
+    gated = False
+
+
+def client_root(out: Path) -> Path | None:
+    """The app's own config dir an output lives in: a flatpak's
+    ~/.var/app/<id>/config, or the folder holding its themes/ dir."""
+    parts = out.parts
+    for i in range(len(parts) - 3):
+        if parts[i] == ".var" and parts[i + 1] == "app" and parts[i + 3] == "config":
+            return Path(*parts[: i + 4])
+    cur = out.parent
+    while cur != cur.parent:
+        if cur.name == "themes":
+            parent = cur.parent
+            if "extensions" in (parent.name, parent.parent.name):
+                walk = cur
+                while walk.name != "extensions" and walk != walk.parent:
+                    walk = walk.parent
+                if walk.name == "extensions":
+                    return walk.parent
+            return parent
+        cur = cur.parent
+    return None
+
+
+def manifest_templates(tid: str, manifest: Path, only: set[str] | None = None) -> list[Template]:
+    try:
+        root = tomllib.loads(manifest.read_text())
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        log(f"{tid}: bad manifest {manifest}: {e}")
+        return []
+    out = []
+    for name, entry in (root.get("templates") or {}).items():
+        if only is not None and name not in only:
+            continue
+        out.append(Template(tid, name, entry, manifest.parent))
+    inputs: dict[str, int] = {}
+    for t in out:
+        inputs[t.entry.get("input_path", "")] = inputs.get(t.entry.get("input_path", ""), 0) + 1
+    for t in out:
+        t.gated = inputs.get(t.entry.get("input_path", ""), 0) > 1
+    return out
+
+
+def builtin_templates(ids: list[str]) -> list[Template]:
+    return manifest_templates("builtin", BUILTIN / "builtin.toml", set(ids))
+
+
+def community_templates(ids: list[str]) -> list[Template]:
+    out = []
+    for cid in ids:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", cid):
+            log(f"skipping odd community id {cid!r}")
+            continue
+        manifest = COMMUNITY / cid / "template.toml"
+        if not manifest.exists():
+            adopt_community(cid)
+        if not manifest.exists():
+            download_community(cid)
+        if manifest.exists():
+            out += manifest_templates(cid, manifest)
+        else:
+            log(f"community template {cid!r} isn't installed ({COMMUNITY / cid})")
+    return out
+
+
+def adopt_community(cid: str) -> None:
+    """Take a community template Noctalia already downloaded."""
+    src = XDG_STATE / "noctalia/community-templates" / cid
+    if (src / "template.toml").exists():
+        import shutil
+
+        shutil.copytree(src, COMMUNITY / cid, dirs_exist_ok=True)
+        log(f"took community template {cid!r} from Noctalia's cache")
+
+
+def fetch(url: str, timeout: int = 20) -> bytes:
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"User-Agent": "nafeel-theme"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def catalog(max_age: int = 86400) -> list[dict]:
+    """The community catalog: [{name, category, files: [{name, md5, mode}]}],
+    cached for a day (the cache is used when offline)."""
+    import time
+
+    try:
+        if time.time() - CATALOG_CACHE.stat().st_mtime < max_age:
+            return json.loads(CATALOG_CACHE.read_text())
+    except (OSError, ValueError):
+        pass
+    try:
+        data = json.loads(fetch(CATALOG_URL))
+        if isinstance(data, list):
+            CATALOG_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            CATALOG_CACHE.write_text(json.dumps(data))
+            return data
+    except (OSError, ValueError) as e:
+        log(f"community catalog: {e}")
+    try:
+        return json.loads(CATALOG_CACHE.read_text())
+    except (OSError, ValueError):
+        return []
+
+
+def download_community(cid: str) -> None:
+    """Install a community template from the catalog: every file, checked
+    against its md5, with its mode; nothing lands unless all of them do."""
+    import hashlib
+    import shutil
+    import tempfile
+    import urllib.parse
+
+    entry = next((e for e in catalog() if (e.get("name") or e.get("id")) == cid), None)
+    if not entry:
+        log(f"community template {cid!r} isn't in the catalog")
+        return
+    tmp = Path(tempfile.mkdtemp(prefix=f"nafeel-theme-{cid}-"))
+    try:
+        for f in entry.get("files", []):
+            name = f.get("name", "")
+            if not name or name.startswith("/") or ".." in Path(name).parts:
+                raise ValueError(f"odd file name {name!r}")
+            data = fetch(f"{CATALOG_URL}/{urllib.parse.quote(cid)}/{urllib.parse.quote(name)}")
+            if f.get("md5") and hashlib.md5(data).hexdigest() != f["md5"]:
+                raise ValueError(f"{name}: checksum doesn't match")
+            dest = tmp / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+            if f.get("mode"):
+                dest.chmod(int(f["mode"], 8) & 0o777)
+        if not (tmp / "template.toml").exists():
+            raise ValueError("no template.toml")
+        target = COMMUNITY / cid
+        if target.exists():
+            shutil.rmtree(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(tmp), str(target))
+        target.chmod(0o755)
+        log(f"installed community template {cid!r}")
+    except (OSError, ValueError) as e:
+        log(f"community template {cid!r}: {e}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def builtin_catalog() -> list[dict]:
+    try:
+        cat = tomllib.loads((BUILTIN / "builtin.toml").read_text()).get("catalog", {})
+    except (OSError, tomllib.TOMLDecodeError):
+        return []
+    return [{"id": k, "name": v.get("name", k), "category": v.get("category", "")} for k, v in cat.items()]
+
+
+def user_templates() -> list[Template]:
+    if not USER_TEMPLATES.is_dir():
+        return []
+    return [
+        Template("user", f.name, {"input_path": str(f), "output_path": str(USER_OUT / f.name)}, USER_TEMPLATES)
+        for f in sorted(USER_TEMPLATES.iterdir())
+        if f.is_file() and not f.name.startswith(".")
+    ]
+
+
+# ── Applying ───────────────────────────────────────────────────────────────
+
+
+def merge_kdeglobals(scheme: Path) -> None:
+    """Ryoku / Noctalia: merge the colour scheme's groups into kdeglobals,
+    keeping everything else the user has there; then tell KDE apps."""
+    def parse(text: str):
+        prefix, sections, cur = [], [], None
+        for line in text.splitlines():
+            m = re.match(r"^\[(.+)\]\s*$", line)
+            if m:
+                cur = [line, []]
+                sections.append(cur)
+            elif cur is None:
+                prefix.append(line)
+            else:
+                cur[1].append(line)
+        return prefix, sections
+
+    target = XDG_CONFIG / "kdeglobals"
+    try:
+        old = target.read_text()
+    except OSError:
+        old = ""
+    prefix, sections = parse(old)
+    _, new = parse(scheme.read_text())
+    index = {h: s for h, s in sections}
+    for header, lines in new:
+        if header not in index:
+            body: list[str] = []
+            sections.append([header, body])
+            index[header] = body
+        body = index[header]
+        for line in lines:
+            if "=" not in line:
+                continue
+            key = line.split("=", 1)[0]
+            for i, existing in enumerate(body):
+                if existing.split("=", 1)[0] == key:
+                    body[i] = line
+                    break
+            else:
+                while body and not body[-1].strip():
+                    body.pop()
+                body.append(line)
+    out = "\n".join(prefix)
+    for header, lines in sections:
+        while lines and not lines[-1].strip():
+            lines.pop()
+        out += ("\n\n" if out else "") + header + ("\n" + "\n".join(lines) if lines else "")
+    if write_if_changed(target, out.lstrip("\n") + "\n"):
+        subprocess.run(
+            ["gdbus", "emit", "--session", "--object-path", "/KGlobalSettings", "--signal", "org.kde.KGlobalSettings.notifyChange", "0", "0"],
+            capture_output=True,
+            timeout=5,
+        )
+
+
+def osc_sequences(doc: dict, mode: str) -> str:
+    """Caelestia: the terminal palette as OSC escapes, for open terminals."""
+    t = doc[mode]
+
+    def seq(c: str, *i: int) -> str:
+        c = c.lstrip("#")
+        return f"\x1b]{';'.join(map(str, i))};rgb:{c[0:2]}/{c[2:4]}/{c[4:6]}\x1b\\"
+
+    out = seq(t["terminal_foreground"], 10) + seq(t["terminal_background"], 11) + seq(t["terminal_cursor"], 12)
+    out += seq(t["terminal_selection_bg"], 17)
+    for i, name in enumerate(ANSI):
+        out += seq(t[f"terminal_normal_{name}"], 4, i) + seq(t[f"terminal_bright_{name}"], 4, i + 8)
+    return out
+
+
+def recolour_terminals(doc: dict, mode: str) -> int:
+    seqs = osc_sequences(doc, mode)
+    (STATE / "sequences.txt").write_text(seqs)
+    uid, n = os.getuid(), 0
+    for pt in Path("/dev/pts").iterdir():
+        if not pt.name.isdigit():
+            continue
+        try:
+            if pt.stat().st_uid != uid:
+                continue
+            fd = os.open(pt, os.O_WRONLY | os.O_NONBLOCK | os.O_NOCTTY)
+            try:
+                os.write(fd, seqs.encode())
+                n += 1
+            finally:
+                os.close(fd)
+        except OSError:
+            pass
+    return n
+
+
+def run_hook(cmd: str, label: str, wait: bool) -> None:
+    try:
+        if wait:
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+            if res.returncode != 0:
+                log(f"{label}: hook failed ({res.returncode}): {(res.stderr or res.stdout).strip()[:300]}")
+        else:
+            subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    except subprocess.TimeoutExpired:
+        log(f"{label}: hook timed out")
+
+
+def apply(force: bool, only: set[str] | None, dry: Path | None) -> int:
+    doc = load_doc()
+    cfg = load_config()
+    mode = cfg.get("mode") or doc.get("mode", "dark")
+    templates = builtin_templates(cfg.get("core", CORE_DEFAULT))
+    if cfg.get("apps", True):
+        templates += community_templates(cfg.get("community", []))
+    templates += user_templates()
+
+    changed_any = False
+    seen_hooks: set[str] = set()
+    hooks: list[tuple[str, str, bool]] = []
+    report = []
+    for t in templates:
+        if only and t.id not in only and t.name not in only:
+            continue
+        if not t.wanted():
+            continue
+        r = Renderer(doc, mode, t.base)
+        src = (t.base / t.entry["input_path"]).resolve() if not Path(t.entry["input_path"]).is_absolute() else Path(t.entry["input_path"])
+        try:
+            text = r.render(src.read_text())
+        except OSError as e:
+            log(f"{t.name}: can't read {src}: {e}")
+            continue
+        changed = False
+        for out in t.outputs(r):
+            if t.gated and (root := client_root(out)) is not None and not root.exists():
+                continue
+            if dry:
+                target = dry / out.relative_to("/")
+                write_if_changed(target, text)
+                continue
+            changed |= write_if_changed(out, text)
+            if (changed or force) and t.entry.get("post_action") == "kde-color-scheme":
+                merge_kdeglobals(out)
+        for e in r.errors:
+            log(f"{t.name}: {e}")
+        report.append((t.name, "changed" if changed else "same", len(r.errors)))
+        if dry or not (changed or force):
+            continue
+        changed_any = True
+        hook = t.entry.get("post_hook")
+        if hook:
+            hook = r.render(hook)
+            if hook not in seen_hooks:  # gtk3 and gtk4 share one
+                seen_hooks.add(hook)
+                hooks.append((hook, t.name, t.entry.get("hook_async") is False))
+
+    # Hooks once every file is written: one may read another's output (GTK's
+    # applies both gtk3 and gtk4).
+    for hook, label, wait in hooks:
+        run_hook(hook, label, wait)
+
+    if not dry:
+        if cfg.get("live_terminals", True):
+            recolour_terminals(doc, mode)
+        if changed_any and cfg.get("post_hook"):
+            os.environ["THEME_JSON"] = str(THEME_JSON)
+            run_hook(cfg["post_hook"], "post_hook", wait=False)
+        write_if_changed(APPLIED, json.dumps({"mode": mode, "wallpaper": doc.get("wallpaper", ""), "templates": [n for n, *_ in report]}, indent=2) + "\n")
+    for name, state, errs in report:
+        print(f"{name:32} {state}{f'  ({errs} unknown tokens)' if errs else ''}")
+    return 0
+
+
+def python() -> str:
+    """The palette's Python (materialyoucolor + pillow, as Caelestia's): the
+    shell's own venv, made on first use (needs the network once); until then
+    the one the wallpaper-palette plugin made."""
+    for venv in (VENV, OLD_VENV):
+        if (venv / ".ready").exists():
+            return str(venv / "bin/python")
+    log("setting up the palette's Python (materialyoucolor, pillow)…")
+    script = 'python3 -m venv "$1" && "$1/bin/pip" install -q --disable-pip-version-check materialyoucolor pillow && touch "$1/.ready"'
+    subprocess.run(["sh", "-c", script, "sh", str(VENV)], check=True, timeout=600)
+    return str(VENV / "bin/python")
+
+
+def update(wallpaper: str | None, force: bool, stage: bool = False) -> int:
+    cfg = load_config()
+    wallpaper = wallpaper or _current_wallpaper()
+    if not wallpaper or not Path(wallpaper).exists():
+        log(f"no wallpaper to take colours from ({wallpaper!r})")
+        return 1
+    variant = cfg.get("variant", "pigment")
+    flavour = cfg.get("flavour", "default")
+    contrast = float(cfg.get("contrast", 0.0))
+    key = f"{wallpaper}|{variant}|{flavour}|{contrast:.2f}"
+    scheme = STATE / "wallpaper-scheme-next.json" if stage else SCHEME_JSON
+    keyfile = STATE / "palette-key-next.json" if stage else PALETTE_KEY
+    try:
+        same = json.loads(keyfile.read_text()).get("key") == key and scheme.exists()
+    except (OSError, ValueError):
+        same = False
+    if force or not same:
+        cmd = [python(), "-I", str(PALETTE), wallpaper, str(STATE / "palette.json"), "--variant", variant, "--flavour", flavour,
+               "--contrast", f"{contrast:.2f}", "--cache", str(PALETTE_CACHE), "--scheme-out", str(scheme)]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if res.returncode != 0:
+            log(f"palette failed: {(res.stderr or res.stdout).strip()[-600:]}")
+            return 1
+        write_if_changed(keyfile, json.dumps({"key": key, "summary": json.loads(res.stdout.strip() or "{}")}, indent=2) + "\n")
+    if stage:
+        # The document on stdout too: the shell keeps it by wallpaper, so a
+        # later stage can't swap it from under it.
+        print(json.dumps(build(scheme, None, THEME_NEXT, wallpaper)))
+        return 0
+    build(SCHEME_JSON, None, THEME_JSON, wallpaper)
+    return apply(force, None, None)
+
+
+def commit() -> int:
+    """The staged theme becomes the theme (its palette with it), then apply."""
+    if not THEME_NEXT.exists():
+        log("nothing staged")
+        return 1
+    for a, b in ((STATE / "wallpaper-scheme-next.json", SCHEME_JSON), (STATE / "palette-key-next.json", PALETTE_KEY), (THEME_NEXT, THEME_JSON)):
+        if a.exists():
+            os.replace(a, b)
+    return apply(False, None, None)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="nafeel-theme", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    u = sub.add_parser("update")
+    u.add_argument("--wallpaper")
+    u.add_argument("--force", action="store_true")
+    u.add_argument("--stage", action="store_true")
+    sub.add_parser("commit")
+    ix = sub.add_parser("index", help="index the wallpaper library (thumbnails, colours) for the picker")
+    ix.add_argument("--root", default=str(HOME / "Pictures/Wallpapers"))
+    ix.add_argument("--force", action="store_true")
+    b = sub.add_parser("build")
+    b.add_argument("--scheme", type=Path, default=SCHEME_JSON)
+    b.add_argument("--mode", choices=["dark", "light"])
+    a = sub.add_parser("apply")
+    a.add_argument("--force", action="store_true")
+    a.add_argument("--only", nargs="*")
+    a.add_argument("--dry-run", type=Path, metavar="DIR", help="write outputs under DIR instead, run nothing")
+    r = sub.add_parser("render")
+    r.add_argument("template", type=Path)
+    r.add_argument("--mode", choices=["dark", "light"])
+    ls = sub.add_parser("list")
+    ls.add_argument("--json", action="store_true")
+    sub.add_parser("catalog")
+    args = ap.parse_args()
+
+    if args.cmd == "catalog":
+        installed = {p.name for p in COMMUNITY.iterdir()} if COMMUNITY.exists() else set()
+        print(json.dumps([{"id": e.get("name") or e.get("id"), "category": e.get("category", ""),
+                           "installed": (e.get("name") or e.get("id")) in installed} for e in catalog()]))
+        return 0
+
+    if args.cmd == "index":
+        # Its own lock: indexing mustn't hold up a theme change. One indexer
+        # at a time; another asking meanwhile just leaves it to the first.
+        cache = XDG_CACHE / "nafeel-shell"
+        cache.mkdir(parents=True, exist_ok=True)
+        ilock = open(cache / "library.lock", "w")
+        try:
+            fcntl.flock(ilock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            log("the library is already being indexed")
+            return 0
+        cmd = [python(), "-I", str(ROOT / "theme/palette/library.py"), args.root, str(cache / "library.json"), str(cache / "thumbs")]
+        quality = load_settings().get("liveQuality", "original")
+        if quality in ("1080", "720"):
+            cmd.append(f"--live-copies={quality}")
+        return subprocess.run(cmd + (["--force"] if args.force else [])).returncode
+
+    STATE.mkdir(parents=True, exist_ok=True)
+    lock = open(STATE / "theme.lock", "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)  # one at a time; the newest waits its turn
+
+    if args.cmd == "update":
+        return update(args.wallpaper, args.force, args.stage)
+    if args.cmd == "commit":
+        return commit()
+    if args.cmd == "build":
+        build(args.scheme, args.mode)
+        return 0
+    if args.cmd == "apply":
+        return apply(args.force, set(args.only) if args.only else None, args.dry_run)
+    if args.cmd == "render":
+        rr = Renderer(load_doc(), args.mode, args.template.parent)
+        sys.stdout.write(rr.render(args.template.read_text()))
+        for e in rr.errors:
+            log(e)
+        return 1 if rr.errors else 0
+    if args.cmd == "list" and args.json:
+        cfg = load_config()
+        print(json.dumps({"builtin": builtin_catalog(), "core": cfg.get("core", CORE_DEFAULT),
+                          "community": cfg.get("community", [])}))
+        return 0
+    if args.cmd == "list":
+        cfg = load_config()
+        for t in builtin_templates(cfg.get("core", CORE_DEFAULT)):
+            print(f"core       {t.name}")
+        for t in community_templates(cfg.get("community", [])):
+            print(f"app        {t.id}/{t.name}{'' if t.wanted() else '  (app not installed)'}")
+        for t in user_templates():
+            print(f"user       {t.name}")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

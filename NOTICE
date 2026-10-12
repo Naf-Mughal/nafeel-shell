@@ -1,0 +1,81 @@
+nafeel/shell
+
+Copyright (C) 2026 nafeel. Distributed under the GNU General Public License,
+version 3 or (at your option) any later version; see LICENSE.
+
+This shell ports code and ideas from the projects below. Their notices are kept
+here; ported files say so in their header comments or commit messages.
+
+Caelestia shell (GNU GPL-3.0)
+  https://github.com/caelestia-dots/shell
+  The colour service and Material scheme handling, the frame and drawer
+  approach, popout behaviour, and the BlobRect goo spring (via Ryoku).
+
+Ryoku (GNU GPL-3.0)
+  https://github.com/ryoku-dev/ryoku
+  The design discipline (tokens, hairlines, Latin + CJK glosses, tracked mono
+  labels), motion tokens, the BlobRect goo spring, and the frosted-paper
+  recipe. Ryoku itself adapts portions of:
+    - Caelestia shell (GPL-3.0), as above
+    - DankMaterialShell, Copyright (c) 2025 Avenge Media LLC (MIT License)
+      https://github.com/AvengeMedia/DankMaterialShell
+    - OkShell by John Oberhauser
+  Anything taken from those parts keeps their notices.
+
+Cave Abode (dhrruvsharma/shell, GNU GPL-3.0)
+  The xianxia lock screen and its theme.
+
+Noctalia, Copyright (c) 2026 noctalia-dev (MIT License)
+  https://github.com/noctalia-dev/noctalia
+  Behaviour reference throughout (the window switcher, capture flow, corner
+  joins); code ported from it (such as the clipboard service) keeps this notice:
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+Theme engine (bin/nafeel-theme, theme/)
+  - theme/templates/builtin: Noctalia's built-in templates and their hook
+    scripts (noctalia-dev/noctalia, MIT, Copyright (c) 2026 noctalia-dev).
+    The template language, manifest format and the KDE colour-scheme merge
+    follow Noctalia's theme engine (src/theme, MIT).
+  - Live terminal recolouring (OSC sequences to every pty), `{{ $role }}`
+    templates and the user template directory follow caelestia-cli
+    (caelestia-dots, GPL-3.0).
+  - The core/apps split and the kdeglobals merge follow Ryoku (GPL-3.0).
+  - theme/palette/extract.py and pigment.py: moved from the
+    wallpaper-palette plugin (see its notes: Caelestia's generator, GPL-3.0).
+
+Wallpaper picker (modules/wallpaper, theme/palette/library.py)
+  - The library index, the slice carousel, the mosaic, the colour filter and
+    the Wallhaven store (services/Wallhaven.qml) follow ryogami wall-ui in
+    Ryoku (Copyright (c) 2026 liixini, MIT).
+
+Dashboard (modules/dashboard), visualiser and lyrics
+  - The dashboard's tabs and widgets follow Caelestia's (caelestia-dots/shell,
+    GPL-3.0), rebuilt on the shell's own primitives.
+  - native/src/caelestia: Caelestia's audio collector, provider, CavaProvider,
+    Service and ServiceRef (GPL-3.0), ported into the Nafeel module (one call
+    adapted to the newer cavacore API).
+  - native/src/cava/cavacore.{c,h}: cava's core (Copyright (c) 2015 Karl
+    Stavestrand, MIT; licence in native/src/cava/LICENSE).
+  - services/Lyrics.qml follows Caelestia's lyrics service (its lrclib.net
+    path), in QML; lyrics come from lrclib.net.
+  - native/third_party/m3shapes: soramanew/m3shapes (Apache-2.0; licence in
+    that folder), Material 3 Expressive shapes with morphing, a port of
+    androidx.graphics.shapes; built as its own M3Shapes QML module.
+  - quickshell/assets/bongocat.gif: from Caelestia (GPL-3.0).

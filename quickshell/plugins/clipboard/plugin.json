@@ -1,0 +1,24 @@
+{
+  "id": "clipboard",
+  "name": "Clipboard",
+  "gloss": "剪贴",
+  "icon": "content_paste",
+  "description": "The clipboard history: kept from login, searched, pinned and pasted from the bar's clipboard panel.",
+  "default": true,
+  "root": "Plugin.qml",
+  "slots": [
+    {
+      "slot": "bar.actions",
+      "entry": "BarButton.qml",
+      "order": 1
+    }
+  ],
+  "popouts": [
+    {
+      "name": "clipboard",
+      "corner": "topLeft",
+      "entry": "ClipboardPopout.qml",
+      "width": 680
+    }
+  ]
+}

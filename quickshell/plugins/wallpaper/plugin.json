@@ -1,0 +1,20 @@
+{
+  "id": "wallpaper",
+  "name": "Wallpaper studio",
+  "gloss": "画卷",
+  "icon": "wallpaper",
+  "description": "The wallpaper picker (Mod+W): your library in slice, strip and mosaic views, the Wallhaven and live (motionbgs) stores, and rotation.",
+  "default": true,
+  "root": "Plugin.qml",
+  "drawers": [
+    {
+      "name": "wallpapers",
+      "entry": "WallpaperPicker.qml",
+      "edge": "top",
+      "width": "content",
+      "height": "content",
+      "keyboard": true,
+      "hoverZone": false
+    }
+  ]
+}

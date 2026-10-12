@@ -1,0 +1,54 @@
+{
+  "id": "notifications",
+  "name": "Notifications",
+  "gloss": "通知",
+  "icon": "notifications",
+  "description": "The notification server: toasts in the top-right corner, the history and quick controls in the action center (rest on the bottom-right corner), do not disturb. Off: apps' notifications go nowhere.",
+  "default": true,
+  "root": "Plugin.qml",
+  "drawers": [
+    {
+      "name": "toasts",
+      "entry": "Toasts.qml",
+      "edge": "corner",
+      "corner": "topRight",
+      "width": 400,
+      "height": "content",
+      "padding": 10,
+      "openWhen": "hasPopups"
+    },
+    {
+      "name": "actions",
+      "entry": "ActionCenter.qml",
+      "edge": "corner",
+      "corner": "bottomRight",
+      "width": 420,
+      "height": 780,
+      "zoneLength": 56,
+      "hoverZone": true
+    }
+  ],
+  "slots": [
+    {
+      "slot": "bar.actions",
+      "entry": "BarBell.qml",
+      "order": 0
+    }
+  ],
+  "popouts": [
+    {
+      "name": "notifications",
+      "corner": "topLeft",
+      "entry": "NotificationsPopout.qml"
+    }
+  ],
+  "tabs": [
+    {
+      "id": "notifications",
+      "icon": "notifications",
+      "label": "Notifications",
+      "entry": "NotificationsPopout.qml",
+      "popout": true
+    }
+  ]
+}

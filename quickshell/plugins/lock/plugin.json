@@ -1,0 +1,9 @@
+{
+  "id": "lock",
+  "name": "Lock screen",
+  "gloss": "洞府",
+  "icon": "lock",
+  "description": "The cave-abode lock: Mod+L, idle, before every sleep; cultivation and its rewards; and what the login screen shows. Off: the shell can't lock (the keybind falls back to a standalone lock).",
+  "default": true,
+  "root": "Plugin.qml"
+}

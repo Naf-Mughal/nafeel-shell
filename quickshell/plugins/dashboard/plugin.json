@@ -1,0 +1,19 @@
+{
+  "id": "dashboard",
+  "name": "Dashboard",
+  "gloss": "总览",
+  "icon": "space_dashboard",
+  "description": "Out of the top centre (hover, or Mod+Shift+D): the dash, media with its visualiser and lyrics, performance, weather.",
+  "default": true,
+  "root": "Plugin.qml",
+  "drawers": [
+    {
+      "name": "dashboard",
+      "entry": "Dashboard.qml",
+      "edge": "top",
+      "width": 1100,
+      "height": "content",
+      "hoverZone": true
+    }
+  ]
+}

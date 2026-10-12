@@ -1,0 +1,9 @@
+{
+  "id": "overview",
+  "name": "Overview typing",
+  "gloss": "速启",
+  "icon": "keyboard",
+  "description": "In umbriel's overview, typing opens the launcher with what you typed; Enter or Esc closes the overview, the arrows move.",
+  "default": true,
+  "root": "OverviewCapture.qml"
+}

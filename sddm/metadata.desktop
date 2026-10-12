@@ -1,0 +1,14 @@
+[SddmGreeterTheme]
+Name=Nafeel (Cave Abode)
+Description=The nafeel shell's lock, cave abode, as the login screen
+Author=nafeel
+Type=sddm-theme
+Version=1.0
+Website=
+Screenshot=
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=
+Theme-Id=nafeel
+Theme-API=2.0
+QtVersion=6

@@ -1,0 +1,76 @@
+#!/bin/sh
+# Keybind entry to the shell: `shell-msg <action> [arg]`, over its IPC. When
+# the shell isn't running, lock still locks (fallback-lock/, cave-abode's standalone lock
+# screen) and suspend still sleeps; anything else says the shell is down.
+# Linked into ~/.local/bin.
+#
+#   launcher                the command center's launcher (search focused)
+#   command [tab]           the command center (home, apps, media, …)
+#   search <text>           the launcher with <text> typed
+#   session                 the session corner
+#   notifications           the notifications corner
+#   workspaces              the workspace previews
+#   actions                 the action center
+#   capture                 the capture popout
+#   snip                    pick a region and screenshot it, open panels
+#                           included (Mod+Shift+S)
+#   record                  stop a recording; else the capture popout on
+#                           Record, and pressed again, start (Mod+Shift+R)
+#   wallpaper               the wallpaper picker
+#   settings                the shell's settings (Mod+S)
+#   notes                   the notes pad
+#   caffeine                toggle caffeine (keeps the shell's OSD in step)
+#   clipboard               the clipboard history (top-left corner)
+#   lock                    lock now
+#   suspend                 lock, then sleep
+#   switch next|prev        Alt+Tab / Alt+Shift+Tab: the window switcher
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+ipc() { qs -p "$root/quickshell" ipc call "$@" >/dev/null 2>&1; }
+# Said once per action when the shell doesn't answer.
+down() { notify-send --app-name=Shell -u low "The shell isn't running" "Mod keys that open its panels do nothing until it's back (nafeel-shell)." 2>/dev/null; }
+
+case "$1" in
+launcher) ipc shell command apps || down ;;
+command) ipc shell command "${2:-home}" || down ;;
+search) ipc shell search "$2" || down ;;
+session) ipc shell toggle bar:session || down ;;
+workspaces) ipc shell toggle bar:workspaces || umbriel msg overview-toggle ;;
+notifications) ipc shell toggle bar:notifications || down ;;
+actions) ipc shell toggle actions || down ;;
+capture) ipc shell toggle bar:capture || down ;;
+snip)
+    # Straight to the region picker (the shell's own: frozen screens; open
+    # panels stay, so they can be in the shot).
+    ipc capture snip || down
+    ;;
+record)
+    # Stop a recording; else open the capture popout on Record, and a second
+    # press while it's open starts recording (the old key's behaviour).
+    state="${XDG_STATE_HOME:-$HOME/.local/state}/nafeel-shell/capture"
+    if grep -q '"recording": *true' "$state/state.json" 2>/dev/null; then
+        ipc capture request stop ""
+    elif [ "$(qs -p "$root/quickshell" ipc call shell current 2>/dev/null)" = "bar:capture" ] &&
+        grep -q '"kind": *"record"' "$state/prefs.json" 2>/dev/null; then
+        ipc shell close
+        sleep 0.35
+        ipc capture request capture ""
+    else
+        ipc capture request set "kind record" && ipc shell open bar:capture || down
+    fi
+    ;;
+wallpaper) ipc shell toggle wallpapers || down ;;
+notes) ipc shell toggle notes || down ;;
+dashboard) ipc shell toggle dashboard ;;
+settings) ipc shell toggle settings || down ;;
+desktop) ipc desktop toggle ;;
+caffeine) ipc display caffeine || down ;;
+clipboard) ipc shell toggle bar:clipboard || down ;;
+switch) ipc switcher "${2:-next}" || down ;;
+lock) ipc lock lock || "$HOME/.local/share/nafeel-shell/fallback-lock/bin/lock" ;;
+suspend) ipc session run suspend || { "$HOME/.local/share/nafeel-shell/fallback-lock/bin/lock" & sleep 1.5; systemctl suspend; } ;;
+*)
+    echo "usage: shell-msg launcher|command [tab]|search <text>|session|notifications|workspaces|actions|capture|snip|record|wallpaper|notes|dashboard|desktop|caffeine|clipboard|lock|suspend|switch next|prev" >&2
+    exit 2
+    ;;
+esac
