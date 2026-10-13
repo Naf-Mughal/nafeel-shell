@@ -27,6 +27,38 @@ Item {
     readonly property bool horizontal: edge === "top" || edge === "bottom"
     // The same inset as the sides, so the bar's ends match its edges.
     readonly property real endInset: Tokens.spacing.large / 2
+    // "full" or "regions" (BarLayout.mode), the bar's thickness across (a
+    // full bar's where it has icon widgets) and the thin strip's.
+    readonly property string mode: BarLayout.mode(edge)
+    readonly property real thick: BarLayout.barThickness(edge)
+    readonly property real strip: Tokens.border
+    // Where an icon-less widget's middle sits across the bar: in the middle
+    // of a full bar, on the strip in regions mode.
+    readonly property real stripMiddle: {
+        if (mode === "full")
+            return thick / 2;
+        return edge === "right" || edge === "bottom" ? thick - strip / 2 : strip / 2;
+    }
+
+    // In regions mode, the bulges: one per region with icon widgets, as long
+    // as they are (and the inset at the bar's ends), the bar's thickness
+    // out from the screen edge. In this item's coordinates.
+    readonly property var bulges: {
+        if (mode !== "regions")
+            return [];
+        const out = [];
+        for (const r of regionItems) {
+            const s = r.iconSpan;
+            if (!s)
+                continue;
+            const len = horizontal ? width : height;
+            const a = Math.max(0, s[0] - endInset);
+            const b = Math.min(len, s[1] + endInset);
+            out.push(horizontal ? Qt.rect(a, edge === "bottom" ? height - thick : 0, b - a, thick) : Qt.rect(edge === "right" ? width - thick : 0, a, thick, b - a));
+        }
+        return out;
+    }
+    property var regionItems: []
 
     // A family's capsule.
     function style(family: string): var {
@@ -131,11 +163,26 @@ Item {
     // centre in the middle.
     Repeater {
         model: BarLayout.regionNames
+        onItemAdded: (i, item) => root.regionItems = root.regionItems.concat([item])
+        onItemRemoved: (i, item) => root.regionItems = root.regionItems.filter(r => r !== item)
 
         Grid {
             id: region
 
             required property string modelData
+            // Where its icon widgets run along the bar ([from, to] in the
+            // bar's coordinates), or null.
+            readonly property var iconSpan: {
+                let a = Infinity, b = -Infinity;
+                for (const c of children) {
+                    if (!c.iconic || !c.visible)
+                        continue;
+                    const p = root.horizontal ? x + c.x : y + c.y;
+                    a = Math.min(a, p);
+                    b = Math.max(b, p + (root.horizontal ? c.width : c.height));
+                }
+                return a < b ? [a, b] : null;
+            }
 
             anchors.top: !root.horizontal && modelData === "start" ? parent.top : undefined
             anchors.bottom: !root.horizontal && modelData === "end" ? parent.bottom : undefined
@@ -160,19 +207,29 @@ Item {
 
                     required property var modelData
                     readonly property var look: root.style(modelData.family)
+                    readonly property bool iconic: modelData.ids.some(id => BarLayout.iconic(id))
 
                     sourceComponent: look ? capsule : bare
 
+                    // An icon-less widget, centred across the bar on its
+                    // middle (root.stripMiddle).
                     Component {
                         id: bare
 
-                        Loader {
-                            id: single
+                        Item {
+                            implicitWidth: root.horizontal ? single.implicitWidth : root.width
+                            implicitHeight: root.horizontal ? root.height : single.implicitHeight
 
-                            width: root.horizontal ? implicitWidth : root.width
-                            height: root.horizontal ? root.height : implicitHeight
-                            Component.onCompleted: root.load(single, run.modelData.ids[0])
-                            onLoaded: root.wire(item, null)
+                            Loader {
+                                id: single
+
+                                x: root.horizontal ? 0 : root.stripMiddle - width / 2
+                                y: root.horizontal ? root.stripMiddle - height / 2 : 0
+                                width: root.horizontal ? implicitWidth : root.width
+                                height: root.horizontal ? implicitHeight : implicitHeight
+                                Component.onCompleted: root.load(single, run.modelData.ids[0])
+                                onLoaded: root.wire(item, null)
+                            }
                         }
                     }
 

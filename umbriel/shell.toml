@@ -1,12 +1,7 @@
 # Installed by nafeel-shell's install.sh (from umbriel/shell.toml); a rerun replaces it.
 # Included from ~/.config/umbriel/config.toml.
-# The shell's frame: the bar on the left (windows flush against it), a thin
-# border elsewhere.
-[layout.struts]
-left = 52
-top = 14
-right = 14
-bottom = 14
+# The frame's struts are the shell's to write (plugins/shell-frost.toml),
+# from its bar layout.
 
 # The shell's window switcher (live previews, most recent first): Alt+Tab
 # opens it on the previous window, letting go of Alt switches. While it's

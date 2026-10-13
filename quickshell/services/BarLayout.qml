@@ -150,10 +150,72 @@ Singleton {
         return regionNames.some(r => widgets(edge, r).length > 0);
     }
 
-    // A bar's thickness where it has an icon widget; icon-less ones sit on
-    // the thin strip (B2 sizes each region on its own).
+    function iconic(id: string): bool {
+        return !(catalogue[id]?.iconless ?? false);
+    }
+
+    // Whether a region (or any region of an edge) has an icon widget.
+    function hasIcons(edge: string, region: string): bool {
+        return (region ? [region] : regionNames).some(r => widgets(edge, r).some(id => iconic(id)));
+    }
+
+    // An edge's mode: "full" (the whole edge as thick as its thickest
+    // region) or "regions" (the thin strip, with each region holding icon
+    // widgets bulging out of it, as long as its content, like the dock).
+    function mode(edge: string): string {
+        return layout.edges?.[edge]?.mode ?? "full";
+    }
+
+    // The bar's thickness: a full bar's where it has icon widgets (icon-less
+    // ones sit on the thin strip and don't grow it).
+    function barThickness(edge: string): real {
+        return hasIcons(edge, "") ? Tokens.barWidth : Tokens.border;
+    }
+
+    // The frame's thickness on an edge: the bar's in full mode, else the
+    // strip (the bulges are drawn on top of it).
     function thickness(edge: string): real {
-        return regionNames.some(r => widgets(edge, r).some(id => !catalogue[id].iconless)) ? Tokens.barWidth : Tokens.border;
+        return mode(edge) === "full" ? barThickness(edge) : Tokens.border;
+    }
+
+    // The edges and regions meeting at each corner: [vertical, horizontal].
+    readonly property var cornerEnds: ({
+            topLeft: [["left", "start"], ["top", "start"]],
+            topRight: [["right", "start"], ["top", "end"]],
+            bottomLeft: [["left", "end"], ["bottom", "start"]],
+            bottomRight: [["right", "end"], ["bottom", "end"]]
+        })
+
+    // Which bar runs through a corner: "vertical" (the side bar),
+    // "horizontal" (the top or bottom one) or "none" (neither; the corner is
+    // bare paper and both start after it). The one with something at that
+    // end; when both have, the corner's setting (`corners.<corner>`, by
+    // default the side bar's); when neither, the thicker.
+    function cornerOwner(corner: string): string {
+        const [v, h] = cornerEnds[corner];
+        const hasV = widgets(v[0], v[1]).length > 0;
+        const hasH = widgets(h[0], h[1]).length > 0;
+        if (hasV && hasH)
+            return layout.corners?.[corner] ?? "vertical";
+        if (hasH)
+            return "horizontal";
+        if (hasV)
+            return "vertical";
+        return thickness(h[0]) > thickness(v[0]) ? "horizontal" : "vertical";
+    }
+
+    // Where an edge's bar runs along the edge, in screen coordinates: from
+    // its start corner to its end one, through those it owns.
+    function span(edge: string, width: real, height: real, t: var): var {
+        const vertical = edge === "left" || edge === "right";
+        if (vertical) {
+            const top = cornerOwner(edge === "left" ? "topLeft" : "topRight") === "vertical" ? 0 : t.top;
+            const bottom = cornerOwner(edge === "left" ? "bottomLeft" : "bottomRight") === "vertical" ? height : height - t.bottom;
+            return [top, bottom];
+        }
+        const left = cornerOwner(edge === "top" ? "topLeft" : "bottomLeft") === "horizontal" ? 0 : t.left;
+        const right = cornerOwner(edge === "top" ? "topRight" : "bottomRight") === "horizontal" ? width : width - t.right;
+        return [left, right];
     }
 
     // The corner a bar popout grows out of: the one at its widget's end of

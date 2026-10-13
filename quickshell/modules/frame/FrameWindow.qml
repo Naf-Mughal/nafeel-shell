@@ -33,6 +33,22 @@ PanelWindow {
     // The desktop's width between the side bars.
     readonly property real innerWidth: width - tLeft - tRight
 
+    // The bars (one per edge), and their bulges in window coordinates
+    // ({ r: rect, edge }: regions-mode regions with icon widgets).
+    property var barItems: []
+    readonly property var bulges: fsProg > 0.99 ? [] : barItems.reduce((out, b) => out.concat(b.visible ? b.bulges.map(r => ({
+                        r: Qt.rect(b.x + r.x, b.y + r.y, r.width, r.height),
+                        edge: b.edge
+                    })) : []), [])
+
+    function bulgeRegion(i: int): rect {
+        return i < bulges.length ? bulges[i].r : Qt.rect(0, 0, 0, 0);
+    }
+
+    function onBulge(x: real, y: real): bool {
+        return bulges.some(b => x >= b.r.x && x < b.r.x + b.r.width && y >= b.r.y && y < b.r.y + b.r.height);
+    }
+
     function edgeThickness(edge: string): real {
         return edge === "left" ? tLeft : edge === "right" ? tRight : edge === "top" ? tTop : tBottom;
     }
@@ -162,6 +178,56 @@ PanelWindow {
         DrawerRegion {
             index: 15
         }
+
+        // The bars' bulges (at most three per edge).
+        DrawerRegion {
+            index: 0
+            bulge: true
+        }
+        DrawerRegion {
+            index: 1
+            bulge: true
+        }
+        DrawerRegion {
+            index: 2
+            bulge: true
+        }
+        DrawerRegion {
+            index: 3
+            bulge: true
+        }
+        DrawerRegion {
+            index: 4
+            bulge: true
+        }
+        DrawerRegion {
+            index: 5
+            bulge: true
+        }
+        DrawerRegion {
+            index: 6
+            bulge: true
+        }
+        DrawerRegion {
+            index: 7
+            bulge: true
+        }
+        DrawerRegion {
+            index: 8
+            bulge: true
+        }
+        DrawerRegion {
+            index: 9
+            bulge: true
+        }
+        DrawerRegion {
+            index: 10
+            bulge: true
+        }
+        DrawerRegion {
+            index: 11
+            bulge: true
+        }
     }
 
     // Outside click / Esc closes a pinned drawer.
@@ -180,7 +246,7 @@ PanelWindow {
                 return mouse.x >= r.x && mouse.x < r.x + r.width && mouse.y >= r.y && mouse.y < r.y + r.height;
             });
             const onBar = mouse.x < win.tLeft || mouse.x >= win.width - win.tRight || mouse.y < win.tTop || mouse.y >= win.height - win.tBottom;
-            if (inside || onBar) {
+            if (inside || onBar || win.onBulge(mouse.x, mouse.y)) {
                 mouse.accepted = false;
                 return;
             }
@@ -273,6 +339,35 @@ PanelWindow {
             radius: Tokens.frameRounding * (1 - win.fsProg)
         }
 
+        // The bars' bulges (regions mode): grown out of the strip like the
+        // dock, square where they meet the screen's edges.
+        Repeater {
+            model: win.bulges
+
+            BlobRect {
+                required property var modelData
+                readonly property rect r: modelData.r
+                readonly property real round: Tokens.rounding.large
+                readonly property bool atTop: r.y <= 0
+                readonly property bool atLeft: r.x <= 0
+                readonly property bool atRight: r.x + r.width >= win.width
+                readonly property bool atBottom: r.y + r.height >= win.height
+
+                group: blobs
+                x: r.x
+                y: r.y
+                width: r.width
+                height: r.height
+                sinks: false
+                radius: round
+                topLeftRadius: atTop || atLeft ? 0 : round
+                topRightRadius: atTop || atRight ? 0 : round
+                bottomRightRadius: atBottom || atRight ? 0 : round
+                bottomLeftRadius: atBottom || atLeft ? 0 : round
+                deformScale: 0
+            }
+        }
+
         Repeater {
             model: win.drawers
 
@@ -318,17 +413,26 @@ PanelWindow {
     // the full height, the top and bottom ones between them.
     Repeater {
         model: BarLayout.edgeNames
+        onItemAdded: (i, item) => win.barItems = win.barItems.concat([item])
+        onItemRemoved: (i, item) => win.barItems = win.barItems.filter(b => b !== item)
 
         Bar {
             required property string modelData
-            readonly property real t: BarLayout.thickness(modelData)
+            readonly property real t: BarLayout.barThickness(modelData)
+            // Along its edge, through the corners it owns (BarLayout.span).
+            readonly property var along: BarLayout.span(modelData, win.width, win.height, {
+                left: win.tLeft,
+                top: win.tTop,
+                right: win.tRight,
+                bottom: win.tBottom
+            })
 
             z: 2
             edge: modelData
-            x: modelData === "right" ? win.width - t : modelData === "left" ? 0 : win.tLeft
-            y: modelData === "bottom" ? win.height - t : 0
-            width: horizontal ? win.innerWidth : t
-            height: horizontal ? t : win.height
+            x: modelData === "right" ? win.width - t : modelData === "left" ? 0 : along[0]
+            y: modelData === "bottom" ? win.height - t : modelData === "top" ? 0 : along[0]
+            width: horizontal ? along[1] - along[0] : t
+            height: horizontal ? t : along[1] - along[0]
             opacity: 1 - win.fsProg
             visible: opacity > 0 && BarLayout.used(modelData)
             shellScreen: win.screen
@@ -579,9 +683,11 @@ PanelWindow {
         onObjectRemoved: (i, o) => win.pluginDrawers = win.pluginDrawers.filter(d => d !== o)
     }
 
+    // A drawer's input region, or (`bulge`) a bar bulge's.
     component DrawerRegion: Region {
         required property int index
-        readonly property rect r: win.drawerRegion(index)
+        property bool bulge: false
+        readonly property rect r: bulge ? win.bulgeRegion(index) : win.drawerRegion(index)
 
         x: r.x
         y: r.y

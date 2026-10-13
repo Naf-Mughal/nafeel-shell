@@ -671,9 +671,13 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   popout, both orientations), the layout service with the Default preset, one Bar that draws any
   edge across or down (BarGroup as a row on horizontal edges, the clock on one line), all four
   corners host every popout. The desktop must look exactly as now.
-- [ ] **B2 Frame geometry**: each edge's thickness from its widgets, region bulges as blobs
-  merged into the frame, corner ownership (auto / conflict setting / none), struts written by the
-  shell.
+- [x] **B2 Frame geometry** (2026-10-13): each edge's thickness from its widgets (icon-less
+  ones stay on the 14 px strip), `mode` per edge (`full` default; `regions`: the strip, and a
+  bulge per region with icon widgets, BlobRects merged into the frame, square where they meet the
+  screen's edges, cut into the input mask), corner ownership (BarLayout.cornerOwner: auto, the
+  `corners.<corner>` setting on a conflict, default the side bar, or `none`), struts written by
+  the shell into shell-frost.toml (static umbriel/shell.toml no longer has them). Left for B5:
+  icon-less widgets placed in a bare (`none`) corner.
 - [ ] **B3 Popouts from the widget's place** (corner or edge drawer at the widget).
 - [ ] **B4 Modes**: full / regions, flush / pill, reserve / overlay / autohide (edge and region).
 - [ ] **B5 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
