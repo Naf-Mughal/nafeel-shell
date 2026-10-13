@@ -5,6 +5,7 @@
 # restarted normally after.   qml-profile [out.qtd]
 set -u
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
+. "$root/bin/shell-env"
 qml=$root/quickshell
 out=${1:-${XDG_RUNTIME_DIR:-/tmp}/nafeel-shell.qtd}
 port=3768

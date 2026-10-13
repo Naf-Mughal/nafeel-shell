@@ -206,20 +206,16 @@ Singleton {
             workspaces = msg.data ?? [];
             break;
         case "windows": {
-            const data = msg.data ?? [];
-            const names = {};
-            for (const w of data)
-                names[w.id] = w.title ?? "";
-            const shape = JSON.stringify(data.map(w => Object.assign({}, w, {
-                title: ""
-            })));
-            if (JSON.stringify(names) !== JSON.stringify(titles))
-                titles = names;
-            if (shape !== _shape) {
-                _shape = shape;
-                windows = data;
-                updateMru();
+            // Held while a panel moves (closing one hands focus back to a
+            // window, and the window list arrives on the close's first
+            // frames): applied once it settles, or within 600 ms.
+            if (ShellState.moving > 0) {
+                heldWindows = msg.data ?? [];
+                if (!holdCap.running)
+                    holdCap.start();
+                break;
             }
+            applyWindows(msg.data ?? []);
             break;
         }
         case "submap":
@@ -236,6 +232,50 @@ Singleton {
             screencast = (msg.data?.kind ?? "clear") !== "clear";
             break;
         }
+    }
+
+    // The window list held while a panel moved (null: none).
+    property var heldWindows: null
+
+    function applyWindows(data: var): void {
+        const names = {};
+        for (const w of data)
+            names[w.id] = w.title ?? "";
+        const shape = JSON.stringify(data.map(w => Object.assign({}, w, {
+            title: ""
+        })));
+        if (JSON.stringify(names) !== JSON.stringify(titles))
+            titles = names;
+        if (shape !== _shape) {
+            _shape = shape;
+            windows = data;
+            updateMru();
+        }
+    }
+
+    function releaseWindows(): void {
+        holdCap.stop();
+        if (heldWindows === null)
+            return;
+        const data = heldWindows;
+        heldWindows = null;
+        applyWindows(data);
+    }
+
+    Connections {
+        target: ShellState
+
+        function onMovingChanged(): void {
+            if (ShellState.moving === 0)
+                Qt.callLater(root.releaseWindows);
+        }
+    }
+
+    Timer {
+        id: holdCap
+
+        interval: 600
+        onTriggered: root.releaseWindows()
     }
 
     Socket {

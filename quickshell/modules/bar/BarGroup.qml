@@ -4,6 +4,7 @@ import QtQuick
 import Nafeel
 import qs.config
 import qs.components
+import qs.services
 
 // A capsule of bar controls in one colour pair. An active pill (in the
 // group's inverse colours, a goo blob) springs to whichever control is
@@ -48,7 +49,13 @@ Item {
     onActiveControlChanged: {
         const c = activeControl;
         if (!c) {
-            away.restart();
+            // The pointer still on the bar may be crossing to the next
+            // control: hold the pill a moment so it glides there. Otherwise
+            // (a panel closed, the pointer left) it fades now, with the ink.
+            if (ShellState.barHover !== "")
+                away.restart();
+            else
+                pill.at = null;
             return;
         }
         away.stop();

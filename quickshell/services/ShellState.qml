@@ -26,6 +26,10 @@ Singleton {
     id: root
 
     property string pinned: ""
+    // Panels in motion (each Drawer counts itself while it springs open or
+    // shut): work that can wait (Umbriel's window list) waits for 0, so a
+    // panel's animation never shares its frames with it.
+    property int moving: 0
     // The dashboard's tab (kept between openings).
     property string dashTab: "dash"
     // The dock's preview: the app whose windows show above the dock (its
@@ -187,6 +191,44 @@ Singleton {
         previewed = "";
     }
 
+    // The JS heap collected while nothing moves. Left to itself, a cycle
+    // comes due when enough garbage has piled up, often while a panel opens
+    // or closes, and its sweep is one 15-20 ms step: a dropped frame. A full
+    // collection once a panel has closed and settled (and once the warm-up is
+    // done) leaves the next one far off. Unseen: nothing animates then.
+    readonly property bool resting: pinned === "" && previewed === "" && moving === 0
+    onRestingChanged: {
+        if (resting)
+            idleCollect.restart();
+        else
+            idleCollect.stop();
+    }
+
+    Connections {
+        target: Prewarm
+
+        function onDoneChanged(): void {
+            if (Prewarm.done && root.resting)
+                idleCollect.restart();
+        }
+    }
+
+    Timer {
+        id: delayedClose
+
+        onTriggered: root.close()
+    }
+
+    Timer {
+        id: idleCollect
+
+        interval: 1500
+        onTriggered: {
+            if (root.resting)
+                gc();
+        }
+    }
+
     Timer {
         id: closeTimer
 
@@ -213,6 +255,13 @@ Singleton {
 
         function close(): void {
             root.close();
+        }
+
+        // Close after `ms` (bin/frame-probe: a close not landing on the
+        // frames where the IPC client process runs).
+        function closeAfter(ms: int): void {
+            delayedClose.interval = Math.max(1, ms);
+            delayedClose.restart();
         }
 
         // Show a drawer as a hover preview (closes when the pointer leaves it,

@@ -32,8 +32,12 @@ StyledRect {
     // Rounds tighter while pressed (Expressive shape morph).
     property bool morph: interactive
 
-    property color ink: Colours.roleInk(role, emphasis)
-    property color subInk: Colours.roleSubInk(role, emphasis)
+    // The ink for its role (a control with its own sets `baseInk`); children
+    // read `ink` / `subInk`, which on an interactive one fade with the fill.
+    property color baseInk: Colours.roleInk(role, emphasis)
+    property color baseSubInk: Colours.roleSubInk(role, emphasis)
+    property color ink: baseInk
+    property color subInk: baseSubInk
     readonly property bool hovered: interaction.item?.hovered ?? false
     readonly property bool pressed: interaction.item?.pressed ?? false
     readonly property real restRadius: shape === "full" ? Math.min(width, height) / 2 : shape === "small" ? Tokens.rounding.small : shape === "large" ? Tokens.rounding.large : Tokens.rounding.normal
@@ -73,6 +77,29 @@ StyledRect {
                 target: root
                 property: "color"
                 value: ix.fill
+                restoreMode: Binding.RestoreBindingOrValue
+            }
+
+            // Its ink, in step with the fill (text snapping to the new state
+            // while the fill still faded briefly lost its contrast).
+            property color ink: root.baseInk
+            property color subInk: root.baseSubInk
+            Behavior on ink {
+                CAnim {}
+            }
+            Behavior on subInk {
+                CAnim {}
+            }
+            Binding {
+                target: root
+                property: "ink"
+                value: ix.ink
+                restoreMode: Binding.RestoreBindingOrValue
+            }
+            Binding {
+                target: root
+                property: "subInk"
+                value: ix.subInk
                 restoreMode: Binding.RestoreBindingOrValue
             }
 

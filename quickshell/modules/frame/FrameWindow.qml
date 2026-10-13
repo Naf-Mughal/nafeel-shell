@@ -137,7 +137,7 @@ PanelWindow {
     }
 
     function drawerRegion(i: int): rect {
-        return i < drawers.length && drawers[i].active ? drawers[i].region : Qt.rect(0, 0, 0, 0);
+        return i < drawers.length && drawers[i].open ? drawers[i].restRegion : Qt.rect(0, 0, 0, 0);
     }
 
     onFullscreenChanged: {
@@ -162,10 +162,60 @@ PanelWindow {
     // A pinned drawer (opened by a keybind or a click) takes the keyboard, so
     // Esc closes it and its fields can be typed in straight away; a hover
     // preview never does, so typing in apps isn't interrupted.
-    WlrLayershell.keyboardFocus: modalHere || pinnedHere || editingHere ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: wantsFocus || focusHeld ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere
+    // Let go of the keyboard once a closing panel has settled, not as it
+    // starts: handing focus back makes the compositor re-arrange its layers
+    // (the wallpaper redraws), and on the close's first frames that cost one.
+    property bool focusHeld: false
+
+    onWantsFocusChanged: {
+        if (wantsFocus) {
+            focusHeld = false;
+            focusRelease.stop();
+        } else {
+            focusHeld = true;
+            focusRelease.restart();
+        }
+    }
+
+    // Qt's render loop, when animations start from rest, redraws every window
+    // the shell has: the wallpaper too, a full-screen frame whose second sync
+    // blocks the GUI thread for up to a vsync, and a panel's close (or
+    // anything starting then) loses a frame. So from the moment a panel opens
+    // until its close has settled the animations never come to rest: this
+    // ticks a value nothing draws (no frame is rendered for it). At rest, with
+    // no panel, it's stopped and the shell sleeps.
+    property real keepAwake: 0
+    NumberAnimation on keepAwake {
+        running: ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.moving > 0 || win.focusHeld
+        from: 0
+        to: 1
+        duration: 1000
+        loops: Animation.Infinite
+    }
+
+    Timer {
+        id: focusRelease
+
+        // Once the close's springs have been still for 250 ms (its fades and
+        // soak are over by then too); at most 1.2 s.
+        interval: 50
+        repeat: true
+        property int ticks: 0
+        property int still: 0
+        onRunningChanged: ticks = still = 0
+        onTriggered: {
+            still = ShellState.moving === 0 ? still + 1 : 0;
+            if (still >= 5 || ++ticks > 24) {
+                stop();
+                win.focusHeld = false;
+            }
+        }
+    }
 
 
-    mask: fullscreen ? noInput : pinnedHere || editingHere ? everywhere : frameInput
+    mask: fullscreen ? noInput : pinnedHere || editingHere || focusHeld ? everywhere : frameInput
 
     // Caffeine: keeps the session from going idle (dim, lock, sleep) while on.
     IdleInhibitor {
@@ -474,7 +524,10 @@ PanelWindow {
                 axisAligned: modelData.isCorner
                 stiffness: Tokens.goo.stiffness
                 damping: Tokens.goo.damping
-                deformScale: Tokens.goo.enabled ? Tokens.goo.scale : 0
+                // Not while it leaves: kicked from rest by the exit, the
+                // underdamped spring briefly cancelled the motion, a frame that
+                // looked frozen at the start of every close.
+                deformScale: Tokens.goo.enabled && !modelData.leaving ? Tokens.goo.scale : 0
                 maxStretch: Tokens.goo.maxStretch
 
                 Component.onCompleted: modelData.blob = blob

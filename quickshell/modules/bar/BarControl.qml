@@ -75,6 +75,14 @@ Item {
         fill: root.iconFill
         color: root.ink
         size: 20
+
+        // In step with the group's pill fading in or out behind it (its
+        // ink snapping while the pill was still there hid the glyph).
+        Behavior on color {
+            CAnim {
+                duration: Tokens.anim.fast
+            }
+        }
     }
 
     Item {

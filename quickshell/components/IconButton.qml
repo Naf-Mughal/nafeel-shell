@@ -22,7 +22,7 @@ Surface {
     implicitWidth: size
     implicitHeight: size
     fill: filled ? fillColour : Colours.roleFill("paper", "soft", 3)
-    ink: filled ? inkColour : Colours.palette.m3onSurface
+    baseInk: filled ? inkColour : Colours.palette.m3onSurface
     // M3 Expressive shape morph: rounder at rest, squarer while pressed.
     shapeRadius: pressed ? Tokens.rounding.small : Math.min(size / 2, Tokens.rounding.morph)
 

@@ -64,17 +64,37 @@ Item {
     readonly property bool cornerBottom: corner.startsWith("bottom")
     readonly property bool vertical: edge === "bottom" || edge === "top"
     readonly property real depth: vertical ? panelHeight : panelWidth
-    property real prog: open ? 1 : 0
+    // How far out it is, 0..1: springs out (M3 Expressive spatial spring)
+    // and leaves on a timed exit, below.
+    property real prog: 0
     // A corner grows out of its corner point in both directions at once, a
     // spring on each axis (the width a touch brisker, so it blooms rather
     // than scales), and shrinks back into the corner the same way.
-    property real progX: open ? 1 : 0
-    property real progY: open ? 1 : 0
+    property real progX: 0
+    property real progY: 0
     readonly property real shown: depth * Math.max(0, prog)
     readonly property bool active: prog > 0.002 || (isCorner && (progX > 0.002 || progY > 0.002))
 
     // Input/hover area: the border strip plus the part that's out.
     readonly property rect region: Qt.rect(shape.x, shape.y, shape.width, shape.height)
+    // The same area fully out: what the window's input mask takes while it's
+    // open. Not `region`, which moves every frame of an open or close: each
+    // change of the mask is a Wayland input region and a surface commit from
+    // the GUI thread, mid-animation (a dropped frame early in most closes).
+    readonly property rect restRegion: {
+        const W = width, H = height;
+        if (isCorner) {
+            const w = thickness + panelWidth, h = thicknessY + panelHeight;
+            return Qt.rect(cornerRight ? W - w : 0, cornerBottom ? H - h : 0, w, h);
+        }
+        const span = vertical ? panelWidth : panelHeight;
+        const total = vertical ? W : H;
+        const start = Math.max(0, Math.min(total - span, total * along - span / 2));
+        const out = thickness + depth;
+        if (vertical)
+            return Qt.rect(start, edge === "top" ? 0 : H - out, span, out);
+        return Qt.rect(edge === "left" ? 0 : W - out, start, out, span);
+    }
     // The blob that draws this drawer (FrameWindow's BlobRect for it sets
     // itself here) and its squash and stretch: Ryoku's BlobRect spring, in
     // C++, pinned at `goo` (the side it grows out of: a corner's corner, an
@@ -100,6 +120,7 @@ Item {
     }
 
     onOpenChanged: {
+        drive();
         if (open) {
             resoak();
         } else {
@@ -151,28 +172,105 @@ Item {
 
     anchors.fill: parent
 
-    Behavior on prog {
-        SpringAnimation {
-            spring: Tokens.spring.spatial.spring
-            damping: Tokens.spring.spatial.damping
-            epsilon: 0.002
+    // On its timed exit (the goo stays still then: FrameWindow's blob).
+    readonly property bool leaving: exit.running || exitX.running || exitY.running
+    // Springing open or leaving (ShellState.moving counts it).
+    readonly property bool moving: progSpring.running || progXSpring.running || progYSpring.running || exit.running || exitX.running || exitY.running
+    onMovingChanged: ShellState.moving += moving ? 1 : -1
+    Component.onDestruction: if (moving) ShellState.moving--
+
+    // Open: a spring out from wherever it is. Close: M3's emphasized
+    // accelerate, timed. A spring back to 0 covered most of the way in its
+    // first ~100 ms, the frames where the render loop is still waking from
+    // rest, so a close was a lurch of a few big jumps; this one starts gently
+    // and speeds away, every frame a small step.
+    function drive(): void {
+        if (open) {
+            exit.stop();
+            exitX.stop();
+            exitY.stop();
+            progSpring.restart();
+            if (isCorner) {
+                progXSpring.restart();
+                progYSpring.restart();
+            }
+        } else {
+            progSpring.stop();
+            progXSpring.stop();
+            progYSpring.stop();
+            // A panel only partly out leaves in proportionally less time.
+            exit.duration = Tokens.dur(300) * Math.max(0.35, prog);
+            exit.restart();
+            if (isCorner) {
+                exitX.duration = Tokens.dur(270) * Math.max(0.35, progX);
+                exitY.duration = Tokens.dur(300) * Math.max(0.35, progY);
+                exitX.restart();
+                exitY.restart();
+            }
         }
     }
-    Behavior on progX {
-        enabled: root.isCorner
-        SpringAnimation {
-            spring: Tokens.spring.spatial.spring * 1.12
-            damping: Tokens.spring.spatial.damping
-            epsilon: 0.002
-        }
+
+    Component.onCompleted: {
+        if (open)
+            prog = progX = progY = 1;
     }
-    Behavior on progY {
-        enabled: root.isCorner
-        SpringAnimation {
-            spring: Tokens.spring.spatial.spring
-            damping: Tokens.spring.spatial.damping
-            epsilon: 0.002
-        }
+
+    SpringAnimation {
+        id: progSpring
+
+        target: root
+        property: "prog"
+        to: 1
+        spring: Tokens.spring.spatial.spring
+        damping: Tokens.spring.spatial.damping
+        epsilon: 0.002
+    }
+    SpringAnimation {
+        id: progXSpring
+
+        target: root
+        property: "progX"
+        to: 1
+        spring: Tokens.spring.spatial.spring * 1.12
+        damping: Tokens.spring.spatial.damping
+        epsilon: 0.002
+    }
+    SpringAnimation {
+        id: progYSpring
+
+        target: root
+        property: "progY"
+        to: 1
+        spring: Tokens.spring.spatial.spring
+        damping: Tokens.spring.spatial.damping
+        epsilon: 0.002
+    }
+    NumberAnimation {
+        id: exit
+
+        target: root
+        property: "prog"
+        to: 0
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Tokens.anim.emphasizedAccel
+    }
+    NumberAnimation {
+        id: exitX
+
+        target: root
+        property: "progX"
+        to: 0
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Tokens.anim.emphasizedAccel
+    }
+    NumberAnimation {
+        id: exitY
+
+        target: root
+        property: "progY"
+        to: 0
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Tokens.anim.emphasizedAccel
     }
 
     Item {

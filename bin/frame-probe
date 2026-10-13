@@ -7,6 +7,7 @@
 #   frame-probe [seconds-to-settle]
 set -u
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
+. "$root/bin/shell-env"
 qml=$root/quickshell
 log=${XDG_RUNTIME_DIR:-/tmp}/nafeel-shell-frames.log
 shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $qml/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }

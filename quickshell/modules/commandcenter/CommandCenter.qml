@@ -108,13 +108,31 @@ Item {
         y: root.edge === "top" ? root.dockHeight : root.pad
         width: parent.width - (root.vertical ? root.dockHeight + root.pad : root.pad * 2)
         height: parent.height - (root.vertical ? root.pad * 2 : root.dockHeight + root.pad)
-        opacity: root.expanded ? 1 : 0
+        opacity: 0
         visible: opacity > 0
 
-        Behavior on opacity {
-            Anim {
-                duration: Tokens.anim.fast
+        // In on the standard curve; out on emphasized accelerate, as the
+        // drawers leave (fading out fast-first dropped most of it in the
+        // close's first frame).
+        Connections {
+            target: root
+
+            function onExpandedChanged(): void {
+                ccFade.stop();
+                ccFade.to = root.expanded ? 1 : 0;
+                ccFade.duration = root.expanded ? Tokens.anim.fast : Tokens.dur(240);
+                ccFade.easing.bezierCurve = root.expanded ? Tokens.anim.standard : Tokens.anim.emphasizedAccel;
+                ccFade.start();
             }
+        }
+        Component.onCompleted: opacity = root.expanded ? 1 : 0
+
+        NumberAnimation {
+            id: ccFade
+
+            target: cc
+            property: "opacity"
+            easing.type: Easing.BezierSpline
         }
 
         SearchBar {
