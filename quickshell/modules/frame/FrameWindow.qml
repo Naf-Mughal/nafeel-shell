@@ -533,13 +533,30 @@ PanelWindow {
         open: enabled && !win.modalHere && (expanded || current === "dock" || workspaceEmpty)
         pinOnPress: expanded
         wantsKeyboard: expanded
-        edge: "bottom"
-        thickness: win.tBottom
+        // Its own region (BarLayout.dockPlace): the bottom's centre unless
+        // something else is there.
+        readonly property var at: BarLayout.dockPlace
+        readonly property bool side: at.edge === "left" || at.edge === "right"
+        // Its length along the edge and depth out of it.
+        readonly property real dockLength: Math.max(160, Math.max(content.dockWidth, content.previewWidth) + Tokens.spacing.large * 2)
+        readonly property real dockDepth: content.dockHeight + content.previewHeight
+
+        edge: at.edge
+        // In a centre region, the edge's middle; at a start or end, that end
+        // of the bar (past the corner).
+        along: {
+            const len = side ? win.height : win.width;
+            const span = expanded ? (side ? 640 : 920) : dockLength;
+            const lo = side ? win.tTop : win.tLeft, hi = side ? win.tBottom : win.tRight;
+            const m = Tokens.spacing.large;
+            return (at.region === "start" ? lo + m + span / 2 : at.region === "end" ? len - hi - m - span / 2 : len / 2) / len;
+        }
+        thickness: win.edgeThickness(at.edge)
         shellScreen: win.screen
         enabled: !win.fullscreen
-        // Grown by the window previews while one app's show above the dock.
-        panelWidth: expanded ? 920 : Math.max(160, Math.max(content.dockWidth, content.previewWidth) + Tokens.spacing.large * 2)
-        panelHeight: expanded ? 640 : content.dockHeight + content.previewHeight
+        // Grown by the window previews while one app's show beside the dock.
+        panelWidth: expanded ? 920 : side ? dockDepth : dockLength
+        panelHeight: expanded ? 640 : side ? dockLength : dockDepth
 
         Behavior on panelWidth {
             enabled: commandCenter.active
@@ -562,6 +579,7 @@ PanelWindow {
             id: content
 
             anchors.fill: parent
+            edge: commandCenter.at.edge
             expanded: commandCenter.expanded
             shellScreen: win.screen
             // (The dock's middle icon opens the command center on hover; the

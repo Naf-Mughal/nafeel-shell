@@ -711,6 +711,12 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   dragging (MouseArea preventStealing, the face floats in an overlay Item, the drop target is
   read and applied after the face is put back); a picked-chip card (hide / back to default).
   `qs ipc call bar move|hide|place|edge|corner|preset|save|revert|json` drives the same edits.
+- [x] **The dock's region** (2026-10-13, the user's rule): the dock needs a region to itself
+  (BarLayout.dockPlace): its place (`panels.command`, default the bottom's centre) when free;
+  else another free region of that edge; else the edge the main bar left (empty edges first,
+  left before right, top, bottom), centre first. Down a side it's a column, the command center
+  and window previews beside it (CommandCenter `edge`, DockBar `vertical`). In the studio as
+  the Dock panel chip.
 - [ ] **B7 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
   draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
 

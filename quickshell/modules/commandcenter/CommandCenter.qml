@@ -9,22 +9,29 @@ import qs.components
 import qs.modules.bar.popouts
 import "tabs"
 
-// The dock and, grown up out of it, the command center: the search on top,
+// The dock and, grown out of it, the command center: the search on top,
 // the tabs down the side, the current tab beside them (fixed size; switching
-// tabs cross-fades the content), and the dock as the base.
+// tabs cross-fades the content), and the dock as the base, on the edge it's
+// on (BarLayout.dockPlace): across the bottom or top, down a side (the
+// command center and the previews then beside it).
 Item {
     id: root
 
     required property bool expanded
     property ShellScreen shellScreen
+    property string edge: "bottom"
+    readonly property bool vertical: edge === "left" || edge === "right"
 
+    // The dock's depth out of its edge, and its length along it.
     readonly property int dockHeight: 72
-    readonly property real dockWidth: dock.implicitWidth
+    readonly property real dockWidth: vertical ? dock.implicitHeight : dock.implicitWidth
     // The app whose windows preview above the dock (not while expanded).
     readonly property var previewItem: !expanded && ShellState.dockPreview !== "" && ShellState.dockPreviewScreen === (shellScreen?.name ?? "") ? (Dock.items.find(i => i.appId === ShellState.dockPreview && i.windows.length > 0) ?? null) : null
     // What the previews add to the panel (the drawer grows by it).
-    readonly property real previewHeight: previewItem ? preview.implicitHeight + pad * 2 : 0
-    readonly property real previewWidth: previewItem ? preview.implicitWidth : 0
+    // (Across a horizontal edge they sit above or below the dock: the height
+    // is depth, the width length; down a side, beside it: the other way.)
+    readonly property real previewHeight: previewItem ? (vertical ? preview.implicitWidth : preview.implicitHeight) + pad * 2 : 0
+    readonly property real previewWidth: previewItem ? (vertical ? preview.implicitHeight : preview.implicitWidth) : 0
     readonly property int pad: Tokens.spacing.large
 
     // Launcher state, shared with the search bar and the Apps tab.
@@ -96,10 +103,10 @@ Item {
     Item {
         id: cc
 
-        x: root.pad
-        y: root.pad
-        width: parent.width - root.pad * 2
-        height: parent.height - root.dockHeight - root.pad
+        x: root.edge === "left" ? root.dockHeight : root.pad
+        y: root.edge === "top" ? root.dockHeight : root.pad
+        width: parent.width - (root.vertical ? root.dockHeight + root.pad : root.pad * 2)
+        height: parent.height - (root.vertical ? root.pad * 2 : root.dockHeight + root.pad)
         opacity: root.expanded ? 1 : 0
         visible: opacity > 0
 
@@ -274,9 +281,9 @@ Item {
     DockPreview {
         id: preview
 
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: dock.top
-        anchors.bottomMargin: root.pad
+        // Off the dock, on the side away from the edge.
+        x: root.vertical ? (root.edge === "left" ? dock.x + dock.width + root.pad : dock.x - width - root.pad) : (parent.width - width) / 2
+        y: root.vertical ? (parent.height - height) / 2 : (root.edge === "top" ? dock.y + dock.height + root.pad : dock.y - height - root.pad)
         item: root.previewItem
         opacity: root.previewItem ? 1 : 0
         visible: opacity > 0
@@ -302,9 +309,10 @@ Item {
     DockBar {
         id: dock
 
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 4
+        // Against its edge, centred along it.
+        x: root.vertical ? (root.edge === "left" ? 4 : parent.width - width - 4) : (parent.width - width) / 2
+        y: root.vertical ? (parent.height - height) / 2 : (root.edge === "top" ? 4 : parent.height - height - 4)
+        vertical: root.vertical
         expanded: root.expanded
         screenName: root.shellScreen?.name ?? ""
     }

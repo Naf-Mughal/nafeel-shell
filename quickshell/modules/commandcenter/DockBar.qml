@@ -10,15 +10,18 @@ import qs.components
 // app previews its windows above it (DockPreview); resting on the middle
 // icon opens the
 // command center, a click opens or closes it. Nothing else on the dock
-// opens anything by hover.
-Row {
+// opens anything by hover. A row across the bottom or top; a column down a
+// side.
+Grid {
     id: root
 
+    property bool vertical: false
     property bool expanded: false // the command center is open above it
     property string screenName: ""
     readonly property var items: Dock.items
     readonly property int half: Math.ceil(items.length / 2)
 
+    columns: vertical ? 1 : 256
     spacing: Tokens.spacing.small
 
     Repeater {

@@ -440,6 +440,14 @@ Singleton {
                 icon: Plugins.all.find(p => p.id === d.plugin)?.icon ?? "web_asset",
                 def: d
             })).concat([{
+                name: "command",
+                label: "Dock",
+                icon: "dock_to_bottom",
+                def: {
+                    edge: "bottom",
+                    along: 0.5
+                }
+            }, {
                 name: "settings",
                 label: "Settings",
                 icon: "tune",
@@ -449,9 +457,49 @@ Singleton {
                 }
             }])
 
+    // ── The dock ──
+    // The dock (and the command center grown out of it) needs a region to
+    // itself: its place (`panels.command`, by default the bottom's centre)
+    // when nothing else is there; else another free region of that edge;
+    // else the edge the main bar left (the Default bar's, left, when the bar
+    // went to the bottom), then any edge with nothing on it.
+    function regionFree(edge: string, region: string): bool {
+        const hidden = layout.hidden ?? [];
+        if (rawWidgets(edge, region).some(id => !hidden.includes(id)))
+            return false;
+        const panels = layout.panels ?? {};
+        return !Object.keys(panels).some(k => k !== "command" && !panels[k].corner && panels[k].edge === edge && panels[k].region === region);
+    }
+
+    readonly property var dockPlace: {
+        const want = panelPlace("command") ?? {
+            edge: "bottom",
+            region: "center"
+        };
+        const order = r => [r].concat(["center", "start", "end"].filter(x => x !== r));
+        for (const r of order(want.region))
+            if (regionFree(want.edge, r))
+                return {
+                    edge: want.edge,
+                    region: r
+                };
+        const empty = e => regionNames.every(r => regionFree(e, r));
+        const edges = ["left", "right", "top", "bottom"].filter(e => e !== want.edge);
+        for (const e of edges.filter(empty).concat(edges.filter(e => !empty(e))))
+            for (const r of order("center"))
+                if (regionFree(e, r))
+                    return {
+                        edge: e,
+                        region: r
+                    };
+        return want;
+    }
+
     // Where a panel opens now, as a place (its layout place, else derived
     // from its manifest; a bar popout's from its icon).
     function panelAt(name: string): var {
+        if (name === "command")
+            return dockPlace;
         if (name.startsWith("bar:"))
             return popoutPlace(name.slice(4));
         const set = panelPlace(name);
