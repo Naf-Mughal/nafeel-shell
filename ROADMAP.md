@@ -694,8 +694,14 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   middle, at least its length, from its thickness), as the command center does from the dock;
   hovering an icon on that pill switches to the icon's panel, as the dock does. A bare (`none`)
   corner takes only panels.
-- [ ] **B6 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
-  regions and corners; per-edge mode, style, visibility; corner owners; presets; Save / Revert.
+- [x] **B6 Studio page** (2026-10-13; modules/settings/BarStudio.qml, a SettingsPage `content`):
+  presets (Default, Top bar, Floating, Autohide), Save / Revert (a BarLayout draft the desktop
+  follows live; closing Settings unsaved reverts), a miniature with a drop zone per edge region
+  and corner (icons filled, panels outlined; a drop on a chip goes before it; corners take
+  panels only), the Hidden tray (an icon dropped there is hidden, its panel staying put; a
+  panel dropped there goes back to its default place), the selected edge's shape (full /
+  regions) and visibility (per region in regions mode), and the corners' owners on a conflict.
+  Drag and drop untested by hand yet.
 - [ ] **B7 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
   draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
 

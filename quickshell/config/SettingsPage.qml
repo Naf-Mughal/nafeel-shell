@@ -15,6 +15,8 @@ QtObject {
     property string icon: "settings"
     property string description
     property int order: 100
+    // A page with UI of its own (the bar studio): shown above its items.
+    property url content
     default property list<SettingItem> items
     // Items made at runtime (the Plugins page lists whatever plugins exist).
     property var extraItems: []

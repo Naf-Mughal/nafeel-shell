@@ -20,6 +20,17 @@ import qs.config
 Singleton {
     id: root
 
+    // Settings → Bar: the studio (modules/settings/BarStudio.qml).
+    readonly property SettingsPage settings: SettingsPage {
+        name: "bar"
+        title: "Bar"
+        gloss: "栏"
+        icon: "view_quilt"
+        order: 11
+        description: "Where every icon and panel lives, and how each bar shows."
+        content: Qt.resolvedUrl("../modules/settings/BarStudio.qml")
+    }
+
     readonly property var edgeNames: ["left", "top", "right", "bottom"]
     readonly property var regionNames: ["start", "center", "end"]
 
@@ -91,10 +102,15 @@ Singleton {
             }
         })
 
-    // What's set, over the Default preset (a layout that only hides an icon
-    // or places a panel keeps Default's edges).
+    // The studio's unsaved edit (Settings → Bar): the desktop follows it
+    // live; save() keeps it, revert() (or closing the studio) walks back.
+    property var draft: null
+    readonly property bool dirty: draft !== null
+
+    // What's set (or being edited), over the Default preset (a layout that
+    // only hides an icon or places a panel keeps Default's edges).
     readonly property var layout: {
-        const set = Settings.values["bar.layout"] ?? {};
+        const set = draft ?? Settings.values["bar.layout"] ?? {};
         return Object.assign({}, defaultLayout, set, {
             edges: set.edges ?? defaultLayout.edges
         });
@@ -241,6 +257,196 @@ Singleton {
         const left = cornerOwner(edge === "top" ? "topLeft" : "bottomLeft") === "horizontal" ? 0 : t.left;
         const right = cornerOwner(edge === "top" ? "topRight" : "bottomRight") === "horizontal" ? width : width - t.right;
         return [left, right];
+    }
+
+    // ── Editing (the studio) ──
+
+    // A region's ids as stored, with the plugin widgets it gets by default
+    // (nothing filtered: hidden, absent battery or empty tray included).
+    function rawWidgets(edge: string, region: string): var {
+        const ids = (layout.edges?.[edge]?.[region] ?? []).slice();
+        for (const w of Plugins.barWidgets) {
+            if (named.has(w.id))
+                continue;
+            const at = slotRegion(w.slot);
+            if (at[0] === edge && at[1] === region)
+                ids.push(w.id);
+        }
+        return ids.filter(id => catalogue[id]);
+    }
+
+    // The layout written out in full (every edge and region listed), to
+    // edit.
+    function materialize(): var {
+        const out = JSON.parse(JSON.stringify(layout));
+        const edges = {};
+        for (const e of edgeNames) {
+            const old = out.edges?.[e] ?? {};
+            edges[e] = Object.assign({}, old);
+            for (const r of regionNames)
+                edges[e][r] = rawWidgets(e, r);
+        }
+        out.edges = edges;
+        out.hidden = out.hidden ?? [];
+        out.panels = out.panels ?? {};
+        out.corners = out.corners ?? {};
+        return out;
+    }
+
+    function edit(change: var): void {
+        const next = materialize();
+        change(next);
+        draft = next;
+    }
+
+    function save(): void {
+        if (draft === null)
+            return;
+        Settings.set("bar.layout", draft);
+        draft = null;
+    }
+
+    function revert(): void {
+        draft = null;
+    }
+
+    // A preset as the draft ("default" goes back to Default).
+    function usePreset(name: string): void {
+        const p = presets[name];
+        if (p)
+            draft = JSON.parse(JSON.stringify(p));
+    }
+
+    // Put a widget in a region (before `before`, else last); it's shown.
+    function moveWidget(id: string, edge: string, region: string, before: string): void {
+        edit(l => {
+            for (const e of edgeNames)
+                for (const r of regionNames)
+                    l.edges[e][r] = l.edges[e][r].filter(x => x !== id);
+            l.hidden = l.hidden.filter(x => x !== id);
+            const list = l.edges[edge][region];
+            const i = before ? list.indexOf(before) : -1;
+            list.splice(i < 0 ? list.length : i, 0, id);
+            // An icon shown again takes its panel back with it.
+            const pop = catalogue[id]?.popout;
+            if (pop)
+                delete l.panels["bar:" + pop];
+        });
+    }
+
+    // Hide a widget's icon; its panel stays where the icon was until placed.
+    function hideWidget(id: string): void {
+        const at = placeOf(id);
+        edit(l => {
+            for (const e of edgeNames)
+                for (const r of regionNames)
+                    l.edges[e][r] = l.edges[e][r].filter(x => x !== id);
+            if (!l.hidden.includes(id))
+                l.hidden.push(id);
+            const pop = catalogue[id]?.popout;
+            if (pop && at && !l.panels["bar:" + pop])
+                l.panels["bar:" + pop] = at;
+        });
+    }
+
+    // Place a panel: { edge, region } or { corner }; null puts it back where
+    // it opens by default.
+    function placePanel(name: string, at: var): void {
+        edit(l => {
+            if (at)
+                l.panels[name] = at;
+            else
+                delete l.panels[name];
+        });
+    }
+
+    function setEdge(edge: string, key: string, value: var): void {
+        edit(l => l.edges[edge][key] = value);
+    }
+
+    function setRegionVisibility(edge: string, region: string, value: string): void {
+        edit(l => {
+            const rv = Object.assign({}, l.edges[edge].regionVisibility ?? {});
+            rv[region] = value;
+            l.edges[edge].regionVisibility = rv;
+        });
+    }
+
+    function setCorner(corner: string, value: string): void {
+        edit(l => l.corners[corner] = value);
+    }
+
+    // Ready-made layouts.
+    readonly property var presets: ({
+            default: {},
+            top: {
+                edges: {
+                    top: {
+                        start: ["workspaces"],
+                        center: ["clock"],
+                        end: ["notifications", "clipboard", "capture", "tray", "sound", "connect", "battery", "power"]
+                    }
+                }
+            },
+            floating: {
+                edges: {
+                    left: {
+                        mode: "regions",
+                        start: ["workspaces", "notifications", "clipboard", "capture"],
+                        end: ["tray", "sound", "connect", "battery", "power"]
+                    },
+                    top: {
+                        center: ["clock"]
+                    }
+                }
+            },
+            hidden: {
+                edges: {
+                    left: {
+                        visibility: "autohide",
+                        start: ["workspaces", "notifications", "clipboard", "capture"],
+                        center: ["clock"],
+                        end: ["tray", "sound", "connect", "battery", "power"]
+                    }
+                }
+            }
+        })
+
+    // The panels the studio can place: the plugins' drawers and Settings
+    // ([{ name, label, icon }]; a bar popout is placed with its icon, or on
+    // its own once the icon is hidden).
+    readonly property var panelList: Plugins.drawers.map(d => ({
+                name: d.name,
+                label: Plugins.all.find(p => p.id === d.plugin)?.name + (d.name !== d.plugin ? ` · ${d.name}` : ""),
+                icon: Plugins.all.find(p => p.id === d.plugin)?.icon ?? "web_asset",
+                def: d
+            })).concat([{
+                name: "settings",
+                label: "Settings",
+                icon: "tune",
+                def: {
+                    edge: "top",
+                    along: 0.5
+                }
+            }])
+
+    // Where a panel opens now, as a place (its layout place, else derived
+    // from its manifest; a bar popout's from its icon).
+    function panelAt(name: string): var {
+        if (name.startsWith("bar:"))
+            return popoutPlace(name.slice(4));
+        const set = panelPlace(name);
+        if (set)
+            return set;
+        const d = panelList.find(p => p.name === name)?.def;
+        if (!d)
+            return null;
+        return d.edge === "corner" ? {
+            corner: d.corner
+        } : {
+            edge: d.edge ?? "top",
+            region: (d.along ?? 0.5) < 0.34 ? "start" : (d.along ?? 0.5) > 0.66 ? "end" : "center"
+        };
     }
 
     // ── Panels (ROADMAP B5) ──

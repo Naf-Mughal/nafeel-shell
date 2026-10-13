@@ -15,7 +15,7 @@ Panel {
 
     // Every feature that declares settings. Services start when first used,
     // so the panel starts them: each one's page is then registered.
-    readonly property var features: [Tokens, ShellState, Theme, Wallpapers, Display, Weather, Time, Power, Session]
+    readonly property var features: [Tokens, ShellState, BarLayout, Theme, Wallpapers, Display, Weather, Time, Power, Session]
 
     readonly property var page: Settings.pages.find(p => p.name === ShellState.settingsPage) ?? Settings.pages[0] ?? null
 
@@ -91,6 +91,13 @@ Panel {
 
                 width: flick.width
                 spacing: Tokens.spacing.large
+
+                // A page's own UI.
+                Loader {
+                    width: items.width
+                    active: !!root.page && root.page.content.toString() !== ""
+                    source: root.page?.content ?? ""
+                }
 
                 Repeater {
                     model: root.page ? Settings.itemsOf(root.page.name) : []
