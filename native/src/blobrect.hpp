@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include <qelapsedtimer.h>
+#include <qvariantanimation.h>
 #include <qpointer.h>
 #include <qqmlengine.h>
 #include <qqmllist.h>
@@ -113,6 +114,11 @@ private:
     // physics state
     QPointF m_prevScenePos;
     QElapsedTimer m_elapsed;
+    // Ticks with Qt's animations while the spring moves: the next frame is
+    // asked for inside the animation step, in step with the display (a queued
+    // request landed between frames and drew one out of step).
+    QVariantAnimation m_ticker;
+    void syncTicker();
     bool m_physicsActive = false;
     bool m_hasPrevPos = false;
 

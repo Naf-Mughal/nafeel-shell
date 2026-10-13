@@ -25,10 +25,12 @@ sleep "${1:-25}"
 mark() { echo "MARK $1" >> "$log"; }
 mark start
 for d in bar:sound bar:connect bar:battery bar:session bar:workspaces bar:notifications bar:clipboard dashboard actions notes wallpapers; do
-    mark "open $d"; ipc shell open "$d"; sleep 1.2; mark "close $d"; ipc shell close; sleep 1
+    # Closed from inside the shell (closeAfter): the IPC client's own start
+    # would land on the close's first frames.
+    mark "open $d"; ipc shell open "$d"; sleep 1.2; ipc shell closeAfter 600; sleep 0.55; mark "close $d"; sleep 1.2
 done
 for t in home apps media system; do mark "command $t"; ipc shell command "$t"; sleep 1.2; done
-mark "close command"; ipc shell close; sleep 1
+ipc shell closeAfter 600; sleep 0.55; mark "close command"; sleep 1.2
 mark "settings"; ipc shell open settings; sleep 1.2; ipc shell close; sleep 1
 mark idle; sleep 5
 mark end

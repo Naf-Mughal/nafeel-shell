@@ -252,7 +252,7 @@ Item {
         property: "prog"
         to: 0
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.emphasizedAccel
+        easing.bezierCurve: Tokens.anim.exit
     }
     NumberAnimation {
         id: exitX
@@ -261,7 +261,7 @@ Item {
         property: "progX"
         to: 0
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.emphasizedAccel
+        easing.bezierCurve: Tokens.anim.exit
     }
     NumberAnimation {
         id: exitY
@@ -270,7 +270,7 @@ Item {
         property: "progY"
         to: 0
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.emphasizedAccel
+        easing.bezierCurve: Tokens.anim.exit
     }
 
     Item {

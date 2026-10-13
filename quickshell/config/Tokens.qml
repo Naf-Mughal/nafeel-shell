@@ -259,6 +259,10 @@ Singleton {
         readonly property list<real> emphasized: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1]
         readonly property list<real> emphasizedDecel: [0.05, 0.7, 0.1, 1, 1, 1]
         readonly property list<real> emphasizedAccel: [0.3, 0, 0.8, 0.15, 1, 1]
+        // A panel's exit: emphasized accelerate with a little speed from the
+        // start (M3's is flat for its first frames: under a pixel of travel,
+        // so a close seemed to hesitate before it went).
+        readonly property list<real> exit: [0.3, 0.07, 0.8, 0.15, 1, 1]
         readonly property list<real> expressiveSpatial: [0.38, 1.21, 0.22, 1, 1, 1]
         readonly property list<real> expressiveFastSpatial: [0.42, 1.67, 0.21, 0.9, 1, 1]
         readonly property list<real> expressiveEffects: [0.34, 0.8, 0.34, 1, 1, 1]

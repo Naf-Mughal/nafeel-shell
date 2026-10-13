@@ -187,8 +187,22 @@ Singleton {
 
     function close(): void {
         closeTimer.stop();
-        pinned = "";
+        if (pinned === "" && previewed === "")
+            return;
+        letGo(true);
+    }
+
+    // Set for the moment a panel's state changes to closed: the frame
+    // windows take hold of the keyboard and input mask before it does (they
+    // would flip to released and back: two surface commits, an extra frame).
+    property bool closing: false
+
+    function letGo(all: bool): void {
+        closing = true;
+        if (all)
+            pinned = "";
         previewed = "";
+        closing = false;
     }
 
     // The JS heap collected while nothing moves. Left to itself, a cycle
@@ -233,7 +247,10 @@ Singleton {
         id: closeTimer
 
         interval: root.closeDelay
-        onTriggered: root.previewed = ""
+        onTriggered: {
+            if (root.previewed !== "")
+                root.letGo(false);
+        }
     }
 
     IpcHandler {

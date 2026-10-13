@@ -137,7 +137,9 @@ PanelWindow {
     }
 
     function drawerRegion(i: int): rect {
-        return i < drawers.length && drawers[i].open ? drawers[i].restRegion : Qt.rect(0, 0, 0, 0);
+        // Kept while it leaves: a mask change is a surface commit from the
+        // GUI thread, an extra frame if it lands on the close's first one.
+        return i < drawers.length && (drawers[i].open || drawers[i].active) ? drawers[i].restRegion : Qt.rect(0, 0, 0, 0);
     }
 
     onFullscreenChanged: {
@@ -169,6 +171,21 @@ PanelWindow {
     // (the wallpaper redraws), and on the close's first frames that cost one.
     property bool focusHeld: false
 
+    // Held as a close begins (ShellState.closing), before the panel's state
+    // changes: set only when wantsFocus fell, the focus and the input mask
+    // flipped to released and straight back in between, two surface commits
+    // from the GUI thread and an extra frame on the close's first refresh.
+    Connections {
+        target: ShellState
+
+        function onClosingChanged(): void {
+            if (ShellState.closing && win.wantsFocus) {
+                win.focusHeld = true;
+                focusRelease.stop();
+            }
+        }
+    }
+
     onWantsFocusChanged: {
         if (wantsFocus) {
             focusHeld = false;
@@ -193,6 +210,14 @@ PanelWindow {
         to: 1
         duration: 1000
         loops: Animation.Infinite
+    }
+
+    // Animations advanced at the display's vblanks (Nafeel's FramePacer:
+    // vsync-locked though the wallpaper is a second window).
+    readonly property var quickWindow: escCatcher.Window.window
+    onQuickWindowChanged: {
+        if (quickWindow)
+            FramePacer.attach(quickWindow);
     }
 
     Timer {
@@ -527,7 +552,7 @@ PanelWindow {
                 // Not while it leaves: kicked from rest by the exit, the
                 // underdamped spring briefly cancelled the motion, a frame that
                 // looked frozen at the start of every close.
-                deformScale: Tokens.goo.enabled && !modelData.leaving ? Tokens.goo.scale : 0
+                deformScale: Tokens.goo.enabled && (modelData.open || !modelData.active) ? Tokens.goo.scale : 0
                 maxStretch: Tokens.goo.maxStretch
 
                 Component.onCompleted: modelData.blob = blob

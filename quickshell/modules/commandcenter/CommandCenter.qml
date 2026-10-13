@@ -121,7 +121,7 @@ Item {
                 ccFade.stop();
                 ccFade.to = root.expanded ? 1 : 0;
                 ccFade.duration = root.expanded ? Tokens.anim.fast : Tokens.dur(240);
-                ccFade.easing.bezierCurve = root.expanded ? Tokens.anim.standard : Tokens.anim.emphasizedAccel;
+                ccFade.easing.bezierCurve = root.expanded ? Tokens.anim.standard : Tokens.anim.exit;
                 ccFade.start();
             }
         }

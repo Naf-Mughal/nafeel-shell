@@ -8,7 +8,29 @@
 #include <cmath>
 
 BlobRect::BlobRect(QQuickItem* parent)
-    : BlobShape(parent) {}
+    : BlobShape(parent) {
+    m_ticker.setStartValue(0.0);
+    m_ticker.setEndValue(1.0);
+    m_ticker.setDuration(1000);
+    m_ticker.setLoopCount(-1);
+    connect(&m_ticker, &QVariantAnimation::valueChanged, this, [this]() {
+        // Not its first value: Qt starts an animation on the next turn of the
+        // event loop and sets it to time 0 then, between two frames; marked
+        // dirty there, it asked for a frame out of step with the display.
+        if (m_ticker.currentTime() == 0)
+            return;
+        if (m_physicsActive && m_group)
+            m_group->markDirty();
+    });
+}
+
+void BlobRect::syncTicker() {
+    const bool run = m_physicsActive && m_group;
+    if (run && m_ticker.state() != QAbstractAnimation::Running)
+        m_ticker.start();
+    else if (!run && m_ticker.state() == QAbstractAnimation::Running)
+        m_ticker.stop();
+}
 
 BlobRect::~BlobRect() {
     if (m_group)
@@ -33,16 +55,9 @@ void BlobRect::updatePolish() {
             emit rawDeformMatrixChanged();
             updateCenteredDeformMatrix();
             m_physicsActive = false;
-        } else {
-            QMetaObject::invokeMethod(
-                this,
-                [this]() {
-                    if (m_physicsActive && m_group)
-                        m_group->markDirty();
-                },
-                Qt::QueuedConnection);
         }
     }
+    syncTicker();
 }
 
 void BlobRect::updatePhysics() {
