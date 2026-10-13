@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.config
 import qs.services
 import qs.modules.background
@@ -32,6 +33,8 @@ QtObject {
     }
 
     readonly property url avatar: CaveAbode.avatar
+    // NAFEEL_LOCK_OFF (parts the theme leaves out, for measuring).
+    readonly property string debugOff: Quickshell.env("NAFEEL_LOCK_OFF") ?? ""
 
     readonly property QtObject battery: QtObject {
         readonly property bool present: Power.hasBattery

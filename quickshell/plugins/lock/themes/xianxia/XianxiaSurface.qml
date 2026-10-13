@@ -22,6 +22,10 @@ import "../.."
 // Nothing here imports the shell, so the SDDM theme shares these files.
 Item {
     id: xian
+    // NAFEEL_LOCK_OFF=backdrop,hud,formation,wall: leave parts out, to
+    // measure what each costs a frame (bin/frame-probe's lock runs).
+    // (From the host: the shell's reads the environment; the greeter's has none.)
+    readonly property var debugOff: String(xian.host?.debugOff ?? "").split(",")
 
     required property var ctx
     required property var host
@@ -190,19 +194,45 @@ Item {
             }
         }
 
+        // The wallpaper at half resolution: the downscale is the backdrop's
+        // softening (one tap, not nine), and the capture costs a quarter.
         ShaderEffectSource {
             id: wallTex
             sourceItem: wallItem
             live: true
             hideSource: true
+            textureSize: Qt.size(Math.max(1, Math.round(xian.width / 2)), Math.max(1, Math.round(xian.height / 2)))
+            smooth: true
+        }
+
+        // The mist banks at a quarter of the screen each way, smooth under
+        // bilinear filtering: low-frequency and slow, they were most of the
+        // backdrop's cost worked out per screen pixel.
+        ShaderEffect {
+            id: mistField
+
+            width: Math.max(1, Math.round(xian.width / 4))
+            height: Math.max(1, Math.round(xian.height / 4))
+            property real time: xian.ctx.ambientTime
+
+            fragmentShader: Qt.resolvedUrl("../../../../shaders/lock_ink_mist.frag.qsb")
+        }
+
+        ShaderEffectSource {
+            id: mistTex
+            sourceItem: mistField
+            live: true
+            hideSource: true
+            smooth: true
         }
     }
 
     ShaderEffect {
         anchors.fill: parent
-        visible: wallItem.ready
+        visible: wallItem.ready && !xian.debugOff.includes("backdrop")
 
         property variant wall: wallTex
+        property variant mist: mistTex
         property real itemWidth: width
         property real itemHeight: height
         property real time: xian.ctx.ambientTime
@@ -256,6 +286,7 @@ Item {
     Item {
         id: hud
         anchors.fill: parent
+        visible: !xian.debugOff.includes("hud")
         transform: Translate {
             x: xian.shakeX
             y: xian.shakeY
@@ -281,6 +312,7 @@ Item {
 
         Formation {
             id: formation
+            visible: !xian.debugOff.includes("formation")
             anchors.horizontalCenter: parent.horizontalCenter
             y: xian.formationY - height / 2
             ctx: xian.ctx

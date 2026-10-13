@@ -134,6 +134,15 @@ void main() {
     d = roundUnion(d, drawer(p, ubuf.p8, ubuf.d8), k);
     d = roundUnion(d, drawer(p, ubuf.p9, ubuf.d9), k);
 
+    // Well inside the hole (past the gilded line just outside the shape):
+    // nothing to draw. Most of the screen; leaving here skips the ink, the
+    // fibres and the line for it (the lock's frame cost a full-screen pass
+    // of noise for pixels it then made transparent).
+    if (d > 2.0) {
+        fragColor = vec4(0.0);
+        return;
+    }
+
     float a = clamp(0.5 - d, 0.0, 1.0) * ubuf.color.a * ubuf.qt_Opacity;
 
     // Ink wash: soft, large blooms of slightly lighter and darker ink, and a

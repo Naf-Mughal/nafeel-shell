@@ -42,9 +42,14 @@ public:
         QOpenGLFramebufferObject *fbo = framebufferObject();
         mpv_opengl_fbo target{static_cast<int>(fbo->handle()), fbo->width(), fbo->height(), 0};
         int flip = 0;
+        // Don't wait for the frame's display time: mpv's own pacing blocked
+        // the render thread (~10 ms a frame), dragging everything sharing the
+        // window (the lock screen) to the video's 30 fps. Qt paces at vsync.
+        int block = 0;
         mpv_render_param params[] = {
             {MPV_RENDER_PARAM_OPENGL_FBO, &target},
             {MPV_RENDER_PARAM_FLIP_Y, &flip},
+            {MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME, &block},
             {MPV_RENDER_PARAM_INVALID, nullptr},
         };
         mpv_render_context_render(m_ctx, params);

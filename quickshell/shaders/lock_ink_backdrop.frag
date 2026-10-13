@@ -4,9 +4,15 @@
 //
 // The wallpaper is softened and remapped from its luminance onto an ink
 // palette (dark hollows stay ink, light areas become pale mist), then drifting
-// fbm mist, rice-paper grain and slowly rising golden qi motes are layered on
+// mist, rice-paper grain and slowly rising golden qi motes are layered on
 // top. Everything that moves is a function of `time`, which only advances
 // while the lock screen is awake.
+//
+// Cheap per pixel: the wallpaper comes at half resolution (the downscale is
+// the softening: one tap, not nine) and the mist banks from their own quarter
+// resolution pass (lock_ink_mist), so a frame fits well inside 60 fps.
+//
+// Rebuild after editing:  /usr/lib/qt6/bin/qsb --qt6 -o lock_ink_backdrop.frag.qsb lock_ink_backdrop.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -24,55 +30,28 @@ layout(std140, binding = 0) uniform buf {
 } ubuf;
 
 layout(binding = 1) uniform sampler2D wall;
+layout(binding = 2) uniform sampler2D mist;  // r: mist bank * depth
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-}
-
-float fbm(vec2 p) {
-    float v = 0.0;
-    float a = 0.5;
-    for (int i = 0; i < 5; i++) {
-        v += a * noise(p);
-        p = p * 2.03 + vec2(17.3, 9.1);
-        a *= 0.5;
-    }
-    return v;
 }
 
 void main() {
     vec2 res = vec2(ubuf.itemWidth, ubuf.itemHeight);
     vec2 uv = qt_TexCoord0;
 
-    // Light 9-tap sample of the wallpaper: just enough to take the edge off,
-    // wider taps smear it into a low-res looking ghost.
-    vec2 px = 1.25 / res;
-    vec3 w = vec3(0.0);
-    for (int x = -1; x <= 1; x++)
-        for (int y = -1; y <= 1; y++)
-            w += texture(wall, uv + vec2(float(x), float(y)) * px).rgb;
-    w /= 9.0;
+    // The wallpaper, already softened by its half-resolution capture.
+    vec3 w = texture(wall, uv).rgb;
     float l = dot(w, vec3(0.299, 0.587, 0.114));
 
     // Ink remap: hollows stay ink, highlights turn to moonlit mist.
     float tone = pow(smoothstep(0.04, 0.95, l), 1.25);
     vec3 col = mix(ubuf.inkColor.rgb, ubuf.mistColor.rgb, tone * 0.6);
 
-    // Drifting mist banks, thicker towards the valleys at the bottom.
+    // Drifting mist banks, thicker towards the valleys at the bottom (their
+    // own small pass).
     float t = ubuf.time;
-    float m = fbm(uv * vec2(2.4, 5.2) + vec2(t * 0.018, t * 0.004));
-    float m2 = fbm(uv * vec2(4.8, 9.0) - vec2(t * 0.011, 0.0));
-    float bank = smoothstep(0.45, 0.85, m * 0.7 + m2 * 0.3);
-    float depth = 0.1 + 0.5 * smoothstep(0.3, 1.0, uv.y);
-    col = mix(col, ubuf.mistColor.rgb * 1.05, bank * depth);
+    col = mix(col, ubuf.mistColor.rgb * 1.05, texture(mist, uv).r);
 
     // Rice-paper grain, barely there (stronger reads as noise).
     col += (hash(floor(uv * res)) - 0.5) * 0.008;
