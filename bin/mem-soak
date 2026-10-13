@@ -1,0 +1,105 @@
+#!/bin/bash
+# The shell's memory soak (ROADMAP Stage O): every panel once, then rounds of
+# the heavy ones, measuring PSS after each, and the budget's verdict:
+#   - after the soak, idle at most 350 MB;
+#   - a panel's first open keeps at most 15 MB.
+# Opens and closes panels on the focused screen for a few minutes.
+#
+#   mem-soak              soak the running shell
+#   mem-soak --restart    restart it first (its supervisor starts it again)
+#   mem-soak --rounds N   N rounds of the heavy panels (default 5)
+#
+# The log goes to ~/.cache/nafeel-shell/mem/<time>.txt as well.
+set -u
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+qml=$root/quickshell
+idle_budget=350
+open_budget=15
+rounds=5
+restart=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+    --restart) restart=1 ;;
+    --rounds) rounds=$2; shift ;;
+    *) echo "usage: mem-soak [--restart] [--rounds N]" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+logdir=${XDG_CACHE_HOME:-$HOME/.cache}/nafeel-shell/mem
+mkdir -p "$logdir"
+log=$logdir/$(date +%Y%m%d-%H%M%S).txt
+exec > >(tee "$log") 2>&1
+
+shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $qml/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }
+ipc() { qs -p "$qml" ipc call "$@" >/dev/null 2>&1; }
+pss() { awk '/^Pss:/ { print int($2 / 1024) }' /proc/"$(shell_pid)"/smaps_rollup; }
+
+# One line per step: PSS, anon, file, threads, and what the step kept.
+last=0
+over=()
+step() {
+    local p; p=$(shell_pid)
+    local now anon file thr
+    now=$(awk '/^Pss:/ { print int($2 / 1024) }' /proc/$p/smaps_rollup)
+    anon=$(awk '/^Pss_Anon:/ { print int($2 / 1024) }' /proc/$p/smaps_rollup)
+    file=$(awk '/^Pss_File:/ { print int($2 / 1024) }' /proc/$p/smaps_rollup)
+    thr=$(awk '/^Threads/ { print $2 }' /proc/$p/status)
+    local kept=$((now - last))
+    printf "%-30s PSS %5d  anon %5d  file %4d  thr %3d  %+5d\n" "$1" "$now" "$anon" "$file" "$thr" "$kept"
+    if [ "${2:-}" = first ] && [ "$kept" -gt "$open_budget" ]; then
+        over+=("$1 kept $kept MB")
+    fi
+    last=$now
+}
+first() { ipc shell open "$1"; sleep 2.2; ipc shell close; sleep 1; step "$2" first; }
+
+[ -n "$(shell_pid)" ] || { echo "the shell isn't running"; exit 1; }
+if [ "$restart" = 1 ]; then
+    old=$(shell_pid)
+    qs kill --pid "$old" >/dev/null 2>&1
+    for _ in $(seq 60); do n=$(shell_pid); [ -n "$n" ] && [ "$n" != "$old" ] && break; sleep 0.5; done
+    sleep 40
+fi
+last=$(pss)
+step "start"
+
+echo "== every panel once"
+for d in workspaces notifications clipboard capture sound connect battery session; do first "bar:$d" "bar:$d"; done
+for t in dash media performance weather; do ipc shell dash "$t"; first dashboard "dashboard:$t"; done
+first wallpapers wallpapers
+first notes notes
+first actions "action center"
+for t in home apps media audio display system power network bluetooth weather calendar notifications; do
+    ipc shell command "$t"; sleep 2; step "command center:$t" first
+done
+ipc shell close; sleep 1
+for pg in plugins appearance bar panels dock theme wallpaper display power weather time session; do
+    ipc shell settings "$pg"; ipc shell open settings; sleep 1.5
+done
+ipc shell close; sleep 1; step "settings (every page)" first
+ipc bar edit; sleep 1.5; ipc bar edit; sleep 1; step "bar edit mode" first
+
+echo "== $rounds rounds of the heavy panels"
+for r in $(seq "$rounds"); do
+    for d in wallpapers dashboard actions bar:notifications bar:workspaces bar:clipboard; do
+        ipc shell open "$d"; sleep 1.5; ipc shell close; sleep 0.5
+    done
+    ipc shell command apps; sleep 1.5; ipc shell close; sleep 0.5
+    step "round $r"
+done
+sleep 30
+step "idle 30 s"
+
+echo "== budget"
+ok=1
+if [ "$last" -gt "$idle_budget" ]; then
+    echo "OVER: idle after the soak is $last MB (budget $idle_budget)"
+    ok=0
+else
+    echo "ok: idle after the soak is $last MB (budget $idle_budget)"
+fi
+for o in "${over[@]}"; do echo "OVER: $o (budget $open_budget)"; ok=0; done
+[ "$ok" = 1 ] && echo "within budget"
+echo "(log: $log)"
+[ "$ok" = 1 ]

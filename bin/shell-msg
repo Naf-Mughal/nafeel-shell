@@ -25,13 +25,26 @@
 #   lock                    lock now
 #   suspend                 lock, then sleep
 #   switch next|prev        Alt+Tab / Alt+Shift+Tab: the window switcher
+#   mem                     the shell's memory: PSS, anon, file, threads
+#                           (bin/mem-soak puts it through every panel)
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 ipc() { qs -p "$root/quickshell" ipc call "$@" >/dev/null 2>&1; }
 # Said once per action when the shell doesn't answer.
 down() { notify-send --app-name=Shell -u low "The shell isn't running" "Mod keys that open its panels do nothing until it's back (nafeel-shell)." 2>/dev/null; }
 
+# The running shell's process (Quickshell's own list: a crash-restarted
+# copy has another command line).
+shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $root/quickshell/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }
+
 case "$1" in
+mem)
+    p=$(shell_pid)
+    [ -n "$p" ] || { echo "the shell isn't running" >&2; exit 1; }
+    awk -v t="$(awk '/^Threads/ { print $2 }' /proc/$p/status)" '
+        /^Pss:/ { pss = $2 } /^Pss_Anon:/ { anon = $2 } /^Pss_File:/ { file = $2 }
+        END { printf "PSS %d MB  anon %d MB  file %d MB  threads %d\n", pss / 1024, anon / 1024, file / 1024, t }' /proc/$p/smaps_rollup
+    ;;
 launcher) ipc shell command apps || down ;;
 command) ipc shell command "${2:-home}" || down ;;
 search) ipc shell search "$2" || down ;;
@@ -72,7 +85,7 @@ switch) ipc switcher "${2:-next}" || down ;;
 lock) ipc lock lock || "$HOME/.local/share/nafeel-shell/fallback-lock/bin/lock" ;;
 suspend) ipc session run suspend || { "$HOME/.local/share/nafeel-shell/fallback-lock/bin/lock" & sleep 1.5; systemctl suspend; } ;;
 *)
-    echo "usage: shell-msg launcher|command [tab]|search <text>|session|notifications|workspaces|actions|capture|snip|record|wallpaper|notes|dashboard|desktop|caffeine|clipboard|lock|suspend|switch next|prev" >&2
+    echo "usage: shell-msg launcher|command [tab]|search <text>|session|notifications|workspaces|actions|capture|snip|record|wallpaper|notes|dashboard|desktop|caffeine|clipboard|lock|suspend|switch next|prev|baredit|mem" >&2
     exit 2
     ;;
 esac

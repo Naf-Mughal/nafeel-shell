@@ -748,9 +748,12 @@ other ~250 MB of anon is outside malloc: the JS heap, scene graph and GL buffers
   font's tables; Noto Serif CJK (three weights) and the variable Material Symbols at many sizes;
 - Qt GUI caches 35 MB; Mesa's shader compiler 16 MB at peak.
 
-- [ ] **O1 Measure** `shell-msg mem` (PSS, anon, file, threads); the soak as `bin/mem-soak`;
-  budget: after a soak idle <= 350 MB, a panel's first open keeps <= 15 MB; heaptrack when a
-  budget breaks.
+- [x] **O1 Measure** (2026-10-13): `shell-msg mem` (PSS, anon, file, threads); `bin/mem-soak
+  [--restart] [--rounds N]` (every panel once, then rounds; the steps' kept MB; the budget's
+  verdict; logs in ~/.cache/nafeel-shell/mem/); budget: after a soak idle <= 350 MB, a panel's
+  first open keeps <= 15 MB; heaptrack when a budget breaks. First run, with the 4K video
+  wallpaper on: 562 MB fresh -> 746 MB idle after the soak; over budget: wallpaper studio +66,
+  notifications +35, Settings +27, the command center's notifications tab +19.
 - [ ] **O2 Fonts** (~-40..-50 MB heap, -7 MB mapped): a subset CJK serif of the glyphs the shell
   uses (glosses, numerals, 时辰, the lock's text); the sizes and weights folded into the tokens;
   Material Symbols at a few fixed sizes and fills.
