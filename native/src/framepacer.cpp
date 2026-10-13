@@ -177,7 +177,31 @@ public:
         return m_presentation && m_file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
     }
 
-    void watch(QQuickWindow *window) { m_window = window; }
+    void watch(QQuickWindow *window, const std::function<qint64()> &animTime) {
+        if (m_window)
+            return;
+        m_window = window;
+        // At sync (render thread, GUI blocked): the frame's animation time.
+        QObject::connect(window, &QQuickWindow::afterSynchronizing, window, [this, animTime]() {
+            m_frameTime.storeRelaxed(animTime());
+        }, Qt::DirectConnection);
+        // Just before this frame's swap: feedback for exactly this commit.
+        QObject::connect(window, &QQuickWindow::afterRendering, window, [this]() {
+            requestFeedback(m_frameTime.loadRelaxed());
+        }, Qt::DirectConnection);
+    }
+
+    void requestFeedback(qint64 tag) {
+        auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", m_window));
+        if (!surface || !m_presentation)
+            return;
+        struct wp_presentation_feedback *fb = wp_presentation_feedback(m_presentation, surface);
+        auto *ctx = new std::pair<PresentLog *, qint64>(this, tag);
+        wp_presentation_feedback_add_listener(fb, &frameListener, ctx);
+    }
+
+    static const wp_presentation_feedback_listener frameListener;
+    QAtomicInteger<qint64> m_frameTime{0};
 
     void step(quint32 seq, qint64 vblankUs) {
         if (!m_presentation || !m_window)
@@ -186,37 +210,11 @@ public:
         clock_gettime(CLOCK_MONOTONIC, &now);
         const qint64 nowUs = qint64(now.tv_sec) * 1000000 + now.tv_nsec / 1000;
         write(QStringLiteral("T %1 %2 %3\n").arg(nowUs * 1000).arg(seq).arg(vblankUs ? nowUs - vblankUs : -1));
-        m_tag = seq;
         wl_display_dispatch_queue_pending(m_display, m_queue);
-        auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", m_window));
-        if (!surface)
-            return;
-        struct wp_presentation_feedback *fb = wp_presentation_feedback(m_presentation, surface);
-        static const wp_presentation_feedback_listener listener = {
-            [](void *, struct wp_presentation_feedback *, wl_output *) {},
-            [](void *data, struct wp_presentation_feedback *fb, uint32_t hi, uint32_t lo, uint32_t ns, uint32_t, uint32_t mhi, uint32_t mlo, uint32_t) {
-                const qint64 t = ((qint64(hi) << 32) | lo) * 1000000000LL + ns;
-                const quint64 msc = (quint64(mhi) << 32) | mlo;
-                auto *ctx = static_cast<std::pair<PresentLog *, quint32> *>(data);
-                ctx->first->write(QStringLiteral("P %1 %2 %3\n").arg(t).arg(msc).arg(ctx->second));
-                delete ctx;
-                wp_presentation_feedback_destroy(fb);
-            },
-            [](void *data, struct wp_presentation_feedback *fb) {
-                timespec ts{};
-                clock_gettime(CLOCK_MONOTONIC, &ts);
-                auto *ctx = static_cast<std::pair<PresentLog *, quint32> *>(data);
-                ctx->first->write(QStringLiteral("D %1 %2\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec).arg(ctx->second));
-                delete ctx;
-                wp_presentation_feedback_destroy(fb);
-            },
-        };
-        auto *ctx = new std::pair<PresentLog *, quint32>(this, m_tag);
-        wp_presentation_feedback_add_listener(fb, &listener, ctx);
-        wl_display_flush(m_display);
     }
 
     void write(const QString &line) {
+        QMutexLocker lock(&m_writeLock);
         m_file.write(line.toUtf8());
         m_file.flush();
     }
@@ -227,7 +225,27 @@ private:
     wp_presentation *m_presentation = nullptr;
     QPointer<QQuickWindow> m_window;
     QFile m_file;
-    quint32 m_tag = 0;
+    QMutex m_writeLock;
+};
+
+const wp_presentation_feedback_listener PresentLog::frameListener = {
+    [](void *, struct wp_presentation_feedback *, wl_output *) {},
+    [](void *data, struct wp_presentation_feedback *fb, uint32_t hi, uint32_t lo, uint32_t ns, uint32_t, uint32_t mhi, uint32_t mlo, uint32_t) {
+        auto *ctx = static_cast<std::pair<PresentLog *, qint64> *>(data);
+        const qint64 t = ((qint64(hi) << 32) | lo) * 1000000000LL + ns;
+        const quint64 msc = (quint64(mhi) << 32) | mlo;
+        ctx->first->write(QStringLiteral("F %1 %2 %3\n").arg(t).arg(msc).arg(ctx->second));
+        delete ctx;
+        wp_presentation_feedback_destroy(fb);
+    },
+    [](void *data, struct wp_presentation_feedback *fb) {
+        auto *ctx = static_cast<std::pair<PresentLog *, qint64> *>(data);
+        timespec ts{};
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        ctx->first->write(QStringLiteral("X %1 %2\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec).arg(ctx->second));
+        delete ctx;
+        wp_presentation_feedback_destroy(fb);
+    },
 };
 
 class FramePacerDriver : public QAnimationDriver {
@@ -276,8 +294,8 @@ public:
             if (!path.isEmpty() && m_log.open(path))
                 m_logging = true;
         }
-        if (m_logging)
-            m_log.watch(window);
+        if (m_logging && !strict)
+            m_log.watch(window, [this]() { return (m_origin / 1000) + m_time; });
     }
 
     void mark(const QString &what) {
