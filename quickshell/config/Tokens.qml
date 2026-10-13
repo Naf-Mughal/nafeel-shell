@@ -183,9 +183,25 @@ Singleton {
     // ── Type ──────────────────────────────────────────────────────────────
     // Serif for display and seals (the cave-abode voice), the UI sans for
     // language, mono for tracked micro-labels and data.
+    // The shell's CJK serif, one file per weight (bin/build-cjk-font).
+    readonly property list<FontLoader> fontFiles: [
+        FontLoader {
+            source: Qt.resolvedUrl("../assets/fonts/NafeelSerifCJK-Regular.otf")
+        },
+        FontLoader {
+            source: Qt.resolvedUrl("../assets/fonts/NafeelSerifCJK-Medium.otf")
+        },
+        FontLoader {
+            source: Qt.resolvedUrl("../assets/fonts/NafeelSerifCJK-Bold.otf")
+        }
+    ]
+
     readonly property QtObject font: QtObject {
         readonly property string serif: "Noto Serif"
-        readonly property string cjk: "Noto Serif CJK SC"
+        // Noto Serif CJK SC cut to the characters the shell shows
+        // (bin/build-cjk-font; assets/fonts, loaded below): the whole
+        // collection cost tens of MB per weight. Others fall back.
+        readonly property string cjk: "Nafeel Serif CJK"
         readonly property string mono: "JetBrainsMono Nerd Font"
 
         readonly property int hero: 34

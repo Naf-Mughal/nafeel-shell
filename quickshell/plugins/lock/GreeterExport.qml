@@ -41,7 +41,8 @@ Singleton {
             realName: Session.realName,
             follow: CaveAbode.followPalette && !Colours.light,
             m3: m3,
-            fontCjk: Tokens.font.cjk,
+            // The system's: the greeter can't load the shell's cut-down one.
+            fontCjk: "Noto Serif CJK SC",
             fontSerif: Tokens.font.serif,
             radiusSmall: Tokens.rounding.small,
             radiusNormal: Tokens.rounding.normal,

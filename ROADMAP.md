@@ -754,9 +754,13 @@ other ~250 MB of anon is outside malloc: the JS heap, scene graph and GL buffers
   first open keeps <= 15 MB; heaptrack when a budget breaks. First run, with the 4K video
   wallpaper on: 562 MB fresh -> 746 MB idle after the soak; over budget: wallpaper studio +66,
   notifications +35, Settings +27, the command center's notifications tab +19.
-- [ ] **O2 Fonts** (~-40..-50 MB heap, -7 MB mapped): a subset CJK serif of the glyphs the shell
-  uses (glosses, numerals, 时辰, the lock's text); the sizes and weights folded into the tokens;
-  Material Symbols at a few fixed sizes and fills.
+- [x] **O2 Fonts** (2026-10-13; -103 MB idle after the soak, 746 -> 643 with the video
+  wallpaper still on; Settings' pages +27 -> +6): the CJK serif is "Nafeel Serif CJK", Noto
+  Serif CJK SC cut to the shell's 249 characters + CJK punctuation + ASCII (bin/build-cjk-font,
+  ~200 KB per weight in quickshell/assets/fonts, FontLoaders in Tokens; rerun after adding CJK
+  text; the SDDM greeter keeps the system's); MaterialIcon's FILL axis is whole (0 or 1): Qt
+  made a font engine per distinct axis value, and the animated fill left dozens per size. Not
+  done: folding text sizes into the tokens (the measure says it isn't needed yet).
 - [ ] **O3 Images** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
   card, gone on close; a sourceSize on every Image; notification, clipboard, album and avatar
   images at their shown size, uncached; the wallpaper decoded at screen size.

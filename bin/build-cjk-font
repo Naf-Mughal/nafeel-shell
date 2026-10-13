@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Build the shell's CJK serif: Noto Serif CJK SC cut down to the characters
+the shell shows (every CJK character in its QML and JS, the CJK
+punctuation, ASCII), renamed "Nafeel Serif CJK", one file per weight, into
+quickshell/assets/fonts/ (loaded by config/Tokens.qml).
+
+The whole collection costs tens of MB per weight once loaded (its glyph
+and layout tables); the cut is a few hundred KB (ROADMAP O2). Characters
+it lacks fall back to the system's fonts. Rerun after adding CJK text:
+    bin/build-cjk-font
+Needs fonttools (python-fonttools) and the Noto Serif CJK fonts.
+"""
+
+import glob
+import os
+import sys
+
+from fontTools.subset import Options, Subsetter
+from fontTools.ttLib import TTCollection
+
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+QML = os.path.join(ROOT, "quickshell")
+OUT = os.path.join(QML, "assets", "fonts")
+NOTO = "/usr/share/fonts/noto-cjk/NotoSerifCJK-{}.ttc"
+WEIGHTS = ["Regular", "Medium", "Bold"]
+FAMILY = "Nafeel Serif CJK"
+
+
+def cjk(ch: str) -> bool:
+    o = ord(ch)
+    return (0x2E80 <= o <= 0x9FFF or 0xF900 <= o <= 0xFAFF or 0x3000 <= o <= 0x303F
+            or 0xFF00 <= o <= 0xFFEF)
+
+
+def characters() -> set:
+    chars = set()
+    for pattern in ("**/*.qml", "**/*.js"):
+        for path in glob.glob(os.path.join(QML, pattern), recursive=True):
+            with open(path, encoding="utf-8") as f:
+                chars.update(ch for ch in f.read() if cjk(ch))
+    chars.update(chr(c) for c in range(0x3000, 0x3040))  # CJK punctuation
+    chars.update(chr(c) for c in range(0x20, 0x7F))  # ASCII
+    return chars
+
+
+def sc_face(path: str):
+    for font in TTCollection(path).fonts:
+        names = {r.toUnicode() for r in font["name"].names if r.nameID in (1, 16)}
+        if any(n.endswith(" SC") or " SC " in n for n in names):
+            return font
+    sys.exit(f"no SC face in {path}")
+
+
+def rename(font, weight: str) -> None:
+    full = f"{FAMILY} {weight}" if weight != "Regular" else FAMILY
+    post = f"NafeelSerifCJK-{weight}"
+    table = font["name"]
+    for rec in list(table.names):
+        if rec.nameID in (1, 16):
+            table.setName(FAMILY, rec.nameID, rec.platformID, rec.platEncID, rec.langID)
+        elif rec.nameID in (2, 17):
+            table.setName(weight, rec.nameID, rec.platformID, rec.platEncID, rec.langID)
+        elif rec.nameID == 4:
+            table.setName(full, 4, rec.platformID, rec.platEncID, rec.langID)
+        elif rec.nameID == 6:
+            table.setName(post, 6, rec.platformID, rec.platEncID, rec.langID)
+
+
+def main() -> None:
+    chars = characters()
+    os.makedirs(OUT, exist_ok=True)
+    opts = Options()
+    opts.layout_features = ["*"]
+    opts.name_IDs = ["*"]
+    opts.name_languages = ["*"]
+    opts.notdef_outline = True
+    for weight in WEIGHTS:
+        font = sc_face(NOTO.format(weight))
+        sub = Subsetter(opts)
+        sub.populate(unicodes=[ord(c) for c in chars])
+        sub.subset(font)
+        rename(font, weight)
+        out = os.path.join(OUT, f"NafeelSerifCJK-{weight}.otf")
+        font.save(out)
+        print(f"{out}: {os.path.getsize(out) // 1024} KB")
+    print(f"{len([c for c in chars if cjk(c)])} CJK characters")
+
+
+if __name__ == "__main__":
+    main()
