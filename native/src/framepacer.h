@@ -50,6 +50,9 @@ public:
 
 signals:
     void activeChanged();
+    // A watched (frame) window was exposed: a configure from the compositor
+    // was handled (Qt redraws synchronously for it).
+    void exposed();
 
 private:
     bool install();

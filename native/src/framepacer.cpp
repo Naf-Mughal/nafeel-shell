@@ -132,7 +132,7 @@ protected:
                 onVblank(qint64(v.reply.tval_sec) * 1000000 + v.reply.tval_usec, v.reply.sequence);
             if (stalltrace::fd >= 0) {
                 // The previous tick still unhandled after ~10 ms: trace.
-                QThread::usleep(10000);
+                QThread::usleep(6000);
                 if (handled.loadRelaxed() + 1 < v.reply.sequence + 1 && handled.loadRelaxed() != v.reply.sequence)
                     pthread_kill(stalltrace::gui, SIGUSR2);
             }
@@ -306,7 +306,15 @@ public:
         m_log.write(QStringLiteral("M %1 %2\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec).arg(what));
     }
 
+    std::function<void()> onExposed;
+
     bool eventFilter(QObject *obj, QEvent *event) override {
+        if (event->type() == QEvent::Expose) {
+            for (const auto &w : std::as_const(m_windows))
+                if (w.window == obj && !w.strict && onExposed)
+                    QMetaObject::invokeMethod(this, [this]() { if (onExposed) onExposed(); }, Qt::QueuedConnection);
+            return false;
+        }
         if (event->type() != QEvent::UpdateRequest)
             return false;
         for (auto &w : m_windows) {
@@ -429,6 +437,7 @@ bool FramePacer::install() {
     if (qtDriver)
         qtDriver->uninstall();
     m_driver = new FramePacerDriver();
+    m_driver->onExposed = [this]() { emit exposed(); };
     m_driver->install();
     emit activeChanged();
     return true;

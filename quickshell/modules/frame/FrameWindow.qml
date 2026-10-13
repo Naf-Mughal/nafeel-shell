@@ -165,7 +165,7 @@ PanelWindow {
     // Esc closes it and its fields can be typed in straight away; a hover
     // preview never does, so typing in apps isn't interrupted.
     WlrLayershell.keyboardFocus: wantsFocus || focusHeld ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere
+    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (ShellState.grabbing !== "" && ShellState.screen === (screen?.name ?? ""))
     // Let go of the keyboard once a closing panel has settled, not as it
     // starts: handing focus back makes the compositor re-arrange its layers
     // (the wallpaper redraws), and on the close's first frames that cost one.
@@ -262,7 +262,7 @@ PanelWindow {
     }
 
 
-    mask: fullscreen ? noInput : pinnedHere || editingHere || focusHeld ? everywhere : frameInput
+    mask: fullscreen ? noInput : wantsFocus || focusHeld ? everywhere : frameInput
 
     // Caffeine: keeps the session from going idle (dim, lock, sleep) while on.
     IdleInhibitor {

@@ -187,13 +187,50 @@ Singleton {
         closeTimer.stop();
         inTick.stop();
         closeAll = false;
+        // From closed: the frame window takes the keyboard first (grabbing):
+        // that makes umbriel re-arrange its layers and Qt redraws the window
+        // synchronously on the GUI thread; done mid-open it took frames from
+        // it. The panel then opens two refreshes later. Switching between
+        // open panels, or one already grabbing, goes at once.
+        if (pinned === "" && previewed === "") {
+            grabbing = name;
+            screen = screenName;
+            if (!grabTick.running)
+                grabTick.start();
+            return;
+        }
+        commitPin(name, screenName);
+    }
+
+    function commitPin(name: string, screenName: string): void {
+        if (pinned !== name)
+            FramePacer.mark("open");
+        grabTick.stop();
+        grabbing = "";
         pinned = name;
         previewed = "";
         screen = screenName;
     }
 
+    // The panel about to open (keyboard taken, motion not started).
+    property string grabbing: ""
+
+    NumberAnimation {
+        id: grabTick
+
+        duration: 30
+        onFinished: {
+            if (root.grabbing !== "")
+                root.commitPin(root.grabbing, root.screen);
+        }
+    }
+
     function close(): void {
         closeTimer.stop();
+        if (grabbing !== "") {
+            grabTick.stop();
+            grabbing = "";
+        }
         if (pinned === "" && previewed === "")
             return;
         closeAll = true;

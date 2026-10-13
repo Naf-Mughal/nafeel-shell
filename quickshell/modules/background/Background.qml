@@ -42,10 +42,9 @@ Variants {
         readonly property string coveredRule: Wallpapers.settings.v.liveCovered ?? "auto"
         readonly property bool holdCovered: coveredRule === "pause" || (coveredRule === "auto" && onBattery)
         readonly property bool covered: holdCovered && Umbriel.coverageOn(modelData.name, modelData.width, modelData.height) >= 0.9
-        // Held while a panel opens or closes too (a third of a second, from
-        // where it was): decoding and drawing a 4K frame shared the GPU with
-        // the panel's frames and now and then cost one a refresh.
-        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !onBattery) && !covered && !Wallpapers.held && ShellState.moving === 0
+        // Plays through panels opening and closing: held for them, the
+        // wallpaper visibly stuttered.
+        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !onBattery) && !covered && !Wallpapers.held
 
         function url(path: string): string {
             return path ? "file://" + path : "";

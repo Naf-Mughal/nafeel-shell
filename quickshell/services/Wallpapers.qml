@@ -83,8 +83,8 @@ Singleton {
             key: "liveCovered"
             icon: "layers"
             label: "While windows cover it"
-            description: "A live wallpaper behind windows that cover the screen: keep playing, or hold still until any of it shows (nothing to see, so no GPU or battery spent). Auto plays on the charger and holds on battery."
-            def: "auto"
+            description: "A live wallpaper behind windows that cover the screen: keep playing, or hold still until any of it shows (nothing to see, so no GPU or battery spent). Plays by default; Auto plays on the charger and holds on battery."
+            def: "play"
             options: [
                 {
                     value: "auto",
