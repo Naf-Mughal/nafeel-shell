@@ -212,6 +212,23 @@ PanelWindow {
         loops: Animation.Infinite
     }
 
+    // Still frames before a close (ShellState.closePending): a pixel nobody
+    // sees, changed at each vblank-paced step, so the window draws in step
+    // with the display before the panel moves.
+    property real pumpPhase: 0
+    NumberAnimation on pumpPhase {
+        running: ShellState.closePending
+        from: 0
+        to: 1
+        duration: 100
+        loops: Animation.Infinite
+    }
+    Rectangle {
+        width: 1
+        height: 1
+        color: Qt.rgba(0, 0, 0, 0.002 + 0.002 * win.pumpPhase)
+    }
+
     // Animations advanced at the display's vblanks (Nafeel's FramePacer:
     // vsync-locked though the wallpaper is a second window).
     readonly property var quickWindow: escCatcher.Window.window

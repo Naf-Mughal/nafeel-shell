@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Gui Quick QuickPrivate ShaderTools DBus OpenGL)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Gui GuiPrivate Quick QuickPrivate ShaderTools DBus OpenGL)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 pkg_check_modules(WAYLAND REQUIRED IMPORTED_TARGET wayland-client)
@@ -53,7 +53,8 @@ endforeach()
 foreach(xml IN ITEMS
         ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-data-control-unstable-v1.xml
         ${CMAKE_CURRENT_SOURCE_DIR}/protocols/virtual-keyboard-unstable-v1.xml
-        ${WL_PROTOCOLS}/staging/ext-data-control/ext-data-control-v1.xml)
+        ${WL_PROTOCOLS}/staging/ext-data-control/ext-data-control-v1.xml
+        ${WL_PROTOCOLS}/stable/presentation-time/presentation-time.xml)
     get_filename_component(p ${xml} NAME_WE)
     add_custom_command(
         OUTPUT ${p}-client-protocol.h ${p}-protocol.c
@@ -120,7 +121,7 @@ pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
 # Live wallpapers: libmpv's render API (VAAPI decoding, drawn in the scene).
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 target_include_directories(nafeelnative PRIVATE ${CMAKE_CURRENT_BINARY_DIR} src src/noctalia src/caelestia)
-target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBDRM Qt6::OpenGL)
+target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::GuiPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBDRM Qt6::OpenGL)
 
 qt_add_shaders(nafeelnative "blob_shaders"
     BATCHABLE

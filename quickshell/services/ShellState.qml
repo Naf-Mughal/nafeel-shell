@@ -152,6 +152,8 @@ Singleton {
             // switches to its panel.
             if ((pinned.startsWith("bar:") && name.startsWith("bar:")) || BarLayout.sharesPill(pinned, name)) {
                 closeTimer.stop();
+                inTick.stop();
+                closeAll = false;
                 pinned = name;
                 previewed = "";
                 screen = screenName;
@@ -159,6 +161,8 @@ Singleton {
             return;
         }
         closeTimer.stop();
+        inTick.stop();
+        closeAll = false;
         previewed = name;
         screen = screenName;
     }
@@ -180,6 +184,8 @@ Singleton {
 
     function pin(name: string, screenName: string): void {
         closeTimer.stop();
+        inTick.stop();
+        closeAll = false;
         pinned = name;
         previewed = "";
         screen = screenName;
@@ -189,7 +195,27 @@ Singleton {
         closeTimer.stop();
         if (pinned === "" && previewed === "")
             return;
-        letGo(true);
+        closeAll = true;
+        inTick.restart();
+    }
+
+    // A close lands inside an animation step (the vblank-paced driver's,
+    // Nafeel's FramePacer), after three refreshes of still frames
+    // (FrameWindow's pump draws them). Applied between refreshes it drew a
+    // frame out of step; and umbriel shows the first frame after a rest at
+    // once but the next one on its own vblank schedule, a refresh later: the
+    // still frames take that refresh, the panel's motion starts in step.
+    property bool closeAll: false
+    readonly property bool closePending: inTick.running
+
+    NumberAnimation {
+        id: inTick
+
+        duration: 45
+        onFinished: {
+            root.letGo(root.closeAll);
+            root.closeAll = false;
+        }
     }
 
     // Set for the moment a panel's state changes to closed: the frame
@@ -248,8 +274,8 @@ Singleton {
 
         interval: root.closeDelay
         onTriggered: {
-            if (root.previewed !== "")
-                root.letGo(false);
+            if (root.previewed !== "" && !inTick.running)
+                inTick.restart();
         }
     }
 

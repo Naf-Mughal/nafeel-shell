@@ -10,12 +10,18 @@
 #include <functional>
 
 #include <QDir>
+#include <QEvent>
 #include <QMutex>
 #include <QThread>
 #include <QWaitCondition>
 #include <fcntl.h>
 #include <unistd.h>
 #include <xf86drm.h>
+
+#include <QFile>
+#include <qpa/qplatformnativeinterface.h>
+#include <wayland-client.h>
+#include "presentation-time-client-protocol.h"
 
 // Uses Qt's private render-loop API (the driver it installed): rebuilt
 // against each Qt minor version like the rest of the module (build.sh).
@@ -112,6 +118,77 @@ private:
     QAtomicInteger<bool> m_failed{false};
 };
 
+// NAFEEL_PRESENT_LOG=<file>: for measuring. Asks the compositor, at each
+// paced step, when the window's next frame reached the screen
+// (wp_presentation): one line per frame, "P <ns> <msc>" when shown at
+// vblank <msc>, "D <ns>" when it was replaced before it was ever shown.
+class PresentLog {
+public:
+    bool open(const QString &path) {
+        auto *app = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
+        if (!app)
+            return false;
+        m_display = app->display();
+        m_queue = wl_display_create_queue(m_display);
+        auto *wrapped = static_cast<wl_display *>(wl_proxy_create_wrapper(m_display));
+        wl_proxy_set_queue(reinterpret_cast<wl_proxy *>(wrapped), m_queue);
+        wl_registry *registry = wl_display_get_registry(wrapped);
+        wl_proxy_wrapper_destroy(wrapped);
+        static const wl_registry_listener listener = {
+            [](void *data, wl_registry *r, uint32_t name, const char *iface, uint32_t) {
+                if (qstrcmp(iface, wp_presentation_interface.name) == 0)
+                    static_cast<PresentLog *>(data)->m_presentation = static_cast<wp_presentation *>(wl_registry_bind(r, name, &wp_presentation_interface, 1));
+            },
+            [](void *, wl_registry *, uint32_t) {},
+        };
+        wl_registry_add_listener(registry, &listener, this);
+        wl_display_roundtrip_queue(m_display, m_queue);
+        m_file.setFileName(path);
+        return m_presentation && m_file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
+    }
+
+    void watch(QQuickWindow *window) { m_window = window; }
+
+    void step() {
+        if (!m_presentation || !m_window)
+            return;
+        wl_display_dispatch_queue_pending(m_display, m_queue);
+        auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", m_window));
+        if (!surface)
+            return;
+        struct wp_presentation_feedback *fb = wp_presentation_feedback(m_presentation, surface);
+        static const wp_presentation_feedback_listener listener = {
+            [](void *, struct wp_presentation_feedback *, wl_output *) {},
+            [](void *data, struct wp_presentation_feedback *fb, uint32_t hi, uint32_t lo, uint32_t ns, uint32_t, uint32_t mhi, uint32_t mlo, uint32_t) {
+                const qint64 t = ((qint64(hi) << 32) | lo) * 1000000000LL + ns;
+                const quint64 msc = (quint64(mhi) << 32) | mlo;
+                static_cast<PresentLog *>(data)->write(QStringLiteral("P %1 %2\n").arg(t).arg(msc));
+                wp_presentation_feedback_destroy(fb);
+            },
+            [](void *data, struct wp_presentation_feedback *fb) {
+                timespec ts{};
+                clock_gettime(CLOCK_MONOTONIC, &ts);
+                static_cast<PresentLog *>(data)->write(QStringLiteral("D %1\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec));
+                wp_presentation_feedback_destroy(fb);
+            },
+        };
+        wp_presentation_feedback_add_listener(fb, &listener, this);
+        wl_display_flush(m_display);
+    }
+
+    void write(const QString &line) {
+        m_file.write(line.toUtf8());
+        m_file.flush();
+    }
+
+private:
+    wl_display *m_display = nullptr;
+    wl_event_queue *m_queue = nullptr;
+    wp_presentation *m_presentation = nullptr;
+    QPointer<QQuickWindow> m_window;
+    QFile m_file;
+};
+
 class FramePacerDriver : public QAnimationDriver {
 public:
     FramePacerDriver() {
@@ -136,6 +213,43 @@ public:
 
     ~FramePacerDriver() override { m_vblank.onVblank = nullptr; }
 
+    // While animations run, a frame starts only at a vblank: the first update
+    // request after each tick passes; any more before the next tick (a layer's
+    // texture asking again from the render thread, a queued update) wait for
+    // it. Delivered between refreshes they drew a frame out of step, and the
+    // next paced one landed a refresh late.
+    void watch(QQuickWindow *window) {
+        for (const auto &w : std::as_const(m_windows))
+            if (w.window == window)
+                return;
+        m_windows.append({window, true, false});
+        window->installEventFilter(this);
+        if (!m_logChecked) {
+            m_logChecked = true;
+            const QString path = qEnvironmentVariable("NAFEEL_PRESENT_LOG");
+            if (!path.isEmpty() && m_log.open(path))
+                m_logging = true;
+        }
+        if (m_logging)
+            m_log.watch(window);
+    }
+
+    bool eventFilter(QObject *obj, QEvent *event) override {
+        if (event->type() != QEvent::UpdateRequest)
+            return false;
+        for (auto &w : m_windows) {
+            if (w.window != obj)
+                continue;
+            if (!isRunning() || w.allow) {
+                w.allow = false;
+                return false;
+            }
+            w.held = true;
+            return true;
+        }
+        return false;
+    }
+
     // Time since this driver started, as Qt expects (it adds its own offset):
     // an absolute time made the first step from rest jump straight to the
     // end, so opens showed no animation.
@@ -155,6 +269,14 @@ protected:
         m_vblank.want(false);
         m_fallback.stop();
         QAnimationDriver::stop();
+        // At rest nothing is held back.
+        for (auto &w : m_windows) {
+            w.allow = true;
+            if (w.held && w.window) {
+                w.held = false;
+                w.window->requestUpdate();
+            }
+        }
     }
 
 private:
@@ -175,10 +297,30 @@ private:
         if (t <= m_time && seq)
             return;
         m_time = std::max(t, m_time);
+        for (auto &w : m_windows)
+            w.allow = true;
         advance();
+        if (m_logging)
+            m_log.step();
+        // A request held since the last tick: its frame now.
+        for (auto &w : m_windows) {
+            if (w.held && w.window) {
+                w.held = false;
+                w.window->requestUpdate();
+            }
+        }
         armFallback();
     }
 
+    struct Watched {
+        QPointer<QQuickWindow> window;
+        bool allow;
+        bool held;
+    };
+    QList<Watched> m_windows;
+    PresentLog m_log;
+    bool m_logChecked = false;
+    bool m_logging = false;
     VblankThread m_vblank;
     bool m_useVblank = false;
     QAtomicInteger<quint32> m_latest{0};
@@ -210,5 +352,5 @@ void FramePacer::attach(QQuickWindow *window) {
         m_driver->install();
         emit activeChanged();
     }
-    Q_UNUSED(window);
+    m_driver->watch(window);
 }

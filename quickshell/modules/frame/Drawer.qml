@@ -73,7 +73,7 @@ Item {
     property real progX: 0
     property real progY: 0
     readonly property real shown: depth * Math.max(0, prog)
-    readonly property bool active: prog > 0.002 || (isCorner && (progX > 0.002 || progY > 0.002))
+    readonly property bool active: prog > 0.002 || (isCorner && (progX > 0.002 || progY > 0.002)) || leaving
 
     // Input/hover area: the border strip plus the part that's out.
     readonly property rect region: Qt.rect(shape.x, shape.y, shape.width, shape.height)
@@ -172,6 +172,21 @@ Item {
 
     anchors.fill: parent
 
+    // The content is shown while the drawer is out, and hidden a step after
+    // it's gone: hiding a large panel's content (the command center's
+    // thousands of nodes) is a costly frame, and on the exit's last frame it
+    // made that frame late.
+    property bool contentShown: false
+    onActiveChanged: {
+        if (active)
+            contentShown = true;
+        else
+            Qt.callLater(() => {
+                if (!root.active)
+                    root.contentShown = false;
+            });
+    }
+
     // On its timed exit (the goo stays still then: FrameWindow's blob).
     readonly property bool leaving: exit.running || exitX.running || exitY.running
     // Springing open or leaving (ShellState.moving counts it).
@@ -211,8 +226,10 @@ Item {
     }
 
     Component.onCompleted: {
-        if (open)
+        if (open) {
             prog = progX = progY = 1;
+            contentShown = true;
+        }
     }
 
     SpringAnimation {
@@ -245,32 +262,68 @@ Item {
         damping: Tokens.spring.spatial.damping
         epsilon: 0.002
     }
-    NumberAnimation {
+    SequentialAnimation {
         id: exit
 
-        target: root
-        property: "prog"
-        to: 0
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.exit
+        property alias duration: exitMove.duration
+
+        NumberAnimation {
+            id: exitMove
+
+            target: root
+            property: "prog"
+            to: 0
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Tokens.anim.exit
+        }
+        // A step more with it gone, still "active": its last motion frame
+        // carries nothing else (hiding it, its regions, its blob happen on
+        // the next, where nothing shows).
+        PauseAnimation {
+            duration: 17
+        }
     }
-    NumberAnimation {
+    SequentialAnimation {
         id: exitX
 
-        target: root
-        property: "progX"
-        to: 0
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.exit
+        property alias duration: exitXMove.duration
+
+        NumberAnimation {
+            id: exitXMove
+
+            target: root
+            property: "progX"
+            to: 0
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Tokens.anim.exit
+        }
+        // A step more with it gone, still "active": its last motion frame
+        // carries nothing else (hiding it, its regions, its blob happen on
+        // the next, where nothing shows).
+        PauseAnimation {
+            duration: 17
+        }
     }
-    NumberAnimation {
+    SequentialAnimation {
         id: exitY
 
-        target: root
-        property: "progY"
-        to: 0
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Tokens.anim.exit
+        property alias duration: exitYMove.duration
+
+        NumberAnimation {
+            id: exitYMove
+
+            target: root
+            property: "progY"
+            to: 0
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Tokens.anim.exit
+        }
+        // A step more with it gone, still "active": its last motion frame
+        // carries nothing else (hiding it, its regions, its blob happen on
+        // the next, where nothing shows).
+        PauseAnimation {
+            duration: 17
+        }
     }
 
     Item {
@@ -366,7 +419,7 @@ Item {
                 height: root.panelHeight
                 // Reduced motion: a plain fade instead of the soak.
                 opacity: Tokens.goo.enabled ? 1 : root.inked
-                visible: opacity > 0 && root.active && root.emerge > 0
+                visible: opacity > 0 && root.contentShown
 
                 // The content soaks out from the side it grows from, like ink
                 // into paper, keeping pace with the paper. The layer is the

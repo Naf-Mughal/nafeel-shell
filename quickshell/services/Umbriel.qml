@@ -208,7 +208,7 @@ Singleton {
         case "windows": {
             // Held while a panel moves (closing one hands focus back to a
             // window, and the window list arrives on the close's first
-            // frames): applied once it settles, or within 600 ms.
+            // frames): applied once it settles, or within 1.2 s.
             if (ShellState.moving > 0) {
                 heldWindows = msg.data ?? [];
                 if (!holdCap.running)
@@ -266,15 +266,30 @@ Singleton {
         target: ShellState
 
         function onMovingChanged(): void {
+            // A moment after the motion stops: applied at once, its work
+            // (the list parsed, the dock and every view of it re-bound) fell
+            // on the panel's last frame.
+            if (ShellState.moving === 0 && root.heldWindows !== null)
+                settle.restart();
+            else
+                settle.stop();
+        }
+    }
+
+    Timer {
+        id: settle
+
+        interval: 250
+        onTriggered: {
             if (ShellState.moving === 0)
-                Qt.callLater(root.releaseWindows);
+                root.releaseWindows();
         }
     }
 
     Timer {
         id: holdCap
 
-        interval: 600
+        interval: 1200
         onTriggered: root.releaseWindows()
     }
 
