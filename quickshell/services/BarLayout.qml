@@ -178,9 +178,16 @@ Singleton {
         return !(catalogue[id]?.iconless ?? false);
     }
 
-    // Whether a region (or any region of an edge) has an icon widget.
+    // Whether a widget needs a full bar's thickness on an edge: an icon
+    // anywhere; a text widget (the clock) down a side bar, where it stacks.
+    function needsBar(id: string, edge: string): bool {
+        return iconic(id) || edge === "left" || edge === "right";
+    }
+
+    // Whether a region (or any region of an edge) needs a bar's thickness:
+    // its pill.
     function hasIcons(edge: string, region: string): bool {
-        return (region ? [region] : regionNames).some(r => widgets(edge, r).some(id => iconic(id)));
+        return (region ? [region] : regionNames).some(r => widgets(edge, r).some(id => needsBar(id, edge)));
     }
 
     // An edge's mode: "full" (the whole edge as thick as its thickest
@@ -202,22 +209,27 @@ Singleton {
         return mode(edge) === "full" ? barThickness(edge) : Tokens.border;
     }
 
-    // How a bar shows (`visibility` on the edge, `regionVisibility.<region>`
-    // for a region in regions mode):
-    //   "reserve"   always, and windows keep clear of it (full mode; a
-    //               regions-mode bulge always sits over windows, like the dock)
+    // How a bar shows (`visibility` on the edge):
+    //   "reserve"   always, and windows keep clear of the bar's whole
+    //               thickness (in regions mode too: it's still a bar)
     //   "overlay"   always, over windows
     //   "autohide"  the thin strip until hovered, while one of its popouts is
     //               open, or on an empty workspace
+    // A region (regions mode) goes with its bar, except on an overlay bar,
+    // where each can be shown ("overlay") or autohidden
+    // (`regionVisibility.<region>`).
     function visibility(edge: string, region: string): string {
         const e = layout.edges?.[edge];
-        const own = region ? e?.regionVisibility?.[region] : undefined;
-        return own ?? e?.visibility ?? "reserve";
+        const bar = e?.visibility ?? "reserve";
+        if (region && bar === "overlay")
+            return e?.regionVisibility?.[region] === "autohide" ? "autohide" : "overlay";
+        return bar;
     }
 
-    // The space windows keep clear of on an edge (umbriel's struts).
+    // The space windows keep clear of on an edge (umbriel's struts): a
+    // reserved bar's thickness, else the strip.
     function reserve(edge: string): real {
-        return mode(edge) === "full" && visibility(edge, "") === "reserve" ? thickness(edge) : Tokens.border;
+        return visibility(edge, "") === "reserve" ? barThickness(edge) : Tokens.border;
     }
 
     // The edges and regions meeting at each corner: [vertical, horizontal].

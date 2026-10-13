@@ -502,48 +502,91 @@ Item {
             }
 
             SectionLabel {
-                text: BarLayout.mode(root.selectedEdge) === "regions" ? "Shows, each region" : "Shows"
+                text: "Shows"
             }
 
-            Repeater {
-                model: BarLayout.mode(root.selectedEdge) === "regions" ? BarLayout.regionNames : [""]
-
-                Row {
-                    id: visRow
-
-                    required property string modelData
-
-                    width: parent.width
-                    spacing: Tokens.spacing.normal
-
-                    MicroLabel {
-                        visible: visRow.modelData !== ""
-                        width: 52
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.regionName[visRow.modelData] ?? ""
+            ButtonGroup {
+                width: parent.width
+                model: [
+                    {
+                        value: "reserve",
+                        icon: "vertical_split",
+                        label: "Reserve"
+                    },
+                    {
+                        value: "overlay",
+                        icon: "layers",
+                        label: "Overlay"
+                    },
+                    {
+                        value: "autohide",
+                        icon: "visibility_off",
+                        label: "Autohide"
                     }
+                ]
+                current: BarLayout.visibility(root.selectedEdge, "")
+                onSelected: v => BarLayout.setEdge(root.selectedEdge, "visibility", v)
+            }
 
-                    ButtonGroup {
-                        width: parent.width - (visRow.modelData !== "" ? 52 + Tokens.spacing.normal : 0)
-                        model: [
-                            {
-                                value: "reserve",
-                                icon: "vertical_split",
-                                label: "Reserve"
-                            },
-                            {
-                                value: "overlay",
-                                icon: "layers",
-                                label: "Overlay"
-                            },
-                            {
-                                value: "autohide",
-                                icon: "visibility_off",
-                                label: "Autohide"
-                            }
-                        ]
-                        current: BarLayout.visibility(root.selectedEdge, visRow.modelData)
-                        onSelected: v => visRow.modelData ? BarLayout.setRegionVisibility(root.selectedEdge, visRow.modelData, v) : BarLayout.setEdge(root.selectedEdge, "visibility", v)
+            StyledText {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: ({
+                        reserve: "Windows keep clear of the whole bar, even between its pills.",
+                        overlay: "Windows go under the bar.",
+                        autohide: "The thin strip until you hover it, open one of its panels, or the workspace is empty."
+                    })[BarLayout.visibility(root.selectedEdge, "")]
+                color: Colours.palette.m3onSurfaceVariant
+                font.pixelSize: Tokens.font.small
+            }
+
+            // An overlay bar in regions mode: each region shown or autohidden.
+            SectionLabel {
+                visible: regionVis.visible
+                text: "Each region"
+            }
+
+            Column {
+                id: regionVis
+
+                visible: BarLayout.mode(root.selectedEdge) === "regions" && BarLayout.visibility(root.selectedEdge, "") === "overlay"
+                width: parent.width
+                spacing: Tokens.spacing.small
+
+                Repeater {
+                    model: BarLayout.regionNames
+
+                    Row {
+                        id: visRow
+
+                        required property string modelData
+
+                        width: parent.width
+                        spacing: Tokens.spacing.normal
+
+                        MicroLabel {
+                            width: 52
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.regionName[visRow.modelData]
+                        }
+
+                        ButtonGroup {
+                            width: parent.width - 52 - Tokens.spacing.normal
+                            model: [
+                                {
+                                    value: "overlay",
+                                    icon: "visibility",
+                                    label: "Show"
+                                },
+                                {
+                                    value: "autohide",
+                                    icon: "visibility_off",
+                                    label: "Autohide"
+                                }
+                            ]
+                            current: BarLayout.visibility(root.selectedEdge, visRow.modelData)
+                            onSelected: v => BarLayout.setRegionVisibility(root.selectedEdge, visRow.modelData, v)
+                        }
                     }
                 }
             }

@@ -32,10 +32,11 @@ Item {
     readonly property string mode: BarLayout.mode(edge)
     readonly property real thick: BarLayout.barThickness(edge)
     readonly property real strip: Tokens.border
-    // Where an icon-less widget's middle sits across the bar: in the middle
-    // of a full bar, on the strip in regions mode.
-    readonly property real stripMiddle: {
-        if (mode === "full")
+    // Where a text widget's middle sits across the bar: in the middle of a
+    // full bar or of its region's pill, else on the strip (regions mode, a
+    // horizontal edge, no icons beside it).
+    function textMiddle(region: string): real {
+        if (mode === "full" || BarLayout.hasIcons(edge, region))
             return thick / 2;
         return edge === "right" || edge === "bottom" ? thick - strip / 2 : strip / 2;
     }
@@ -312,12 +313,13 @@ Item {
 
                     required property var modelData
                     readonly property var look: root.style(modelData.family)
-                    readonly property bool iconic: modelData.ids.some(id => BarLayout.iconic(id))
+                    // Whether it needs the bar's thickness (its region's pill).
+                    readonly property bool iconic: modelData.ids.some(id => BarLayout.needsBar(id, root.edge))
 
                     sourceComponent: look ? capsule : bare
 
                     // An icon-less widget, centred across the bar on its
-                    // middle (root.stripMiddle).
+                    // middle (root.textMiddle).
                     Component {
                         id: bare
 
@@ -328,8 +330,8 @@ Item {
                             Loader {
                                 id: single
 
-                                x: root.horizontal ? 0 : root.stripMiddle - width / 2
-                                y: root.horizontal ? root.stripMiddle - height / 2 : 0
+                                x: root.horizontal ? 0 : root.textMiddle(region.modelData) - width / 2
+                                y: root.horizontal ? root.textMiddle(region.modelData) - height / 2 : 0
                                 width: root.horizontal ? implicitWidth : root.width
                                 height: root.horizontal ? implicitHeight : implicitHeight
                                 Component.onCompleted: root.load(single, run.modelData.ids[0])

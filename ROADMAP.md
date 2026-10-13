@@ -678,7 +678,10 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   the shell into shell-frost.toml (static umbriel/shell.toml no longer has them). Left for B5:
   icon-less widgets placed in a bare (`none`) corner.
 - [x] **B3 Popouts from the widget's place** (2026-10-13): a start/end widget's at its corner, a centre one's out of its edge at the widget (CornerPopout with `side`, centred on ShellState.anchor/anchorX, kept on screen); the input mask has 20 drawer slots.
-- [x] **B4 Modes** (2026-10-13): `visibility` per edge and `regionVisibility.<region>`:
+- [x] **B4 Modes** (2026-10-13; reworked after the user's review: a reserved bar keeps windows
+  clear of its whole thickness in regions mode too, since it's still a bar; regions only get
+  their own show / autohide on an overlay bar; a text widget down a side bar gets a pill, the
+  stacked clock needing the bar's width): `visibility` per edge and `regionVisibility.<region>`:
   reserve / overlay / autohide (the strip until hovered, a popout of its open, or an empty
   workspace; a full bar's frame thickness follows its `reveal`, a region's bulge sinks into the
   strip; in regions mode only the hovered region shows). Struts: BarLayout.reserve. The "pill"
