@@ -645,8 +645,8 @@ end; start = top for a vertical edge, left for a horizontal one). A region holds
 list of widgets. Neighbouring widgets of the same family share one capsule (status: sound,
 connections, battery; actions: notifications, clipboard, capture; …).
 - **Icon widgets** (workspaces, the bar controls, tray, power) need a full bar's thickness
-  (52). **Icon-less widgets** (the clock as one line, later the date, weather and media text) fit
-  the thin strip (14) and don't grow it.
+  (52). Text widgets (the clock as one line) fit the thin strip (14) and don't grow it.
+  **Panels** (the user's "icon-less widgets") are placeable too: B5.
 - **Edge mode**: `full` (the whole edge is as thick as its thickest region; the left bar today)
   or `regions` (only a region with icon widgets bulges, the length of its content, grown out of
   the strip like the dock). In a region that mixes both kinds they share one panel: the icon part
@@ -684,9 +684,19 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   strip; in regions mode only the hovered region shows). Struts: BarLayout.reserve. The "pill"
   style was dropped: the user's answer made the per-region pills regions mode, and corners their
   own setting.
-- [ ] **B5 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
+- [x] **B5 Panels are placeable** (asked and done 2026-10-13; FrameWindow.placeOf, BarLayout.popoutPlace/sharesPill, Bar.pill; a set layout is merged over Default, so `{ "hidden": […] }` alone keeps the bars). The user's "icon-less widgets" are the
+  panels: the bar popouts (sound, connections, battery, session, workspaces, notifications,
+  clipboard, capture), the plugins' drawers (dashboard, notes, wallpaper, toasts, action
+  center, OSD, switcher, polkit) and the kernel's (dock / command center, Settings). A panel
+  moves with its icon; hiding the icon (`hidden`) frees the panel to be placed on its own
+  (`panels.<name>`: `{ edge, region }` or `{ corner }`), opened by its key or by hovering that
+  spot on the strip. A panel whose place holds an icon pill grows out of the pill (along its
+  middle, at least its length, from its thickness), as the command center does from the dock;
+  hovering an icon on that pill switches to the icon's panel, as the dock does. A bare (`none`)
+  corner takes only panels.
+- [ ] **B6 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
   regions and corners; per-edge mode, style, visibility; corner owners; presets; Save / Revert.
-- [ ] **B6 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
+- [ ] **B7 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
   draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
 
 ## Ideas, not scheduled

@@ -91,7 +91,14 @@ Singleton {
             }
         })
 
-    readonly property var layout: Settings.values["bar.layout"] ?? defaultLayout
+    // What's set, over the Default preset (a layout that only hides an icon
+    // or places a panel keeps Default's edges).
+    readonly property var layout: {
+        const set = Settings.values["bar.layout"] ?? {};
+        return Object.assign({}, defaultLayout, set, {
+            edges: set.edges ?? defaultLayout.edges
+        });
+    }
 
     // Widgets placed by the layout itself, and the plugin widgets it doesn't
     // name, by the region their slot gives them.
@@ -118,11 +125,11 @@ Singleton {
         return true;
     }
 
-    // The widgets in a region, in order: ids that exist and have something
-    // to show.
+    // The widgets in a region, in order: ids that exist, aren't hidden and
+    // have something to show.
     function widgets(edge: string, region: string): var {
-        const ids = (layout.edges?.[edge]?.[region] ?? []).slice();
         const hidden = layout.hidden ?? [];
+        const ids = (layout.edges?.[edge]?.[region] ?? []).filter(id => !hidden.includes(id));
         for (const w of Plugins.barWidgets) {
             if (named.has(w.id) || hidden.includes(w.id))
                 continue;
@@ -196,12 +203,6 @@ Singleton {
         return mode(edge) === "full" && visibility(edge, "") === "reserve" ? thickness(edge) : Tokens.border;
     }
 
-    // Where the widget that opens a popout is, or null.
-    function popoutPlace(popout: string): var {
-        const id = Object.keys(catalogue).find(k => catalogue[k].popout === popout);
-        return id ? placeOf(id) : null;
-    }
-
     // The edges and regions meeting at each corner: [vertical, horizontal].
     readonly property var cornerEnds: ({
             topLeft: [["left", "start"], ["top", "start"]],
@@ -242,14 +243,52 @@ Singleton {
         return [left, right];
     }
 
-    // Where a bar popout grows out of: the corner at its widget's end of the
-    // edge, or for a centre widget "edge:<edge>" (a drawer out of the edge at
-    // the widget).
-    function cornerFor(popout: string): string {
-        const id = Object.keys(catalogue).find(k => catalogue[k].popout === popout);
-        const at = id ? placeOf(id) : null;
-        if (!at)
-            return Plugins.popouts[popout]?.corner ?? "topLeft";
+    // ── Panels (ROADMAP B5) ──
+    // A panel is a bar popout (named "bar:<kind>"), a plugin's drawer or the
+    // kernel's (by name). A popout goes with its icon; one whose icon is
+    // hidden, and any drawer, can be placed on its own (`panels.<name>`:
+    // { edge, region } or { corner }).
+
+    // Where a widget sits in the Default preset (or by its plugin slot).
+    function defaultPlaceOf(id: string): var {
+        for (const e of edgeNames)
+            for (const r of regionNames)
+                if ((defaultLayout.edges[e]?.[r] ?? []).includes(id))
+                    return {
+                        edge: e,
+                        region: r
+                    };
+        const w = Plugins.barWidgets.find(x => x.id === id);
+        if (!w)
+            return null;
+        const at = slotRegion(w.slot);
+        return {
+            edge: at[0],
+            region: at[1]
+        };
+    }
+
+    function iconOf(popout: string): string {
+        return Object.keys(catalogue).find(k => catalogue[k].popout === popout) ?? "";
+    }
+
+    // A panel's place set in the layout, or null.
+    function panelPlace(name: string): var {
+        return layout.panels?.[name] ?? null;
+    }
+
+    // Where a bar popout is: its icon's place while the icon shows; else its
+    // own place, or where its icon would be in the Default preset.
+    function popoutPlace(popout: string): var {
+        const id = iconOf(popout);
+        return (id ? placeOf(id) : null) ?? panelPlace("bar:" + popout) ?? (id ? defaultPlaceOf(id) : null);
+    }
+
+    // A place as what grows out of it: a corner's name, or "edge:<edge>"
+    // (a centre region's: a drawer out of the edge).
+    function target(at: var): string {
+        if (at.corner)
+            return at.corner;
         if (at.region === "center")
             return "edge:" + at.edge;
         const end = at.region === "end";
@@ -263,5 +302,33 @@ Singleton {
         default:
             return end ? "bottomRight" : "bottomLeft";
         }
+    }
+
+    // Whether two places are the same spot (one pill).
+    function samePlace(a: var, b: var): bool {
+        if (!a || !b)
+            return false;
+        return a.corner ? a.corner === b.corner : !b.corner && a.edge === b.edge && a.region === b.region;
+    }
+
+    // Whether the panel `name` (a drawer, or "bar:<kind>") sits where the
+    // icon opening `popoutKey` ("bar:<kind>") is: then hovering that icon
+    // switches to its panel, as on the dock.
+    function sharesPill(name: string, popoutKey: string): bool {
+        if (!popoutKey.startsWith("bar:"))
+            return false;
+        const there = popoutPlace(popoutKey.slice(4));
+        const here = name.startsWith("bar:") ? popoutPlace(name.slice(4)) : panelPlace(name);
+        return samePlace(here, there);
+    }
+
+    // Where a bar popout grows out of: the corner at its widget's end of the
+    // edge, or for a centre widget "edge:<edge>" (a drawer out of the edge at
+    // the widget).
+    function cornerFor(popout: string): string {
+        const at = popoutPlace(popout);
+        if (!at)
+            return Plugins.popouts[popout]?.corner ?? "topLeft";
+        return target(at);
     }
 }

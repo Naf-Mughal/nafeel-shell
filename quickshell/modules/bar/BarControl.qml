@@ -54,6 +54,10 @@ Item {
             ShellState.barControls[key] = root;
         }
     }
+    Component.onDestruction: {
+        if (key && ShellState.barControls[key] === root)
+            delete ShellState.barControls[key];
+    }
 
     width: parent?.width ?? 28
     readonly property bool hasContent: holder.visibleChildren.length > 0

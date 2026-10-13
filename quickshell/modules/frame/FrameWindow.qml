@@ -56,6 +56,60 @@ PanelWindow {
         return bulges.some(b => x >= b.r.x && x < b.r.x + b.r.width && y >= b.r.y && y < b.r.y + b.r.height);
     }
 
+    // A region's icon pill in window coordinates (Bar.pill), or null.
+    function pillRect(edge: string, region: string): var {
+        const bar = barItems.find(b => b.edge === edge);
+        const r = bar && bar.visible ? bar.pill(region) : null;
+        return r ? Qt.rect(bar.x + r.x, bar.y + r.y, r.width, r.height) : null;
+    }
+
+    // Where a panel opens (ROADMAP B5), as a drawer's geometry:
+    //   { edge, corner, along, thickness, thicknessY, length, hoverZone }
+    // From the layout's place for it (`panels.<name>`), else from its
+    // manifest (`def`: edge, corner, along, hoverZone). A place in a
+    // region with an icon pill grows out of the pill: along its middle, at
+    // least its `length`, from its thickness. One placed in a start or end
+    // region by the layout opens at that corner.
+    function placeOf(name: string, def: var): var {
+        const set = BarLayout.panelPlace(name);
+        let at = set;
+        if (!at)
+            at = def.edge === "corner" ? {
+                corner: def.corner
+            } : {
+                edge: def.edge ?? "top",
+                region: (def.along ?? 0.5) < 0.34 ? "start" : (def.along ?? 0.5) > 0.66 ? "end" : "center"
+            };
+        const corner = at.corner ?? (set && at.region !== "center" ? BarLayout.target(at) : "");
+        if (corner)
+            return {
+                edge: "corner",
+                corner: corner,
+                along: 0.5,
+                thickness: corner.endsWith("Right") ? tRight : tLeft,
+                thicknessY: corner.startsWith("bottom") ? tBottom : tTop,
+                length: 0,
+                hoverZone: set ? true : (def.hoverZone ?? false)
+            };
+        const pill = pillRect(at.edge, at.region);
+        const horizontal = at.edge === "top" || at.edge === "bottom";
+        const len = horizontal ? width : height;
+        const t = edgeThickness(at.edge);
+        return {
+            edge: at.edge,
+            corner: "",
+            along: pill ? (horizontal ? pill.x + pill.width / 2 : pill.y + pill.height / 2) / len : set ? ({
+                    start: 0.2,
+                    center: 0.5,
+                    end: 0.8
+                })[at.region] : (def.along ?? 0.5),
+            thickness: pill ? Math.max(t, horizontal ? pill.height : pill.width) : t,
+            thicknessY: pill ? Math.max(t, horizontal ? pill.height : pill.width) : t,
+            length: pill ? (horizontal ? pill.width : pill.height) : 0,
+            hoverZone: set ? true : (def.hoverZone ?? false)
+        };
+    }
+
     function edgeThickness(edge: string): real {
         return edge === "left" ? tLeft : edge === "right" ? tRight : edge === "top" ? tTop : tBottom;
     }
@@ -585,9 +639,13 @@ PanelWindow {
 
         CornerPopout {
             required property string modelData
+            // The centre region's icon pill it grows out of, if any.
+            readonly property var pill: win.pillRect(modelData, "center")
 
             side: modelData
-            thickness: win.edgeThickness(modelData)
+            pillLength: pill ? (vertical ? pill.width : pill.height) : 0
+            pillAlong: pill ? (vertical ? pill.x + pill.width / 2 : pill.y + pill.height / 2) : -1
+            thickness: pill ? Math.max(win.edgeThickness(modelData), vertical ? pill.height : pill.width) : win.edgeThickness(modelData)
             shellScreen: win.screen
             enabled: !win.fullscreen
             components: win.cornerPopouts
@@ -619,14 +677,24 @@ PanelWindow {
     Drawer {
         id: settings
 
+        // Out of the top's centre unless the layout places it.
+        readonly property var at: win.placeOf("settings", {
+            edge: "top",
+            along: 0.5,
+            hoverZone: false
+        })
+
         name: "settings"
-        edge: "top"
-        thickness: win.tTop
+        edge: at.edge
+        corner: at.corner || "topRight"
+        along: at.along
+        thickness: at.thickness
+        thicknessY: at.thicknessY
         shellScreen: win.screen
         enabled: !win.fullscreen
-        hoverZone: false
+        hoverZone: at.hoverZone
         wantsKeyboard: true
-        panelWidth: Math.min(900, win.innerWidth - 160)
+        panelWidth: Math.max(vertical ? at.length : 0, Math.min(900, win.innerWidth - 160))
         panelHeight: (settingsLoader.item?.implicitHeight ?? 540) + Tokens.spacing.large * 2
 
         Loader {
@@ -662,6 +730,8 @@ PanelWindow {
             // (default the panel rhythm; 0 for edge-to-edge content).
             readonly property var yieldTo: modelData.yieldTo ?? []
             readonly property real pad: modelData.padding ?? Tokens.spacing.large
+            // Where it opens: the layout's place for it, else its manifest's.
+            readonly property var at: win.placeOf(modelData.name, modelData)
 
             parent: win.contentItem
             name: modelData.name
@@ -670,21 +740,22 @@ PanelWindow {
             // switcher waits a beat). "overFullscreen": usable over a
             // fullscreen window.
             open: (!modelData.openIf || (instance?.[modelData.openIf] ?? false)) && (modelData.openWhen ? enabled && win.focusedHere && (instance?.[modelData.openWhen] ?? false) : enabled && ShellState.isOpen(name, screenName)) && !yieldTo.some(n => win.drawerOpen(n))
-            edge: modelData.edge ?? "top"
-            corner: modelData.corner ?? "bottomRight"
-            along: modelData.along ?? 0.5
-            thickness: edge === "corner" ? (corner.endsWith("Right") ? win.tRight : win.tLeft) : win.edgeThickness(edge)
-            thicknessY: edge === "corner" ? (corner.startsWith("bottom") ? win.tBottom : win.tTop) : win.edgeThickness(edge)
+            edge: at.edge
+            corner: at.corner || "bottomRight"
+            along: at.along
+            thickness: at.thickness
+            thicknessY: at.thicknessY
             shellScreen: win.screen
             enabled: Plugins.isEnabled(modelData.plugin) && (modelData.overFullscreen === true || !win.fullscreen)
-            hoverZone: modelData.hoverZone ?? false
+            hoverZone: at.hoverZone
             zoneLength: modelData.zoneLength ?? 0
             wantsKeyboard: modelData.keyboard ?? false
             // The manifest's width, never wider than the screen leaves room
             // for; "content" height follows the entry, springing as it
             // changes (a dashboard tab, say).
-            panelWidth: modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.innerWidth - 160)
-            panelHeight: modelData.height === "content" ? (pdLoader.item?.implicitHeight ?? 300) + pad * 2 : Math.min(modelData.height ?? 300, win.height - 120)
+            // At least as long as the pill it grows out of.
+            panelWidth: Math.max(vertical ? at.length : 0, modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.innerWidth - 160))
+            panelHeight: Math.max(vertical ? 0 : at.length, modelData.height === "content" ? (pdLoader.item?.implicitHeight ?? 300) + pad * 2 : Math.min(modelData.height ?? 300, win.height - 120))
 
             Behavior on panelHeight {
                 enabled: pd.active && pd.modelData.height === "content"

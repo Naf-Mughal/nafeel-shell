@@ -116,7 +116,8 @@ Singleton {
 
     function anchorTo(name: string): void {
         const c = barControls[name];
-        if (c) {
+        // (A control gone with its icon, hidden or moved, can't say.)
+        if (c && typeof c.mapToItem === "function") {
             const p = c.mapToItem(null, c.width / 2, c.height / 2);
             anchor = p.y;
             anchorX = p.x;
@@ -141,8 +142,11 @@ Singleton {
     function preview(name: string, screenName: string): void {
         if (pinned !== "" && pinned !== name) {
             // Bar panels behave like a menu bar: once one is pinned, hovering
-            // another bar icon switches to it and the pin moves along.
-            if (pinned.startsWith("bar:") && name.startsWith("bar:")) {
+            // another bar icon switches to it and the pin moves along. So
+            // does a panel open out of an icon pill (the dashboard over the
+            // pill's icons), as the dock does: hovering one of the pill's icons
+            // switches to its panel.
+            if ((pinned.startsWith("bar:") && name.startsWith("bar:")) || BarLayout.sharesPill(pinned, name)) {
                 closeTimer.stop();
                 pinned = name;
                 previewed = "";

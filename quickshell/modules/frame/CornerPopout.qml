@@ -19,6 +19,13 @@ Drawer {
 
     required property var components
     property string side: ""
+    // An edge popout's icon pill (FrameWindow.pillRect): its length along the
+    // edge and its middle (-1 for none). The popout grows out of it, at least
+    // as long; a popout whose icon is hidden centres on it.
+    property real pillLength: 0
+    property real pillAlong: -1
+    // Popouts here with their icon hidden: hovering the spot opens the first.
+    readonly property var standalone: Object.keys(Object.assign({}, components, pluginPopouts)).filter(k => (BarLayout.catalogue[BarLayout.iconOf(k)] === undefined || !BarLayout.placeOf(BarLayout.iconOf(k))) && BarLayout.cornerFor(k) === place)
     // What BarLayout.cornerFor names this one.
     readonly property string place: side ? "edge:" + side : corner
     // Plugins' popouts (Plugins.popouts): { kind: { url, width } }.
@@ -51,7 +58,7 @@ Drawer {
     }
 
     name: side ? "edge:" + side : "corner:" + corner
-    key: kind ? `bar:${kind}` : name
+    key: kind ? `bar:${kind}` : standalone.length > 0 ? `bar:${standalone[0]}` : name
     open: enabled && kind !== ""
     edge: side || "corner"
     // An edge's: centred on the widget, kept on the screen.
@@ -59,13 +66,16 @@ Drawer {
         if (!side)
             return 0.5;
         const len = vertical ? (shellScreen?.width ?? 1) : (shellScreen?.height ?? 1);
-        const at = vertical ? ShellState.anchorX : ShellState.anchor;
+        const iconShown = BarLayout.placeOf(BarLayout.iconOf(kind || shownKind)) !== null;
+        // At its icon; with the icon hidden, on the pill there, or the
+        // edge's middle.
+        const at = iconShown ? (vertical ? ShellState.anchorX : ShellState.anchor) : pillAlong >= 0 ? pillAlong : len / 2;
         const half = (vertical ? panelWidth : panelHeight) / 2 + Tokens.spacing.large;
         return Math.max(half, Math.min(len - half, at)) / len;
     }
-    hoverZone: false
-    panelWidth: widths[shownKind] ?? pluginPopouts[shownKind]?.width ?? 380
-    panelHeight: Math.max(side ? 0 : minHeight, (loader.item?.implicitHeight ?? 0) + pad * 2)
+    hoverZone: standalone.length > 0
+    panelWidth: Math.max(side && vertical ? pillLength : 0, widths[shownKind] ?? pluginPopouts[shownKind]?.width ?? 380)
+    panelHeight: Math.max(side ? (vertical ? 0 : pillLength) : minHeight, (loader.item?.implicitHeight ?? 0) + pad * 2)
 
     Behavior on panelWidth {
         enabled: root.active

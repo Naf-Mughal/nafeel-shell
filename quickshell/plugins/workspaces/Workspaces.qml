@@ -29,6 +29,10 @@ Item {
 
     // So a popout out of an edge can grow from it (ShellState.anchorTo).
     Component.onCompleted: ShellState.barControls[key] = root
+    Component.onDestruction: {
+        if (ShellState.barControls[key] === root)
+            delete ShellState.barControls[key];
+    }
 
     width: parent?.width ?? 28
     implicitWidth: horizontal ? span : 28

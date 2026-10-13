@@ -62,6 +62,21 @@ Item {
     }
     property var regionItems: []
 
+    // A region's icon pill in this item's coordinates (its icon widgets'
+    // run, the inset at the ends, the bar's thickness out from the screen
+    // edge), or null when it has no icons. A panel placed there grows out
+    // of it.
+    function pill(region: string): var {
+        const r = regionItems.find(x => x.modelData === region);
+        const s = r?.iconSpan;
+        if (!s)
+            return null;
+        const len = horizontal ? width : height;
+        const a = Math.max(0, s[0] - endInset);
+        const b = Math.min(len, s[1] + endInset);
+        return horizontal ? Qt.rect(a, edge === "bottom" ? height - thick : 0, b - a, thick) : Qt.rect(edge === "right" ? width - thick : 0, a, thick, b - a);
+    }
+
     // ── Showing and hiding (BarLayout.visibility) ──
     // A full bar shows or hides as one (`reveal`, 0..1, which the frame's
     // thickness follows); in regions mode each region does on its own.
