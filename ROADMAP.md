@@ -771,8 +771,15 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
 - [ ] **O5 Outside the heap** (~250 MB): measure, then try the basic render loop, windows made
   only when needed (overview keys, idle fade, picker), smaller thread pools, live window previews
   only while visible and at preview size.
-- [ ] **O6 Live wallpaper out of process**: mpv (VAAPI) on the background layer at screen size,
-  paused when covered, fullscreen or locked (and the battery rule); the shell never loads ffmpeg.
+- [x] **O6 Live wallpaper out of process** (2026-10-13; done before O3-O5: with the user's 4K
+  video wallpaper nothing else could reach the budget): modules/background/MpvPaper.qml, an
+  mpvpaper per screen on the `bottom` layer (just above the shell's wallpaper window, which
+  draws the still frame under it), `hwdec=auto-safe` (VAAPI, radeonsi), cropped to fill, run only
+  while the slot is on screen and playing (not locked, no fullscreen window, the battery rule):
+  stopped, the still shows; a change's ink runs on the still. The shell no longer loads ffmpeg
+  for the desktop: fresh 552 -> 291 MB, idle after the soak 643 -> 370 MB (mpvpaper itself ~50 MB);
+  every panel once keeps 67 MB. Left: the lock screen still plays the video in the shell
+  (VideoLayer through ShellLockHost.liveComponent) while locked.
 - [ ] **O7 Allocator** (MALLOC_ARENA_MAX, trimming): last; the trim test freed nothing.
 
 ## Ideas, not scheduled

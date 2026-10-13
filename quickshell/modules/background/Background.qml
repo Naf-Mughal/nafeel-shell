@@ -58,6 +58,7 @@ Variants {
             id: a
 
             anchors.fill: parent
+            output: win.modelData.name
             decode: win.decode
             visible: win.front === 0
             playing: visible && win.live
@@ -68,6 +69,7 @@ Variants {
             id: b
 
             anchors.fill: parent
+            output: win.modelData.name
             decode: win.decode
             visible: win.front === 1
             playing: visible && win.live
