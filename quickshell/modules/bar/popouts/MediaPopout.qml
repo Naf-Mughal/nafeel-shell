@@ -32,7 +32,8 @@ Panel {
 
     // MPRIS doesn't push the position; ask for it while shown.
     Timer {
-        running: root.player?.isPlaying ?? false
+        // Only while shown (warm, it stays made while closed).
+        running: (root.player?.isPlaying ?? false) && root.visible
         interval: 1000
         repeat: true
         onTriggered: root.player.positionChanged()

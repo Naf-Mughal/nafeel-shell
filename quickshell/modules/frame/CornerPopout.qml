@@ -33,12 +33,7 @@ Drawer {
     // Kinds that need another width than the default ({ kind: px }).
     property var widths: ({})
     property int minHeight: 420
-    property bool opened: false
 
-    onActiveChanged: {
-        if (active)
-            opened = true;
-    }
     readonly property int pad: Tokens.spacing.large
     // On the bar's side the content starts right at the bar's icons (they're
     // the panel's tabs), not a full margin away.
@@ -81,7 +76,7 @@ Drawer {
     }
     hoverZone: standalone.length > 0
     panelWidth: Math.max(side && vertical ? pillLength : 0, widths[shownKind] ?? pluginPopouts[shownKind]?.width ?? 380)
-    panelHeight: Math.max(side ? (vertical ? 0 : pillLength) : minHeight, (loader.item?.implicitHeight ?? 0) + pad * 2)
+    panelHeight: Math.max(side ? (vertical ? 0 : pillLength) : minHeight, (loader?.item?.implicitHeight ?? 0) + pad * 2)
 
     Behavior on panelWidth {
         enabled: root.active
@@ -101,20 +96,41 @@ Drawer {
         }
     }
 
-    Loader {
-        id: loader
+    // The panels that open here (BarLayout.cornerFor), each its own warm
+    // content: built ahead (Prewarm) and kept, the current one shown, so
+    // switching between them never rebuilds one (ROADMAP O4).
+    readonly property var hosted: Object.keys(Object.assign({}, components, pluginPopouts)).filter(k => BarLayout.cornerFor(k) === place)
+    property var loaders: []
+    // The shown panel's loader.
+    readonly property Loader loader: loaders.find(l => l.kind === shownKind) ?? null
 
-        x: root.side || root.cornerRight ? root.pad : root.barPad
-        y: root.pad
-        width: root.panelWidth - root.pad - (root.side ? root.pad : root.barPad)
-        // Made afresh each time it opens, as the wallpaper picker is.
-        // Warm: the last panel shown here stays made while closed (O4).
-        active: root.active || root.opened
-        sourceComponent: root.components[root.shownKind] ?? (root.pluginPopouts[root.shownKind] ? Qt.createComponent(root.pluginPopouts[root.shownKind].url) : null)
-        // Opened pinned (a keybind): the panel arrives after the frame got
-        // the keyboard, so it takes it now.
-        onLoaded: if (root.pinnedHere())
-            Qt.callLater(() => loader.item?.takeFocus?.())
+    Repeater {
+        model: root.hosted
+        onItemAdded: (i, item) => root.loaders = root.loaders.concat([item])
+        onItemRemoved: (i, item) => root.loaders = root.loaders.filter(l => l !== item)
+
+        Loader {
+            id: panelLoader
+
+            required property string modelData
+            readonly property string kind: modelData
+            readonly property bool shown: root.shownKind === kind
+            property int turn: -1
+
+            x: root.side || root.cornerRight ? root.pad : root.barPad
+            y: root.pad
+            width: root.panelWidth - root.pad - (root.side ? root.pad : root.barPad)
+            visible: shown
+            // Its place in the warm-up queue, taken once.
+            Component.onCompleted: turn = Prewarm.enlist()
+            active: (shown && root.active) || Prewarm.due(turn)
+            asynchronous: !(shown && root.active)
+            sourceComponent: root.components[kind] ?? (root.pluginPopouts[kind] ? Qt.createComponent(root.pluginPopouts[kind].url) : null)
+            // Opened pinned (a keybind): the panel arrives after the frame
+            // got the keyboard, so it takes it now.
+            onLoaded: if (shown && root.pinnedHere())
+                Qt.callLater(() => panelLoader.item?.takeFocus?.())
+        }
     }
 
     function pinnedHere(): bool {
@@ -125,7 +141,7 @@ Drawer {
         target: ShellState
 
         function onKeyboardGranted(req: var): void {
-            if (root.pinnedHere() && loader.item?.takeFocus?.())
+            if (root.pinnedHere() && loader?.item?.takeFocus?.())
                 req.taken = true;
         }
     }

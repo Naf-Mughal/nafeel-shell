@@ -774,6 +774,15 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   after use, text previews capped at 20 000 characters. Notifications: only the ten newest keep
   their live notification (actions, an app's raw image); older ones stay as text. Decode sizes
   on the remaining images.
+- [x] **O4b Everything prewarmed** (2026-10-13, the user's ask: no first-open stutter, after a
+  restart too): services/Prewarm, a queue that builds every warm panel's content one by one,
+  ~150 ms apart, from 2.5 s after start, asynchronously (plugin drawers, Settings, each corner
+  and edge popout's every panel, each command center tab, each Settings page: switching never
+  rebuilds). Warm panels must not work while hidden: the dashboard's visualiser captured audio
+  for nobody (cava; 17% of a core with music playing), the album art spun, GIFs and position
+  timers ran; all gated on `visible` now (idle CPU 6% with music playing). Memory is flat: ~492 MB
+  warm at start, ~505 MB after the whole soak (every panel once keeps 14 MB). Over the 350 MB idle
+  budget by design of the warm choice; O5 is where the rest can come from.
 - [ ] **O3 Images (first plan, folded into the above)** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
   card, gone on close; a sourceSize on every Image; notification, clipboard, album and avatar
   images at their shown size, uncached; the wallpaper decoded at screen size.

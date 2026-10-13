@@ -59,7 +59,9 @@ Item {
             readonly property real reach: (Math.min(width, height) - cover.width) / 2 - 8
 
             Loader {
-                active: Media.playing
+                // Only while shown: the tab stays made (warm), and capturing
+                // the audio for nobody cost a sixth of a core.
+                active: Media.playing && root.visible
                 sourceComponent: ServiceRef {
                     service: Visualiser.cava
                 }
@@ -116,7 +118,7 @@ Item {
                     anchors.margins: 22
                     source: Qt.resolvedUrl("../../assets/bongocat.gif")
                     fillMode: AnimatedImage.PreserveAspectFit
-                    playing: Media.playing
+                    playing: Media.playing && root.visible
                     asynchronous: true
                 }
             }

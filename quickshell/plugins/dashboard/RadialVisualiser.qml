@@ -19,7 +19,8 @@ Item {
     readonly property real reach: Math.min(width, height) / 2 - innerRadius - 4
 
     Loader {
-        active: root.active
+        // And only while shown: its panel stays made (warm) while closed.
+        active: root.active && root.visible
         sourceComponent: ServiceRef {
             service: Visualiser.cava
         }

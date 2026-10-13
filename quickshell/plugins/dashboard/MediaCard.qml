@@ -69,7 +69,8 @@ Surface {
                 cache: false
 
                 RotationAnimation on rotation {
-                    running: Media.playing && !Tokens.reduceMotion
+                    // Only while shown (warm, it stays made while closed).
+                    running: Media.playing && !Tokens.reduceMotion && root.visible
                     loops: Animation.Infinite
                     from: 0
                     to: 360
@@ -180,7 +181,7 @@ Surface {
             height: 64
             source: Qt.resolvedUrl("../../assets/bongocat.gif")
             fillMode: AnimatedImage.PreserveAspectFit
-            playing: Media.playing
+            playing: Media.playing && root.visible
             asynchronous: true
         }
     }

@@ -83,7 +83,8 @@ Panel {
             anchors.leftMargin: Tokens.spacing.large
             anchors.right: parent.right
             height: parent.height
-            contentHeight: items.implicitHeight
+            // The shown page's height.
+            contentHeight: pagesHost.shownHeight
             clip: true
 
             // Each page starts at its top.
@@ -95,34 +96,63 @@ Panel {
                 }
             }
 
-            Column {
-                id: items
+            // Every page built once (the panel itself is built ahead, see
+            // Prewarm) and kept, the current one shown: switching pages never
+            // rebuilds one (ROADMAP O4).
+            Item {
+                id: pagesHost
+
+                property real shownHeight: 0
 
                 width: flick.width
-                spacing: Tokens.spacing.large
-
-                // A page's own UI. Out of the column when the page has none (an
-                // unloaded Loader keeps its last size: the Bar studio's left a
-                // blank screen's height above the next page's settings).
-                Loader {
-                    id: pageUi
-
-                    width: items.width
-                    height: item ? item.implicitHeight : 0
-                    visible: active
-                    active: !!root.page && root.page.content.toString() !== ""
-                    source: root.page?.content ?? ""
-                }
+                height: shownHeight
 
                 Repeater {
-                    model: root.page ? Settings.itemsOf(root.page.name) : []
+                    model: Settings.pages
 
-                    SettingRow {
+                    Column {
+                        id: items
+
                         required property var modelData
+                        readonly property bool shown: modelData === root.page
 
-                        item: modelData
-                        values: Settings.valuesOf(root.page.name)
-                        width: items.width
+                        width: pagesHost.width
+                        spacing: Tokens.spacing.large
+                        visible: shown
+                        onImplicitHeightChanged: {
+                            if (shown)
+                                pagesHost.shownHeight = implicitHeight;
+                        }
+                        onShownChanged: {
+                            if (shown)
+                                pagesHost.shownHeight = implicitHeight;
+                        }
+                        Component.onCompleted: {
+                            if (shown)
+                                pagesHost.shownHeight = implicitHeight;
+                        }
+
+                        // A page's own UI (the bar studio), out of the column
+                        // when the page has none.
+                        Loader {
+                            width: items.width
+                            height: item ? item.implicitHeight : 0
+                            visible: active
+                            active: items.modelData.content.toString() !== ""
+                            source: items.modelData.content
+                        }
+
+                        Repeater {
+                            model: Settings.itemsOf(items.modelData.name)
+
+                            SettingRow {
+                                required property var modelData
+
+                                item: modelData
+                                values: Settings.valuesOf(items.modelData.name)
+                                width: items.width
+                            }
+                        }
                     }
                 }
             }

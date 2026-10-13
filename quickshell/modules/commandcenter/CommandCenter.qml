@@ -18,12 +18,7 @@ Item {
     id: root
 
     required property bool expanded
-    property bool opened: false
 
-    onExpandedChanged: {
-        if (expanded)
-            opened = true;
-    }
     property ShellScreen shellScreen
     property string edge: "bottom"
     readonly property bool vertical: edge === "left" || edge === "right"
@@ -164,7 +159,7 @@ Item {
                 id: swap
 
                 NumberAnimation {
-                    target: loader
+                    target: page
                     property: "opacity"
                     to: 0
                     duration: Tokens.dur(80)
@@ -173,35 +168,61 @@ Item {
                     script: page.shown = ShellState.ccTab
                 }
                 NumberAnimation {
-                    target: loader
+                    target: page
                     property: "opacity"
                     to: 1
                     duration: Tokens.dur(160)
                 }
             }
 
-            Loader {
-                id: loader
+            // Each tab its own content, built ahead (Prewarm) and kept, the
+            // current one shown: switching never rebuilds a tab (ROADMAP O4).
+            Repeater {
+                model: root.tabs
 
-                readonly property var pluginTab: Plugins.tabs.find(t => t.id === page.shown) ?? null
+                Loader {
+                    id: tabLoader
 
-                anchors.fill: parent
-                onLoaded: Choreo.cascade(item?.contentItem ?? item, 40)
-                // Warm: the tab stays made once the command center has opened (O4).
-                active: root.expanded || root.opened
-                sourceComponent: ({
-                        home: home,
-                        apps: apps,
-                        media: media,
-                        audio: audio,
-                        display: display,
-                        system: system,
-                        power: power,
-                        network: network,
-                        bluetooth: bluetooth,
-                        weather: weather,
-                        calendar: calendar
-                    })[page.shown] ?? (pluginTab ? (pluginTab.popout ? pluginPopoutTab : Qt.createComponent(pluginTab.url)) : home)
+                    required property var modelData
+                    readonly property string tabId: modelData.id
+                    readonly property var pluginTab: Plugins.tabs.find(t => t.id === tabId) ?? null
+                    readonly property bool shown: page.shown === tabId
+                    property int turn: -1
+
+                    anchors.fill: parent
+                    visible: shown
+                    // Its place in the warm-up queue, taken once.
+                    Component.onCompleted: turn = Prewarm.enlist()
+                    active: (shown && root.expanded) || Prewarm.due(turn)
+                    asynchronous: !(shown && root.expanded)
+                    onShownChanged: {
+                        if (shown && item)
+                            Choreo.cascade(item.contentItem ?? item, 40);
+                    }
+                    sourceComponent: ({
+                            home: home,
+                            apps: apps,
+                            media: media,
+                            audio: audio,
+                            display: display,
+                            system: system,
+                            power: power,
+                            network: network,
+                            bluetooth: bluetooth,
+                            weather: weather,
+                            calendar: calendar
+                        })[tabId] ?? (pluginTab ? (pluginTab.popout ? pluginPopoutTab : Qt.createComponent(pluginTab.url)) : null)
+
+                    // A plugin's popout-sized panel, centred as the bar
+                    // popouts are.
+                    Component {
+                        id: pluginPopoutTab
+
+                        PopoutTab {
+                            contentUrl: tabLoader.pluginTab?.url ?? ""
+                        }
+                    }
+                }
             }
 
             Component {
@@ -271,14 +292,6 @@ Item {
 
                 PopoutTab {
                     content: BluetoothPopout {}
-                }
-            }
-            // A plugin's popout-sized panel, centred as the bar popouts are.
-            Component {
-                id: pluginPopoutTab
-
-                PopoutTab {
-                    contentUrl: loader.pluginTab?.url ?? ""
                 }
             }
         }

@@ -722,14 +722,15 @@ PanelWindow {
 
             anchors.fill: parent
             anchors.margins: Tokens.spacing.large
-            // Warm: once opened, it stays made while closed (O4).
-            property bool opened: false
+            // Warm: built ahead (Prewarm) and kept made while closed (O4).
+            property int turn: -1
+            // Once made it stays made (the turn stays due).
+            property bool made: false
 
-            active: settings.active || opened
-            onActiveChanged: {
-                if (active)
-                    opened = true;
-            }
+            Component.onCompleted: turn = Prewarm.enlist()
+            active: settings.active || made || Prewarm.due(turn)
+            asynchronous: !settings.active
+            onLoaded: made = true
             sourceComponent: SettingsPanel {}
         }
     }
@@ -818,7 +819,17 @@ PanelWindow {
 
                 anchors.fill: parent
                 anchors.margins: pd.pad
-                active: pd.active || (pd.warm && pd.opened)
+                // Built ahead (Prewarm's turn) and kept; built in the background
+                // unless it's opening right now.
+                property int turn: -1
+
+                // Its place in the warm-up queue, taken once.
+                Component.onCompleted: {
+                    if (pd.warm)
+                        turn = Prewarm.enlist();
+                }
+                active: pd.active || (pd.warm && (pd.opened || Prewarm.due(turn)))
+                asynchronous: !pd.active
                 source: pd.modelData.url
                 // Content that sizes itself can know the room it has.
                 onLoaded: {
