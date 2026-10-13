@@ -401,15 +401,21 @@ Singleton {
                     }
                 }
             },
-            floating: {
+            bottom: {
                 edges: {
-                    left: {
-                        mode: "regions",
+                    bottom: {
+                        start: ["workspaces"],
+                        center: ["clock"],
+                        end: ["notifications", "clipboard", "capture", "tray", "sound", "connect", "battery", "power"]
+                    }
+                }
+            },
+            right: {
+                edges: {
+                    right: {
                         start: ["workspaces", "notifications", "clipboard", "capture"],
+                        center: ["clock"],
                         end: ["tray", "sound", "connect", "battery", "power"]
-                    },
-                    top: {
-                        center: ["clock"]
                     }
                 }
             },

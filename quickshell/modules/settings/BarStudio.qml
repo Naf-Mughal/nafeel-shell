@@ -170,18 +170,23 @@ Item {
                     model: [
                         {
                             value: "default",
-                            icon: "view_sidebar",
-                            label: "Default"
+                            icon: "side_navigation",
+                            label: "Left bar"
                         },
                         {
                             value: "top",
-                            icon: "toolbar",
+                            icon: "web_asset",
                             label: "Top bar"
                         },
                         {
-                            value: "floating",
-                            icon: "bubble_chart",
-                            label: "Floating"
+                            value: "bottom",
+                            icon: "toolbar",
+                            label: "Bottom bar"
+                        },
+                        {
+                            value: "right",
+                            icon: "view_sidebar",
+                            label: "Right bar"
                         },
                         {
                             value: "hidden",
@@ -222,11 +227,34 @@ Item {
             Item {
                 id: mini
 
-                readonly property real side: 72
-                readonly property real across: 44
+                // The bands' thickness: enough rows (top, bottom) or columns
+                // (sides) for their fullest zone's chips (26 px, 3 apart, in
+                // zones with a 3 px margin, in bands with 4).
+                readonly property var bands: {
+                    const pitch = 29;
+                    const counts = {};
+                    for (const e of BarLayout.edgeNames)
+                        counts[e] = BarLayout.regionNames.map(r => root.chipsAt(e, r).length);
+                    const fit = (len, n) => Math.ceil(n / Math.max(1, Math.floor((len - 6 + 3) / pitch)));
+                    let side = 72, across = 44;
+                    for (let i = 0; i < 2; i++) {
+                        const zoneW = (width - side * 2 - 8 - 8) / 3;
+                        const rows = Math.max(...counts.top.map(n => fit(zoneW, n)), ...counts.bottom.map(n => fit(zoneW, n)), 1);
+                        across = Math.max(44, 8 + 6 + rows * pitch - 3);
+                        const zoneH = (height - across * 2 - 8 - 8) / 3;
+                        const cols = Math.max(...counts.left.map(n => fit(zoneH, n)), ...counts.right.map(n => fit(zoneH, n)), 1);
+                        side = Math.max(72, 8 + 6 + cols * pitch - 3);
+                    }
+                    return {
+                        side: side,
+                        across: across
+                    };
+                }
+                readonly property real side: bands.side
+                readonly property real across: bands.across
 
                 width: parent.width
-                height: Math.round(width * 0.6)
+                height: Math.round(width * 0.62)
 
                 // The desktop: what's picked, or how to use it.
                 Surface {

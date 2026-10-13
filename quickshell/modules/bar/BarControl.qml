@@ -23,6 +23,9 @@ Item {
     // A warning colour that wins over the group's ink (low battery, muted).
     property color alert: "transparent"
     property bool dot: false
+    // Across a horizontal bar (set by the Bar), for content that lays out
+    // differently there.
+    property bool horizontal: false
 
     // Set by the BarGroup.
     property color groupInk

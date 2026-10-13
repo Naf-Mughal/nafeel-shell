@@ -448,6 +448,7 @@ Item {
             alert: Power.low ? Colours.palette.m3error : "transparent"
 
             BatteryIcon {
+                horizontal: battery.horizontal
                 ink: battery.ink
                 hole: battery.active ? battery.groupInk : battery.groupActiveInk
             }
