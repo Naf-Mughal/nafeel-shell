@@ -8,8 +8,8 @@ import qs.services
 import qs.components
 
 // Sound, brightness and now playing in one panel: what's playing (when
-// something is), the speaker and microphone, the screen's brightness with its
-// toggles, and the output devices.
+// something is), the speaker and microphone, a slider per app playing sound,
+// the screen's brightness with its toggles, and the output devices.
 Panel {
     id: root
 
@@ -159,6 +159,10 @@ Panel {
         tertiary: true
         onToggleMute: Audio.toggleSourceMute()
         onMoved: v => Audio.setSourceVolume(v)
+    }
+
+    AppVolumes {
+        width: parent.width
     }
 
     SectionLabel {

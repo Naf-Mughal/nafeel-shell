@@ -3,15 +3,15 @@
   "name": "Notes",
   "gloss": "笔记",
   "icon": "edit_note",
-  "description": "Markdown notes in a drawer on the right (Mod+X); a Scratchpad and a jot from anywhere (IPC notes jot).",
+  "description": "Markdown notes in a drawer in the top-right corner (Mod+X); a Scratchpad and a jot from anywhere (IPC notes jot).",
   "default": true,
   "root": "Plugin.qml",
   "drawers": [
     {
       "name": "notes",
       "entry": "Notes.qml",
-      "edge": "right",
-      "along": 0.36,
+      "edge": "corner",
+      "corner": "topRight",
       "width": 780,
       "height": 600,
       "keyboard": true,

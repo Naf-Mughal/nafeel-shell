@@ -31,6 +31,25 @@ Singleton {
         return n.properties["application.name"] || n.description || n.name;
     }
 
+    // The desktop-entry id to find an app's icon by: what the app says it
+    // is, else its binary.
+    function streamAppId(n: var): string {
+        const p = n.properties;
+        return p["application.id"] || p["application.icon-name"] || p["application.process.binary"] || (p["application.name"] ?? "").toLowerCase();
+    }
+
+    function setStreamVolume(n: var, v: real): void {
+        if (n?.ready && n.audio) {
+            n.audio.muted = false;
+            n.audio.volume = Math.max(0, Math.min(1.5, v));
+        }
+    }
+
+    function toggleStreamMute(n: var): void {
+        if (n?.ready && n.audio)
+            n.audio.muted = !n.audio.muted;
+    }
+
     function setSink(n: var): void {
         Pipewire.preferredDefaultAudioSink = n;
     }

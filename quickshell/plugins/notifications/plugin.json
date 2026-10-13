@@ -15,7 +15,8 @@
       "width": 400,
       "height": "content",
       "padding": 10,
-      "openWhen": "hasPopups"
+      "openWhen": "hasPopups",
+      "yieldTo": ["notes"]
     },
     {
       "name": "actions",

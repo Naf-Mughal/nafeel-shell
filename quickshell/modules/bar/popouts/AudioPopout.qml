@@ -62,41 +62,7 @@ Panel {
         }
     }
 
-    SectionLabel {
-        visible: Audio.streams.length > 0
-        text: "Apps"
-    }
-
-    Repeater {
-        model: Audio.streams
-
-        Column {
-            id: app
-
-            required property var modelData
-
-            width: root.width
-            spacing: 4
-
-            StyledText {
-                text: Audio.streamName(app.modelData)
-                color: Colours.palette.m3onSurfaceVariant
-                font.pixelSize: 12
-                elide: Text.ElideRight
-                width: parent.width
-            }
-
-            StyledSlider {
-                width: parent.width
-                implicitHeight: 28
-                value: app.modelData.audio?.volume ?? 0
-                fill: Colours.palette.m3secondary
-                ink: Colours.palette.m3onSecondary
-                onMoved: v => {
-                    if (app.modelData.audio)
-                        app.modelData.audio.volume = Math.min(1, v);
-                }
-            }
-        }
+    AppVolumes {
+        width: parent.width
     }
 }
