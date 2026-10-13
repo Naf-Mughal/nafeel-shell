@@ -212,12 +212,18 @@ PanelWindow {
         loops: Animation.Infinite
     }
 
-    // Still frames before a close (ShellState.closePending): a pixel nobody
-    // sees, changed at each vblank-paced step, so the window draws in step
-    // with the display before the panel moves.
+    // A pixel nobody sees, changed at every vblank-paced step, keeps the
+    // window drawing in step with the display: left idle, umbriel shows the
+    // first frame after a rest at once and settles onto its vblank schedule
+    // only a few frames later, a skipped refresh early in a close.
+    // On AC, while a panel is open (a close then starts in step: no skipped
+    // refresh); it costs ~24% of this GPU for as long as the panel stays
+    // open. On battery, only for the close's pre-roll (ShellState: still
+    // frames before it moves), free while panels sit open.
+    readonly property bool onAC: !Power.hasBattery || Power.charging
     property real pumpPhase: 0
     NumberAnimation on pumpPhase {
-        running: ShellState.closePending
+        running: ShellState.closePending || (win.onAC && (ShellState.pinned !== "" || ShellState.previewed !== ""))
         from: 0
         to: 1
         duration: 100

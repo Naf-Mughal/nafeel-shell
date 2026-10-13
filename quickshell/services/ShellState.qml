@@ -200,18 +200,17 @@ Singleton {
     }
 
     // A close lands inside an animation step (the vblank-paced driver's,
-    // Nafeel's FramePacer), after three refreshes of still frames
-    // (FrameWindow's pump draws them). Applied between refreshes it drew a
-    // frame out of step; and umbriel shows the first frame after a rest at
-    // once but the next one on its own vblank schedule, a refresh later: the
-    // still frames take that refresh, the panel's motion starts in step.
+    // Nafeel's FramePacer): applied between refreshes it drew a frame out of
+    // step. On battery it first draws still frames (FrameWindow's pump) so
+    // umbriel is on its vblank schedule before the panel moves; on AC the
+    // frame window kept drawing while the panel was open, no wait needed.
     property bool closeAll: false
     readonly property bool closePending: inTick.running
 
     NumberAnimation {
         id: inTick
 
-        duration: 45
+        duration: Power.hasBattery && !Power.charging ? 100 : 1
         onFinished: {
             root.letGo(root.closeAll);
             root.closeAll = false;

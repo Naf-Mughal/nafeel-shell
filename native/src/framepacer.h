@@ -41,10 +41,15 @@ public:
 
     // Paces animations by this window's presented frames.
     Q_INVOKABLE void attach(QQuickWindow *window);
+    // A window whose frames come on their own (the video wallpaper): while
+    // animations run, it draws only just after a vblank tick.
+    Q_INVOKABLE void attachWallpaper(QQuickWindow *window);
 
 signals:
     void activeChanged();
 
 private:
+    bool install();
+
     FramePacerDriver *m_driver = nullptr;
 };

@@ -65,7 +65,7 @@ Item {
             Loader {
                 // Only while shown: the tab stays made (warm), and capturing
                 // the audio for nobody cost a sixth of a core.
-                active: Media.playing && root.visible
+                active: Media.playing && root.visible && ShellState.moving === 0
                 sourceComponent: ServiceRef {
                     service: Visualiser.cava
                 }

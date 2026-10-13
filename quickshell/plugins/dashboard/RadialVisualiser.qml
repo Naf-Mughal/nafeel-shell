@@ -20,7 +20,9 @@ Item {
 
     Loader {
         // And only while shown: its panel stays made (warm) while closed.
-        active: root.active && root.visible
+        // Held still while any panel opens or closes: 64 curves re-made on
+        // the GUI thread at the music's rate took frames from the animation.
+        active: root.active && root.visible && ShellState.moving === 0
         sourceComponent: ServiceRef {
             service: Visualiser.cava
         }

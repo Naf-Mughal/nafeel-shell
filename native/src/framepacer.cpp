@@ -218,11 +218,11 @@ public:
     // texture asking again from the render thread, a queued update) wait for
     // it. Delivered between refreshes they drew a frame out of step, and the
     // next paced one landed a refresh late.
-    void watch(QQuickWindow *window) {
+    void watch(QQuickWindow *window, bool strict = false) {
         for (const auto &w : std::as_const(m_windows))
             if (w.window == window)
                 return;
-        m_windows.append({window, true, false});
+        m_windows.append({window, true, false, strict});
         window->installEventFilter(this);
         if (!m_logChecked) {
             m_logChecked = true;
@@ -240,7 +240,11 @@ public:
         for (auto &w : m_windows) {
             if (w.window != obj)
                 continue;
-            if (!isRunning() || w.allow) {
+            // A strict window (the wallpaper: its video frames come when
+            // they're decoded) draws only just after a tick, so the two
+            // windows don't take turns across the refresh.
+            const bool early = !w.strict || (monotonicUs() - m_lastTickUs) < 4000;
+            if (!isRunning() || (w.allow && early)) {
                 w.allow = false;
                 return false;
             }
@@ -297,6 +301,7 @@ private:
         if (t <= m_time && seq)
             return;
         m_time = std::max(t, m_time);
+        m_lastTickUs = monotonicUs();
         for (auto &w : m_windows)
             w.allow = true;
         advance();
@@ -316,7 +321,9 @@ private:
         QPointer<QQuickWindow> window;
         bool allow;
         bool held;
+        bool strict;
     };
+    qint64 m_lastTickUs = 0;
     QList<Watched> m_windows;
     PresentLog m_log;
     bool m_logChecked = false;
@@ -338,19 +345,27 @@ FramePacer::~FramePacer() {
     }
 }
 
-void FramePacer::attach(QQuickWindow *window) {
-    if (!window)
-        return;
+bool FramePacer::install() {
+    if (m_driver)
+        return true;
     if (qEnvironmentVariable("NAFEEL_FRAME_PACER") == QLatin1String("0"))
-        return;
-    if (!m_driver) {
-        QSGRenderLoop *loop = QSGRenderLoop::instance();
-        QAnimationDriver *qtDriver = loop ? loop->animationDriver() : nullptr;
-        if (qtDriver)
-            qtDriver->uninstall();
-        m_driver = new FramePacerDriver();
-        m_driver->install();
-        emit activeChanged();
-    }
-    m_driver->watch(window);
+        return false;
+    QSGRenderLoop *loop = QSGRenderLoop::instance();
+    QAnimationDriver *qtDriver = loop ? loop->animationDriver() : nullptr;
+    if (qtDriver)
+        qtDriver->uninstall();
+    m_driver = new FramePacerDriver();
+    m_driver->install();
+    emit activeChanged();
+    return true;
+}
+
+void FramePacer::attach(QQuickWindow *window) {
+    if (window && install())
+        m_driver->watch(window);
+}
+
+void FramePacer::attachWallpaper(QQuickWindow *window) {
+    if (window && install())
+        m_driver->watch(window, true);
 }

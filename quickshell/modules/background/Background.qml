@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Nafeel
 import qs.config
 import qs.services
 import qs.components
@@ -147,6 +148,17 @@ Variants {
             }
         }
 
-        InkStill {}
+        InkStill {
+            id: still
+
+            // Its video frames paced with the shell's animations (Nafeel's
+            // FramePacer: drawn just after a vblank tick while anything
+            // animates, so they don't collide with a panel's frames).
+            readonly property var quickWindow: Window.window
+            onQuickWindowChanged: {
+                if (quickWindow)
+                    FramePacer.attachWallpaper(quickWindow);
+            }
+        }
     }
 }
