@@ -92,9 +92,15 @@ def live_copy(path: Path, key: str, live_dir: Path) -> str:
     # quality (CRF 16, a slower preset): it shouldn't look converted.
     scale = (f"scale={SCREEN[0]}:{SCREEN[1]}:force_original_aspect_ratio=increase:flags=lanczos,"
              "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos")
-    res = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(path), "-vf", scale, "-c:v", "libx264", "-preset", "slow",
-                          "-crf", "16", "-tune", "film", "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", str(tmp)],
-                         timeout=3600)
+    # In the background, gently: the lowest CPU and IO priority, two
+    # threads and a short lookahead (all cores and 1.3 GB at once froze the
+    # desktop); the same quality, it just takes longer.
+    res = subprocess.run(["nice", "-n", "19", "ionice", "-c", "3",
+                          "ffmpeg", "-v", "error", "-y", "-threads", "2", "-i", str(path), "-vf", scale,
+                          "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-tune", "film",
+                          "-x264-params", "threads=2:lookahead-threads=1:rc-lookahead=20",
+                          "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", str(tmp)],
+                         timeout=4 * 3600)
     if res.returncode != 0:
         tmp.unlink(missing_ok=True)
         return ""
@@ -221,10 +227,19 @@ def main() -> int:
     write_atomic(index_path, {"root": str(root), "wallpapers": out})
     # Thumbnails nothing points at any more (older sizes, removed files).
     keep = {e["thumb"] for e in out} | {e["preview"] for e in out if e.get("preview")}
-    # Copies nothing uses (the setting went back to original, a video left).
-    keep_live = {e.get("live") for e in out if e.get("live")} if LIVE_COPIES else set()
+    # Copies of videos that left the library (or changed). A copy outlives the
+    # setting going back to original: switching back mustn't encode it again.
+    live_keys = set()
+    for e in out:
+        if e.get("video"):
+            vp = Path(e["path"])
+            try:
+                vs = vp.stat()
+            except OSError:
+                continue
+            live_keys.add(hashlib.sha1(f"{vp}|{vs.st_size}|{int(vs.st_mtime)}|{THUMB_W}".encode()).hexdigest()[:20])
     for v in (thumbs.parent / "live").glob("*.mp4"):
-        if str(v) not in keep_live:
+        if v.name.split("-", 1)[0] not in live_keys or v.name.endswith(".part.mp4"):
             v.unlink(missing_ok=True)
     for t in thumbs.glob("*.webp"):
         if str(t) not in keep:
