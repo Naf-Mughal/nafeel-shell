@@ -626,7 +626,7 @@ PanelWindow {
         // of the bar (past the corner).
         along: {
             const len = side ? win.height : win.width;
-            const span = expanded ? (side ? 640 : 920) : dockLength;
+            const span = big ? (side ? 640 : 920) : dockLength;
             const lo = side ? win.tTop : win.tLeft, hi = side ? win.tBottom : win.tRight;
             const m = Tokens.spacing.large;
             return (at.region === "start" ? lo + m + span / 2 : at.region === "end" ? len - hi - m - span / 2 : len / 2) / len;
@@ -635,8 +635,12 @@ PanelWindow {
         shellScreen: win.screen
         enabled: !win.fullscreen
         // Grown by the window previews while one app's show beside the dock.
-        panelWidth: expanded ? 920 : side ? dockDepth : dockLength
-        panelHeight: expanded ? 640 : side ? dockLength : dockDepth
+        // Leaving altogether (no dock to become: a window on the
+        // workspace), it leaves at its size: switched to the dock's as it
+        // closed, it shrank a quarter in one frame before it went.
+        readonly property bool big: expanded || !open
+        panelWidth: big ? 920 : side ? dockDepth : dockLength
+        panelHeight: big ? 640 : side ? dockLength : dockDepth
 
         Behavior on panelWidth {
             enabled: commandCenter.active

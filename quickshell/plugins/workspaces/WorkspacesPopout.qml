@@ -72,14 +72,28 @@ Column {
                     border.width: card.active ? 2 : 1
                     border.color: card.active ? Colours.palette.m3primary : cardHover.hovered ? Colours.palette.m3outline : Qt.alpha(Colours.palette.m3onSurface, 0.13)
 
-                    // The active workspace, live: only while the popout shows.
-                    // (It stays made, warm; a live capture of the whole screen
-                    // kept running behind it, full-size frames and all.)
+                    // The active workspace: captured as the popout opens and
+                    // twice a second while it's open; never while it closes (a
+                    // live capture recorded its own exit, each frame landing
+                    // between the display's refreshes, and kept a full-screen
+                    // capture running at 60 fps behind it).
                     ScreencopyView {
+                        id: shot
+
+                        readonly property bool open: ShellState.pinned === "bar:workspaces" || ShellState.previewed === "bar:workspaces"
+
                         anchors.fill: parent
                         visible: card.active && root.screen !== null
                         captureSource: card.active && root.visible ? root.screen : null
-                        live: root.visible
+                        live: false
+
+                        Timer {
+                            running: shot.open && card.active && shot.captureSource !== null
+                            interval: 500
+                            repeat: true
+                            triggeredOnStart: true
+                            onTriggered: shot.captureFrame()
+                        }
                     }
 
                     // The others: a miniature of the desktop (the wallpaper in the
