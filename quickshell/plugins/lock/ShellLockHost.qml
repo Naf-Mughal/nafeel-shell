@@ -27,9 +27,6 @@ QtObject {
     readonly property url wallpaper: CaveAbode.wallpaper
     readonly property bool wallpaperLive: Wallpapers.isVideo(wallpaperPath)
     readonly property url wallpaperStill: wallpaperLive ? "file://" + Wallpapers.stillOf(wallpaperPath) : wallpaper
-    // What a live one plays: what the desktop plays (the live resolution
-    // setting: the file itself at Original).
-    readonly property url wallpaperPlay: wallpaperLive ? "file://" + Wallpapers.playOf(wallpaperPath) : wallpaper
     readonly property Component liveComponent: Component {
         VideoLayer {}
     }

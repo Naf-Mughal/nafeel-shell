@@ -32,11 +32,9 @@ Variants {
         property int front: 0
         readonly property WallSlot shown: front === 0 ? a : b
         readonly property WallSlot spare: front === 0 ? b : a
-        // A live wallpaper plays unless the screen is locked, windows hide it
-        // (fullscreen, or covering nine tenths: nothing to see, so nothing
-        // decoded, as mpvpaper's auto-pause did under Noctalia), or (unless
-        // allowed) the laptop is on battery.
-        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && Umbriel.coverageOn(modelData.name, modelData.width, modelData.height) < 0.9 && (Wallpapers.settings.v.liveOnBattery || !Power.hasBattery || Power.charging)
+        // A live wallpaper plays unless the screen is locked, a fullscreen
+        // window covers it, or (unless allowed) the laptop is on battery.
+        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !Power.hasBattery || Power.charging)
 
         function url(path: string): string {
             return path ? "file://" + path : "";
@@ -60,7 +58,6 @@ Variants {
             id: a
 
             anchors.fill: parent
-            output: win.modelData.name
             decode: win.decode
             visible: win.front === 0
             playing: visible && win.live
@@ -71,7 +68,6 @@ Variants {
             id: b
 
             anchors.fill: parent
-            output: win.modelData.name
             decode: win.decode
             visible: win.front === 1
             playing: visible && win.live

@@ -6,18 +6,13 @@ import qs.services
 
 // One of a screen's two wallpaper slots: a picture, or a live wallpaper (a
 // video, looped, silent). `ready` once there's something to show (decoded, or
-// a video's first frames), `failed` if it can't be; settled() either way. A
+// the video's first frames), `failed` if it can't be; settled() either way. A
 // video plays only while `playing`; held, it keeps its current frame. It
-// plays the file, or its screen / 1080p / 720p copy (the live resolution
-// setting), decoded on the GPU (VAAPI, bin/nafeel-shell). In the shell, not
-// mpvpaper: that cost as much memory and more battery, and mpv's idle
-// inhibitor kept the session from ever going idle.
+// plays the file, or its 1080p / 720p copy (the live resolution setting).
 Item {
     id: root
 
     property string path: ""
-    // The screen's output, for the player.
-    property string output: ""
     property size decode
     property bool playing: true
     readonly property bool isVideo: Wallpapers.isVideo(path)
