@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Quickshell.Bluetooth
 import qs.config
 import qs.services
@@ -58,8 +59,12 @@ Panel {
     }
 
     Repeater {
-        model: BluetoothState.enabled ? BluetoothState.paired : []
-
+        // Diffed (ScriptModel): a new array (a signal strength, a stream
+        // coming or going) moves or adds rows; rebuilding every row held the GUI
+        // thread past a refresh, dropping a frame of whatever was animating.
+        model: ScriptModel {
+            values: BluetoothState.enabled ? BluetoothState.paired : []
+        }
         ListRow {
             id: dev
 
@@ -106,8 +111,12 @@ Panel {
     }
 
     Repeater {
-        model: BluetoothState.enabled && BluetoothState.adapter?.discovering ? BluetoothState.available : []
-
+        // Diffed (ScriptModel): a new array (a signal strength, a stream
+        // coming or going) moves or adds rows; rebuilding every row held the GUI
+        // thread past a refresh, dropping a frame of whatever was animating.
+        model: ScriptModel {
+            values: BluetoothState.enabled && BluetoothState.adapter?.discovering ? BluetoothState.available : []
+        }
         ListRow {
             required property var modelData
 

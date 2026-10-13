@@ -44,6 +44,9 @@ public:
     // A window whose frames come on their own (the video wallpaper): while
     // animations run, it draws only just after a vblank tick.
     Q_INVOKABLE void attachWallpaper(QQuickWindow *window);
+    // With NAFEEL_PRESENT_LOG: a line "M <ns> <what>" in the log (a close
+    // starting, for measuring).
+    Q_INVOKABLE void mark(const QString &what);
 
 signals:
     void activeChanged();

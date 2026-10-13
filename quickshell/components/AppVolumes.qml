@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.config
 import qs.services
 
@@ -18,8 +19,12 @@ Column {
     }
 
     Repeater {
-        model: Audio.streams
-
+        // Diffed (ScriptModel): a new array (a signal strength, a stream
+        // coming or going) moves or adds rows; rebuilding every row held the GUI
+        // thread past a refresh, dropping a frame of whatever was animating.
+        model: ScriptModel {
+            values: Audio.streams
+        }
         Column {
             id: app
 

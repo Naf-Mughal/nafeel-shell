@@ -17,6 +17,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <xf86drm.h>
+#include <csignal>
+#include <execinfo.h>
+#include <pthread.h>
 
 #include <QFile>
 #include <qpa/qplatformnativeinterface.h>
@@ -35,6 +38,26 @@ qint64 monotonicUs() {
 }
 
 } // namespace
+
+// NAFEEL_STALL_TRACE=<file>: for measuring. When a vblank's tick hasn't
+// reached the GUI thread ~10 ms on, its stack is written there (a signal
+// to the GUI thread; the handler isn't async-signal-safe, it's a probe).
+namespace stalltrace {
+int fd = -1;
+pthread_t gui;
+void handler(int) {
+    if (fd < 0)
+        return;
+    void *bt[48];
+    const int n = backtrace(bt, 48);
+    timespec ts{};
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    char head[64];
+    const int len = snprintf(head, sizeof head, "=== %ld.%06ld\n", long(ts.tv_sec), ts.tv_nsec / 1000);
+    (void)!::write(fd, head, len);
+    backtrace_symbols_fd(bt, n, fd);
+}
+} // namespace stalltrace
 
 // Waits for the display's vblanks (the kernel's, DRM_IOCTL_WAIT_VBLANK: no
 // DRM master needed) while animations run, and hands each one's time to
@@ -81,6 +104,7 @@ public:
     }
 
     bool failed() const { return m_failed.loadRelaxed(); }
+    QAtomicInteger<quint32> handled{0};
 
 protected:
     void run() override {
@@ -106,6 +130,12 @@ protected:
             m_failed.storeRelaxed(false);
             if (onVblank)
                 onVblank(qint64(v.reply.tval_sec) * 1000000 + v.reply.tval_usec, v.reply.sequence);
+            if (stalltrace::fd >= 0) {
+                // The previous tick still unhandled after ~10 ms: trace.
+                QThread::usleep(10000);
+                if (handled.loadRelaxed() + 1 < v.reply.sequence + 1 && handled.loadRelaxed() != v.reply.sequence)
+                    pthread_kill(stalltrace::gui, SIGUSR2);
+            }
         }
     }
 
@@ -149,9 +179,14 @@ public:
 
     void watch(QQuickWindow *window) { m_window = window; }
 
-    void step() {
+    void step(quint32 seq, qint64 vblankUs) {
         if (!m_presentation || !m_window)
             return;
+        timespec now{};
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        const qint64 nowUs = qint64(now.tv_sec) * 1000000 + now.tv_nsec / 1000;
+        write(QStringLiteral("T %1 %2 %3\n").arg(nowUs * 1000).arg(seq).arg(vblankUs ? nowUs - vblankUs : -1));
+        m_tag = seq;
         wl_display_dispatch_queue_pending(m_display, m_queue);
         auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", m_window));
         if (!surface)
@@ -162,17 +197,22 @@ public:
             [](void *data, struct wp_presentation_feedback *fb, uint32_t hi, uint32_t lo, uint32_t ns, uint32_t, uint32_t mhi, uint32_t mlo, uint32_t) {
                 const qint64 t = ((qint64(hi) << 32) | lo) * 1000000000LL + ns;
                 const quint64 msc = (quint64(mhi) << 32) | mlo;
-                static_cast<PresentLog *>(data)->write(QStringLiteral("P %1 %2\n").arg(t).arg(msc));
+                auto *ctx = static_cast<std::pair<PresentLog *, quint32> *>(data);
+                ctx->first->write(QStringLiteral("P %1 %2 %3\n").arg(t).arg(msc).arg(ctx->second));
+                delete ctx;
                 wp_presentation_feedback_destroy(fb);
             },
             [](void *data, struct wp_presentation_feedback *fb) {
                 timespec ts{};
                 clock_gettime(CLOCK_MONOTONIC, &ts);
-                static_cast<PresentLog *>(data)->write(QStringLiteral("D %1\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec));
+                auto *ctx = static_cast<std::pair<PresentLog *, quint32> *>(data);
+                ctx->first->write(QStringLiteral("D %1 %2\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec).arg(ctx->second));
+                delete ctx;
                 wp_presentation_feedback_destroy(fb);
             },
         };
-        wp_presentation_feedback_add_listener(fb, &listener, this);
+        auto *ctx = new std::pair<PresentLog *, quint32>(this, m_tag);
+        wp_presentation_feedback_add_listener(fb, &listener, ctx);
         wl_display_flush(m_display);
     }
 
@@ -187,6 +227,7 @@ private:
     wp_presentation *m_presentation = nullptr;
     QPointer<QQuickWindow> m_window;
     QFile m_file;
+    quint32 m_tag = 0;
 };
 
 class FramePacerDriver : public QAnimationDriver {
@@ -201,6 +242,11 @@ public:
             if (isRunning())
                 step(monotonicUs(), 0);
         });
+        if (const QByteArray p = qgetenv("NAFEEL_STALL_TRACE"); !p.isEmpty()) {
+            stalltrace::fd = ::open(p.constData(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+            stalltrace::gui = pthread_self();
+            std::signal(SIGUSR2, stalltrace::handler);
+        }
         if (m_vblank.open()) {
             m_vblank.onVblank = [this](qint64 us, quint32 seq) {
                 m_latest.storeRelaxed(seq);
@@ -232,6 +278,14 @@ public:
         }
         if (m_logging)
             m_log.watch(window);
+    }
+
+    void mark(const QString &what) {
+        if (!m_logging)
+            return;
+        timespec ts{};
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        m_log.write(QStringLiteral("M %1 %2\n").arg(qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec).arg(what));
     }
 
     bool eventFilter(QObject *obj, QEvent *event) override {
@@ -302,11 +356,13 @@ private:
             return;
         m_time = std::max(t, m_time);
         m_lastTickUs = monotonicUs();
+        if (seq)
+            m_vblank.handled.storeRelaxed(seq);
         for (auto &w : m_windows)
             w.allow = true;
         advance();
         if (m_logging)
-            m_log.step();
+            m_log.step(seq, seq ? us : 0);
         // A request held since the last tick: its frame now.
         for (auto &w : m_windows) {
             if (w.held && w.window) {
@@ -363,6 +419,11 @@ bool FramePacer::install() {
 void FramePacer::attach(QQuickWindow *window) {
     if (window && install())
         m_driver->watch(window);
+}
+
+void FramePacer::mark(const QString &what) {
+    if (m_driver)
+        m_driver->mark(what);
 }
 
 void FramePacer::attachWallpaper(QQuickWindow *window) {

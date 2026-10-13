@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.Mpris
 import qs.config
@@ -44,8 +45,12 @@ Panel {
         spacing: Tokens.spacing.small
 
         Repeater {
-            model: Media.players
-
+            // Diffed (ScriptModel): a new array (a signal strength, a stream
+            // coming or going) moves or adds rows; rebuilding every row held the GUI
+            // thread past a refresh, dropping a frame of whatever was animating.
+            model: ScriptModel {
+                values: Media.players
+            }
             Surface {
                 id: chip
 

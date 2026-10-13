@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.config
 import qs.services
 import qs.components
@@ -125,8 +126,12 @@ Panel {
             }
 
             Repeater {
-                model: Network.networks.filter(n => !n.connected)
-
+                // Diffed (ScriptModel): a new array (a signal strength, a stream
+                // coming or going) moves or adds rows; rebuilding every row held the GUI
+                // thread past a refresh, dropping a frame of whatever was animating.
+                model: ScriptModel {
+                    values: Network.networks.filter(n => !n.connected)
+                }
                 Column {
                     id: entry
 

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.Mpris
 import qs.config
@@ -220,8 +221,12 @@ Panel {
     }
 
     Repeater {
-        model: Audio.sinks.length > 1 ? Audio.sinks : []
-
+        // Diffed (ScriptModel): a new array (a signal strength, a stream
+        // coming or going) moves or adds rows; rebuilding every row held the GUI
+        // thread past a refresh, dropping a frame of whatever was animating.
+        model: ScriptModel {
+            values: Audio.sinks.length > 1 ? Audio.sinks : []
+        }
         ListRow {
             required property var modelData
 

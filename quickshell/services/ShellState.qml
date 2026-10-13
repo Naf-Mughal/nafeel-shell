@@ -20,6 +20,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Nafeel
 import qs.config
 
 Singleton {
@@ -211,6 +212,7 @@ Singleton {
 
         duration: 1
         onFinished: {
+            FramePacer.mark("close");
             root.letGo(root.closeAll);
             root.closeAll = false;
         }
@@ -235,8 +237,13 @@ Singleton {
     // collection once a panel has closed and settled (and once the warm-up is
     // done) leaves the next one far off. Unseen: nothing animates then.
     readonly property bool resting: pinned === "" && previewed === "" && moving === 0
-    onRestingChanged: {
-        if (resting)
+    // Also once a panel has opened and gone still: the pause can't show then
+    // (nothing moves), and its close starts with a clean heap. Left for later,
+    // a collection came due during a close now and then: its sweep held the
+    // GUI thread past a refresh, a vblank with no new frame.
+    readonly property bool still: moving === 0 && !inTick.running
+    onStillChanged: {
+        if (still)
             idleCollect.restart();
         else
             idleCollect.stop();
@@ -246,7 +253,7 @@ Singleton {
         target: Prewarm
 
         function onDoneChanged(): void {
-            if (Prewarm.done && root.resting)
+            if (Prewarm.done && root.still)
                 idleCollect.restart();
         }
     }
@@ -260,9 +267,9 @@ Singleton {
     Timer {
         id: idleCollect
 
-        interval: 1500
+        interval: root.resting ? 1500 : 700
         onTriggered: {
-            if (root.resting)
+            if (root.still)
                 gc();
         }
     }
