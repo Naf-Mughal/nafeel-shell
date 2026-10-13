@@ -4,7 +4,8 @@ import qs.services
 
 // A round Material icon button (a Surface). `filled` uses the colour pair as
 // a solid fill; otherwise it's a tonal button on the paper. A `caption` (a
-// level, say) sits small under the icon.
+// level, say) sits small under the icon. With an `appId` the app's icon
+// stands in for the Material one.
 Surface {
     id: root
 
@@ -14,6 +15,7 @@ Surface {
     property color inkColour: Colours.palette.m3onSecondaryContainer
     property int size: 40
     property string caption: ""
+    property string appId: ""
 
     interactive: true
     pressDepth: 0.9
@@ -28,8 +30,16 @@ Surface {
         anchors.centerIn: parent
         spacing: -2
 
+        AppIcon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: root.appId !== ""
+            appId: root.appId
+            size: Math.round(root.size * (root.caption ? 0.42 : 0.55))
+        }
+
         MaterialIcon {
             anchors.horizontalCenter: parent.horizontalCenter
+            visible: root.appId === ""
             text: root.icon
             fill: root.filled ? 1 : 0
             color: root.ink

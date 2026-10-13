@@ -2,7 +2,8 @@ import QtQuick
 import qs.config
 import qs.services
 
-// A volume slider with a mute chip in front.
+// A volume slider with a mute chip in front (an app's icon in it, given
+// an `appId`).
 Row {
     id: row
 
@@ -10,6 +11,7 @@ Row {
     property bool muted
     property real value
     property bool tertiary
+    property string appId: ""
 
     signal toggleMute
     signal moved(real value)
@@ -18,6 +20,8 @@ Row {
 
     IconButton {
         icon: row.icon
+        appId: row.appId
+        opacity: row.appId !== "" && row.muted ? 0.5 : 1
         filled: !row.muted
         fillColour: row.tertiary ? Colours.palette.m3tertiaryContainer : Colours.palette.m3secondaryContainer
         inkColour: row.tertiary ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSecondaryContainer
