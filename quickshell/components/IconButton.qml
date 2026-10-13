@@ -28,13 +28,14 @@ Surface {
 
     Column {
         anchors.centerIn: parent
-        spacing: -2
+        // A glyph has room around it; an app's icon fills its box.
+        spacing: root.appId !== "" ? 1 : -2
 
         AppIcon {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.appId !== ""
             appId: root.appId
-            size: Math.round(root.size * (root.caption ? 0.42 : 0.55))
+            size: Math.round(root.size * (root.caption ? 0.36 : 0.55))
         }
 
         MaterialIcon {
