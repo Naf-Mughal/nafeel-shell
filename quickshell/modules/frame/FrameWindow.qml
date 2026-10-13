@@ -24,6 +24,18 @@ PanelWindow {
     property real fsProg: fullscreen ? 1 : 0
     readonly property real border: Tokens.border * (1 - fsProg)
     readonly property real barWidth: Tokens.barWidth * (1 - fsProg)
+    // Each edge's thickness: a bar's where the layout puts widgets, the thin
+    // border elsewhere (BarLayout).
+    readonly property real tLeft: BarLayout.thickness("left") * (1 - fsProg)
+    readonly property real tTop: BarLayout.thickness("top") * (1 - fsProg)
+    readonly property real tRight: BarLayout.thickness("right") * (1 - fsProg)
+    readonly property real tBottom: BarLayout.thickness("bottom") * (1 - fsProg)
+    // The desktop's width between the side bars.
+    readonly property real innerWidth: width - tLeft - tRight
+
+    function edgeThickness(edge: string): real {
+        return edge === "left" ? tLeft : edge === "right" ? tRight : edge === "top" ? tTop : tBottom;
+    }
     readonly property bool pinnedHere: ShellState.isPinned(screen?.name ?? "")
     // A modal plugin drawer (one that opens by itself, e.g. an
     // authentication prompt) is up here: it takes the keyboard, and the dock
@@ -33,7 +45,7 @@ PanelWindow {
 
     // Every drawer on this screen (the blob engine takes up to sixteen shapes
     // near any one).
-    readonly property var drawers: [commandCenter, topLeft, bottomLeft, settings].concat(pluginDrawers)
+    readonly property var drawers: [commandCenter, topLeft, bottomLeft, topRight, bottomRight, settings].concat(pluginDrawers)
     // The drawers plugins add (their manifests: Plugins.drawers).
     property var pluginDrawers: []
 
@@ -96,10 +108,10 @@ PanelWindow {
     Region {
         id: frameInput
 
-        x: win.barWidth
-        y: win.border
-        width: win.width - win.barWidth - win.border
-        height: win.height - win.border * 2
+        x: win.tLeft
+        y: win.tTop
+        width: win.innerWidth
+        height: win.height - win.tTop - win.tBottom
         intersection: Intersection.Xor
 
         DrawerRegion {
@@ -167,7 +179,8 @@ PanelWindow {
                 const r = d.region;
                 return mouse.x >= r.x && mouse.x < r.x + r.width && mouse.y >= r.y && mouse.y < r.y + r.height;
             });
-            if (inside || mouse.x < win.barWidth) {
+            const onBar = mouse.x < win.tLeft || mouse.x >= win.width - win.tRight || mouse.y < win.tTop || mouse.y >= win.height - win.tBottom;
+            if (inside || onBar) {
                 mouse.accepted = false;
                 return;
             }
@@ -253,10 +266,10 @@ PanelWindow {
         BlobInvertedRect {
             group: blobs
             anchors.fill: parent
-            borderLeft: win.barWidth
-            borderTop: win.border
-            borderRight: win.border
-            borderBottom: win.border
+            borderLeft: win.tLeft
+            borderTop: win.tTop
+            borderRight: win.tRight
+            borderBottom: win.tBottom
             radius: Tokens.frameRounding * (1 - win.fsProg)
         }
 
@@ -301,14 +314,25 @@ PanelWindow {
     // Above every drawer: the corners and popouts that merge into the bar
     // cover its strip, and its icons must still get the pointer (hovering
     // from one icon to the next switches the panel).
-    Bar {
-        z: 2
-        x: 0
-        width: Tokens.barWidth
-        height: parent.height
-        opacity: 1 - win.fsProg
-        visible: opacity > 0
-        shellScreen: win.screen
+    // A bar on every edge the layout puts widgets on; the side bars run
+    // the full height, the top and bottom ones between them.
+    Repeater {
+        model: BarLayout.edgeNames
+
+        Bar {
+            required property string modelData
+            readonly property real t: BarLayout.thickness(modelData)
+
+            z: 2
+            edge: modelData
+            x: modelData === "right" ? win.width - t : modelData === "left" ? 0 : win.tLeft
+            y: modelData === "bottom" ? win.height - t : 0
+            width: horizontal ? win.innerWidth : t
+            height: horizontal ? t : win.height
+            opacity: 1 - win.fsProg
+            visible: opacity > 0 && BarLayout.used(modelData)
+            shellScreen: win.screen
+        }
     }
 
     // The dock and the command center, one drawer at the bottom centre:
@@ -331,7 +355,7 @@ PanelWindow {
         pinOnPress: expanded
         wantsKeyboard: expanded
         edge: "bottom"
-        thickness: win.border
+        thickness: win.tBottom
         shellScreen: win.screen
         enabled: !win.fullscreen
         // Grown by the window previews while one app's show above the dock.
@@ -369,38 +393,62 @@ PanelWindow {
     // ── Corners ───────────────────────────────────────────────────────────
     // Each grows out of its corner point, merged into both bars it touches.
 
-    // The bar's corners, merged into the bar so they read as part of it: the
-    // top-left holds what the bar's top icons open, the bottom-left what its
-    // bottom icons open.
+    // The bar's corners, merged into the bars they touch so they read as
+    // part of them: each holds the popouts of the bar widgets at its end of
+    // either bar (BarLayout.cornerFor), the kernel's and the plugins'.
+    readonly property var cornerPopouts: ({
+            session: sessionPopout,
+            sound: soundPopout,
+            connect: connectPopout,
+            battery: batteryPopout
+        })
+
     CornerPopout {
         id: topLeft
 
         corner: "topLeft"
-        thickness: win.barWidth
-        thicknessY: win.border
+        thickness: win.tLeft
+        thicknessY: win.tTop
         shellScreen: win.screen
         enabled: !win.fullscreen
         minHeight: 460
-        // All of it from plugins (workspaces, notifications, clipboard,
-        // capture: their manifests' "popouts").
-        components: ({})
+        components: win.cornerPopouts
     }
 
     CornerPopout {
         id: bottomLeft
 
         corner: "bottomLeft"
-        thickness: win.barWidth
-        thicknessY: win.border
+        thickness: win.tLeft
+        thicknessY: win.tBottom
         shellScreen: win.screen
         enabled: !win.fullscreen
         minHeight: 420
-        components: ({
-                session: sessionPopout,
-                sound: soundPopout,
-                connect: connectPopout,
-                battery: batteryPopout
-            })
+        components: win.cornerPopouts
+    }
+
+    CornerPopout {
+        id: topRight
+
+        corner: "topRight"
+        thickness: win.tRight
+        thicknessY: win.tTop
+        shellScreen: win.screen
+        enabled: !win.fullscreen
+        minHeight: 420
+        components: win.cornerPopouts
+    }
+
+    CornerPopout {
+        id: bottomRight
+
+        corner: "bottomRight"
+        thickness: win.tRight
+        thicknessY: win.tBottom
+        shellScreen: win.screen
+        enabled: !win.fullscreen
+        minHeight: 420
+        components: win.cornerPopouts
     }
 
     Component {
@@ -430,12 +478,12 @@ PanelWindow {
 
         name: "settings"
         edge: "top"
-        thickness: win.border
+        thickness: win.tTop
         shellScreen: win.screen
         enabled: !win.fullscreen
         hoverZone: false
         wantsKeyboard: true
-        panelWidth: Math.min(900, win.width - 2 * win.barWidth - 160)
+        panelWidth: Math.min(900, win.innerWidth - 160)
         panelHeight: (settingsLoader.item?.implicitHeight ?? 540) + Tokens.spacing.large * 2
 
         Loader {
@@ -482,8 +530,8 @@ PanelWindow {
             edge: modelData.edge ?? "top"
             corner: modelData.corner ?? "bottomRight"
             along: modelData.along ?? 0.5
-            thickness: win.border
-            thicknessY: win.border
+            thickness: edge === "corner" ? (corner.endsWith("Right") ? win.tRight : win.tLeft) : win.edgeThickness(edge)
+            thicknessY: edge === "corner" ? (corner.startsWith("bottom") ? win.tBottom : win.tTop) : win.edgeThickness(edge)
             shellScreen: win.screen
             enabled: Plugins.isEnabled(modelData.plugin) && (modelData.overFullscreen === true || !win.fullscreen)
             hoverZone: modelData.hoverZone ?? false
@@ -492,7 +540,7 @@ PanelWindow {
             // The manifest's width, never wider than the screen leaves room
             // for; "content" height follows the entry, springing as it
             // changes (a dashboard tab, say).
-            panelWidth: modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.width - 2 * win.barWidth - 160)
+            panelWidth: modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.innerWidth - 160)
             panelHeight: modelData.height === "content" ? (pdLoader.item?.implicitHeight ?? 300) + pad * 2 : Math.min(modelData.height ?? 300, win.height - 120)
 
             Behavior on panelHeight {
@@ -522,7 +570,7 @@ PanelWindow {
                 // Content that sizes itself can know the room it has.
                 onLoaded: {
                     if (item && "availableWidth" in item)
-                        item.availableWidth = Qt.binding(() => win.width - 2 * win.barWidth);
+                        item.availableWidth = Qt.binding(() => win.innerWidth);
                 }
             }
         }

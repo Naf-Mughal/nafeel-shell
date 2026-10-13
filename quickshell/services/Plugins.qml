@@ -120,19 +120,32 @@ Singleton {
                     }))), []).sort((a, b) => a.order - b.order);
     }
 
-    // The enabled plugins' popouts for a bar corner ("topLeft" |
-    // "bottomLeft"): { name: { url, width } }.
-    function popoutsFor(corner: string): var {
+    // The enabled plugins' bar popouts: { name: { plugin, url, width, corner } }
+    // (the manifest's corner is only a fallback: BarLayout opens a popout
+    // at the corner nearest its widget).
+    readonly property var popouts: {
         const out = {};
         for (const p of enabled)
             for (const o of (p.popouts ?? []))
-                if ((o.corner ?? "topLeft") === corner)
-                    out[o.name] = {
-                        url: urlOf(p, o.entry),
-                        width: o.width
-                    };
+                out[o.name] = {
+                    plugin: p.id,
+                    url: urlOf(p, o.entry),
+                    width: o.width,
+                    corner: o.corner ?? "topLeft"
+                };
         return out;
     }
+
+    // The enabled plugins' bar widgets (their "slots" items):
+    // [{ id, plugin, url, slot, order }]. A plugin's first is called by its
+    // id, any more by id:index.
+    readonly property var barWidgets: enabled.reduce((out, p) => out.concat((p.slots ?? []).filter(s => s.slot.startsWith("bar.")).map((s, i) => ({
+                    id: i === 0 ? p.id : `${p.id}:${i}`,
+                    plugin: p.id,
+                    url: urlOf(p, s.entry),
+                    slot: s.slot,
+                    order: s.order ?? 0
+                }))), []).sort((a, b) => a.order - b.order)
 
     // The Settings panel's Plugins page: one switch per plugin.
     readonly property SettingsPage settings: SettingsPage {

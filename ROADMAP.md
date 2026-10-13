@@ -635,11 +635,56 @@ plugin that ships with it ("batteries") and can be switched off, loading nothing
   (Audio, Brightness, Bluetooth, Network, Power, Media, SystemStats, Session, Time, Weather, Apps,
   Wallpapers, Display, Theme/Colours/Ink, Bus, ShellState, Umbriel).
 
+## Stage B: bar studio (asked 2026-10-13; Ryoku's Bar Studio, taken further)
+
+Every bar widget can live on any edge, in any region, and the frame shapes itself around them.
+Today's layout is the **Default** preset.
+
+**Model.** Four edges (left, top, right, bottom), each with three regions (start, centre,
+end; start = top for a vertical edge, left for a horizontal one). A region holds an ordered
+list of widgets. Neighbouring widgets of the same family share one capsule (status: sound,
+connections, battery; actions: notifications, clipboard, capture; …).
+- **Icon widgets** (workspaces, the bar controls, tray, power) need a full bar's thickness
+  (52). **Icon-less widgets** (the clock as one line, later the date, weather and media text) fit
+  the thin strip (14) and don't grow it.
+- **Edge mode**: `full` (the whole edge is as thick as its thickest region; the left bar today)
+  or `regions` (only a region with icon widgets bulges, the length of its content, grown out of
+  the strip like the dock). In a region that mixes both kinds they share one panel: the icon part
+  bulges, the icon-less part sits on the strip next to it, joined into it.
+- **Style**: `flush` (part of the frame) or `pill` (each region a dock-like pill).
+- **Visibility**, per edge (per region in `regions` mode): `reserve` (windows keep clear; the
+  left bar today), `overlay` (always shown, over windows; bulges in `regions` mode always
+  overlay, like the dock) or `autohide` (the thin strip until hovered, as the dock while windows
+  are open).
+- **Corners**: one of the two bars meeting at a corner runs through it. `auto`: whichever has
+  something at that end (as the left bar takes the top-left today, the workspaces popout growing
+  from it); on a conflict the corner's setting decides: the vertical bar, the horizontal one, or
+  `none` (neither: empty paper, both regions start after it; only icon-less widgets may go there).
+- **Popouts** grow out of where their widget is: the nearest corner for a start/end region, a
+  drawer out of the edge at the widget for a centre one.
+- The shell writes umbriel's struts (in its own fragment, shell-frost.toml) from the layout.
+
+Stored as one settings key (`bar.layout`). The studio edits a live draft (the desktop follows
+every change); Save keeps it, Revert or closing unsaved walks back.
+
+- [x] **B1 Layout model and any-edge bar** (2026-10-13; services/BarLayout, `bar.layout`, settable over IPC `settings set bar.layout <json>`): the widget catalogue (id, family, icon or icon-less,
+  popout, both orientations), the layout service with the Default preset, one Bar that draws any
+  edge across or down (BarGroup as a row on horizontal edges, the clock on one line), all four
+  corners host every popout. The desktop must look exactly as now.
+- [ ] **B2 Frame geometry**: each edge's thickness from its widgets, region bulges as blobs
+  merged into the frame, corner ownership (auto / conflict setting / none), struts written by the
+  shell.
+- [ ] **B3 Popouts from the widget's place** (corner or edge drawer at the widget).
+- [ ] **B4 Modes**: full / regions, flush / pill, reserve / overlay / autohide (edge and region).
+- [ ] **B5 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
+  regions and corners; per-edge mode, style, visibility; corner owners; presets; Save / Revert.
+- [ ] **B6 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
+  draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
+
 ## Ideas, not scheduled
 
 - Custom panels as plugins (a Ryoku Rashin-style dashboard).
 - Dock window thumbnails (WindowThumb).
-- A layout studio for the bar (Ryoku's Bar Studio idea) on top of D5.
 - Trim memory (about 230 MB PSS with everything opened once).
 
 ## Notes

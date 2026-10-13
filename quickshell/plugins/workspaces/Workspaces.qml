@@ -23,10 +23,13 @@ Item {
     readonly property string key: "bar:workspaces"
 
     readonly property int gap: 2
+    // Across a horizontal bar instead of down.
+    property bool horizontal: false
+    readonly property real span: spaces.length * cell + Math.max(0, spaces.length - 1) * gap
 
     width: parent?.width ?? 28
-    implicitWidth: 28
-    implicitHeight: spaces.length * cell + Math.max(0, spaces.length - 1) * gap
+    implicitWidth: horizontal ? span : 28
+    implicitHeight: horizontal ? 28 : span
 
     Timer {
         id: hoverDelay
@@ -62,13 +65,13 @@ Item {
     // engine, as the bar's pills) that springs to the active workspace,
     // stretching as it goes, and splits off a tail that shrinks away where it
     // was.
-    readonly property real plateY: Math.max(0, activeIndex) * (cell + gap)
+    readonly property real plateAt: Math.max(0, activeIndex) * (cell + gap)
 
-    onPlateYChanged: {
-        if (plate.placed && Tokens.goo.enabled && Math.abs(plateY - plate.y) > 1)
-            tail.leave(plate.y);
+    onPlateAtChanged: {
+        if (plate.placed && Tokens.goo.enabled && Math.abs(plateAt - plate.along) > 1)
+            tail.leave(plate.along);
         plate.placed = activeIndex >= 0;
-        plate.y = plateY;
+        plate.along = plateAt;
     }
 
     Item {
@@ -87,18 +90,25 @@ Item {
 
             // Only drawn while it has real size: a sliver on its way to
             // nothing would show as a hairline across the bar.
-            group: width > 1 && height > 1 ? plateInk : null
-            x: (root.width - width) / 2
-            width: 0
-            height: 0
-            radius: Math.min(width / 2, Tokens.rounding.small)
+            // Along the bar and across it.
+            property real along: 0
+            property real length: 0
+            property real breadth: 0
+            readonly property real crossSize: root.horizontal ? root.height : root.width
+
+            group: length > 1 && breadth > 1 ? plateInk : null
+            x: root.horizontal ? along : (crossSize - breadth) / 2
+            y: root.horizontal ? (crossSize - breadth) / 2 : along
+            width: root.horizontal ? length : breadth
+            height: root.horizontal ? breadth : length
+            radius: Math.min(breadth / 2, Tokens.rounding.small)
             deformScale: 0
 
-            function leave(fromY: real): void {
+            function leave(from: real): void {
                 shrink.stop();
-                y = fromY;
-                height = root.cell;
-                width = root.width;
+                along = from;
+                length = root.cell;
+                breadth = crossSize;
                 shrink.start();
             }
 
@@ -107,7 +117,7 @@ Item {
 
                 NumberAnimation {
                     target: tail
-                    property: "width"
+                    property: "breadth"
                     to: 0
                     duration: Tokens.anim.slow
                     easing.type: Easing.BezierSpline
@@ -115,7 +125,7 @@ Item {
                 }
                 NumberAnimation {
                     target: tail
-                    property: "height"
+                    property: "length"
                     to: 0
                     duration: Tokens.anim.slow
                     easing.type: Easing.BezierSpline
@@ -123,8 +133,8 @@ Item {
                 }
                 NumberAnimation {
                     target: tail
-                    property: "y"
-                    to: tail.y + root.cell / 2
+                    property: "along"
+                    to: tail.along + root.cell / 2
                     duration: Tokens.anim.slow
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Tokens.anim.emphasizedAccel
@@ -138,16 +148,20 @@ Item {
             // Shown at a workspace yet (the first placement is instant).
             property bool placed: false
 
+            property real along: 0
+
             group: plateInk
-            width: root.width
-            height: root.cell
+            x: root.horizontal ? along : 0
+            y: root.horizontal ? 0 : along
+            width: root.horizontal ? root.cell : root.width
+            height: root.horizontal ? root.height : root.cell
             radius: Tokens.rounding.small
             stiffness: Tokens.goo.stiffness
             damping: Tokens.goo.damping
             deformScale: Tokens.goo.enabled ? Tokens.goo.scale * 3.5 : 0
             maxStretch: 0.3
 
-            Behavior on y {
+            Behavior on along {
                 enabled: plate.placed
                 SpringAnimation {
                     spring: Tokens.spring.bouncy.spring
@@ -157,14 +171,14 @@ Item {
             }
 
             Component.onCompleted: {
-                y = root.plateY;
+                along = root.plateAt;
                 placed = root.activeIndex >= 0;
             }
         }
     }
 
-    Column {
-        width: root.width
+    Grid {
+        columns: root.horizontal ? 64 : 1
         spacing: root.gap
 
         Repeater {
@@ -175,8 +189,8 @@ Item {
 
                 required property var modelData
 
-                width: root.width
-                height: root.cell
+                width: root.horizontal ? root.cell : root.width
+                height: root.horizontal ? root.height : root.cell
 
                 StyledText {
                     anchors.centerIn: parent

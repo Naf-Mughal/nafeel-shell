@@ -6,12 +6,16 @@ import Quickshell.Services.SystemTray
 import Quickshell.Widgets
 import qs.config
 
-// System tray icons: click activates, right-click opens the app's menu.
-Column {
+// System tray icons: click activates, right-click opens the app's menu
+// (away from the bar's edge).
+Grid {
     id: root
 
     property ShellScreen shellScreen
+    property bool horizontal: false
+    property string edge: "left"
 
+    columns: horizontal ? 64 : 1
     spacing: Tokens.spacing.small
 
     Repeater {
@@ -22,8 +26,8 @@ Column {
 
             required property SystemTrayItem modelData
 
-            width: parent.width
-            height: 26
+            width: root.horizontal ? 26 : root.width
+            height: root.horizontal ? root.height : 26
 
             IconImage {
                 anchors.centerIn: parent
@@ -51,8 +55,8 @@ Column {
 
                 menu: entry.modelData.menu
                 anchor.item: entry
-                anchor.edges: Edges.Right
-                anchor.gravity: Edges.Right
+                anchor.edges: root.edge === "right" ? Edges.Left : root.edge === "top" ? Edges.Bottom : root.edge === "bottom" ? Edges.Top : Edges.Right
+                anchor.gravity: anchor.edges
             }
 
             TapHandler {

@@ -5,8 +5,9 @@ import qs.config
 import qs.services
 
 // A corner's popout: one drawer anchored to a corner of the frame that shows
-// whichever of its kinds a bar control opened ("bar:<kind>"), and morphs
-// between them with the corner springs. It keeps a generous minimum size,
+// whichever kind a bar control opened ("bar:<kind>") when that control sits
+// at this corner's end of a bar (BarLayout.cornerFor), and morphs between
+// them with the corner springs. It keeps a generous minimum size,
 // so a corner reads as a corner piece even when its content is short.
 //
 //   components  { kind: Component } this corner hosts
@@ -14,8 +15,8 @@ Drawer {
     id: root
 
     required property var components
-    // Plugins' popouts for this corner (Plugins.popoutsFor): { kind: { url, width } }.
-    readonly property var pluginPopouts: Plugins.popoutsFor(corner)
+    // Plugins' popouts (Plugins.popouts): { kind: { url, width } }.
+    readonly property var pluginPopouts: Plugins.popouts
     // Kinds that need another width than the default ({ kind: px }).
     property var widths: ({})
     property int minHeight: 420
@@ -25,7 +26,12 @@ Drawer {
     readonly property int barPad: Tokens.spacing.small
 
     readonly property string current: ShellState.current(screenName)
-    readonly property string kind: current.startsWith("bar:") && (components[current.slice(4)] || pluginPopouts[current.slice(4)]) ? current.slice(4) : ""
+    readonly property string kind: {
+        if (!current.startsWith("bar:"))
+            return "";
+        const k = current.slice(4);
+        return (components[k] || pluginPopouts[k]) && BarLayout.cornerFor(k) === corner ? k : "";
+    }
     // What's shown: kept while the drawer closes, so it doesn't empty first.
     property string shownKind: ""
 

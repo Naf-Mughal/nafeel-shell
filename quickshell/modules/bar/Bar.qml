@@ -7,177 +7,295 @@ import qs.config
 import qs.services
 import qs.components
 
-// The left edge of the frame, top to bottom:
-//   [ bar.top ]      plugins' items (workspaces)          surface container
-//   [ bar.actions ]  plugins' buttons (notifications ·
-//                    clipboard · capture)                 secondary container
-//   … bar.middle plugins …
-//   [ tray ]                             surface container
-//   [ sound · connections · battery ]    primary (each opens the bottom-left
-//                                        corner: sound has brightness and now
-//                                        playing, connections Wi-Fi and Bluetooth)
-//   ( power )
-// and the clock in the vertical middle.                            error container
+// One edge of the frame as a bar: its three regions from BarLayout (start
+// at the top of a vertical edge or the left of a horizontal one, the centre
+// in the middle, the end at the far side), down or across. Neighbouring
+// widgets of one family share a capsule in that family's colours:
+//   workspaces (and any plugin's own)  surface container
+//   actions (notifications · clipboard · capture)  secondary container
+//   tray                                surface container
+//   status (sound · connections · battery)  primary (each opens its corner:
+//       sound has brightness and now playing, connections Wi-Fi and Bluetooth)
+//   power                               error container
+//   clock                               no capsule
 // Every control previews its popout on hover; see BarControl.
 Item {
     id: root
 
     property ShellScreen shellScreen
+    property string edge: "left"
+    readonly property bool horizontal: edge === "top" || edge === "bottom"
+    // The same inset as the sides, so the bar's ends match its edges.
+    readonly property real endInset: Tokens.spacing.large / 2
 
-    Column {
-        anchors.top: parent.top
-        // The same inset as the sides, so the bar's ends match its edges.
-        anchors.topMargin: (Tokens.barWidth - (Tokens.barWidth - Tokens.spacing.large)) / 2
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Tokens.spacing.normal
-
-        BarGroup {
-            id: topGroup
-
-            visible: top.count > 0
-            fill: Colours.palette.m3surfaceContainerHigh
-            ink: Colours.palette.m3onSurface
-            padding: 4
-
-            PluginSlot {
-                id: top
-
-                slot: "bar.top"
-                group: topGroup
-                shellScreen: root.shellScreen
-            }
-        }
-
-        BarGroup {
-            id: actionsGroup
-
-            // Nothing to hold while every action plugin is off.
-            visible: actions.count > 0
-            fill: Colours.palette.m3secondaryContainer
-            ink: Colours.palette.m3onSecondaryContainer
-            // The pill in the group's inverse (as the sound group's), so it
+    // A family's capsule.
+    function style(family: string): var {
+        const p = Colours.palette;
+        switch (family) {
+        case "clock":
+            return null;
+        case "actions":
+            // The pill in the group's inverse (as the status group's), so it
             // stands out on the capsule.
-            pillFill: Colours.palette.m3onSecondaryContainer
-            pillInk: Colours.palette.m3secondaryContainer
-
-            PluginSlot {
-                id: actions
-
-                slot: "bar.actions"
-                group: actionsGroup
-                shellScreen: root.shellScreen
-            }
-        }
-
-        PluginSlot {
-            slot: "bar.middle"
-            shellScreen: root.shellScreen
+            return {
+                fill: p.m3secondaryContainer,
+                ink: p.m3onSecondaryContainer,
+                pillFill: p.m3onSecondaryContainer,
+                pillInk: p.m3secondaryContainer,
+                padding: 4,
+                radius: Tokens.rounding.normal
+            };
+        case "status":
+            return {
+                fill: p.m3primary,
+                ink: p.m3onPrimary,
+                pillFill: p.m3onPrimary,
+                pillInk: p.m3primary,
+                padding: 4,
+                radius: Tokens.rounding.normal
+            };
+        case "power":
+            return {
+                fill: p.m3errorContainer,
+                ink: p.m3onErrorContainer,
+                pillFill: p.m3error,
+                pillInk: p.m3onError,
+                padding: 3,
+                radius: Tokens.rounding.small
+            };
+        case "tray":
+            return {
+                fill: p.m3surfaceContainerHigh,
+                ink: p.m3onSurface,
+                pillFill: p.m3onSurface,
+                pillInk: p.m3surfaceContainerHigh,
+                padding: 6,
+                radius: Tokens.rounding.normal
+            };
+        default:
+            return {
+                fill: p.m3surfaceContainerHigh,
+                ink: p.m3onSurface,
+                pillFill: p.m3onSurface,
+                pillInk: p.m3surfaceContainerHigh,
+                padding: 4,
+                radius: Tokens.rounding.normal
+            };
         }
     }
 
-    Clock {
-        anchors.centerIn: parent
+    // A region's widgets in runs of one family: [{ family, ids }].
+    function runs(ids: var): var {
+        const out = [];
+        for (const id of ids) {
+            const family = BarLayout.catalogue[id]?.family ?? id;
+            const last = out[out.length - 1];
+            if (last && last.family === family && family !== "clock")
+                last.ids.push(id);
+            else
+                out.push({
+                    family: family,
+                    ids: [id]
+                });
+        }
+        return out;
     }
 
-    Column {
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: (Tokens.barWidth - (Tokens.barWidth - Tokens.spacing.large)) / 2
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Tokens.spacing.normal
-
-        PluginSlot {
-            slot: "bar.bottom"
-            shellScreen: root.shellScreen
-        }
-
-        BarGroup {
-            visible: tray.children.length > 1
-            fill: Colours.palette.m3surfaceContainerHigh
-            ink: Colours.palette.m3onSurface
-            padding: 6
-
-            Tray {
-                id: tray
-
-                width: parent.width
+    // A widget's loader: the kernel's own component, or a plugin's file.
+    function load(loader: Loader, id: string): void {
+        const k = kernel[id];
+        if (k)
+            loader.sourceComponent = k;
+        else if (BarLayout.catalogue[id]?.url)
+            loader.setSource(BarLayout.catalogue[id].url, {
                 shellScreen: root.shellScreen
-            }
+            });
+    }
+
+    // What a loaded widget gets: the screen, the bar's direction and edge,
+    // and its capsule's inks.
+    function wire(item: Item, capsule: Item): void {
+        if ("horizontal" in item)
+            item.horizontal = Qt.binding(() => root.horizontal);
+        if ("edge" in item)
+            item.edge = Qt.binding(() => root.edge);
+        if ("shellScreen" in item)
+            item.shellScreen = Qt.binding(() => root.shellScreen);
+        if (capsule && "groupInk" in item) {
+            item.groupInk = Qt.binding(() => capsule.ink);
+            item.groupActiveInk = Qt.binding(() => capsule.pillInk);
         }
+    }
 
-        // Sound (with brightness and now playing), connections (Wi-Fi and
-        // Bluetooth) and battery; each opens the bottom-left corner.
-        BarGroup {
-            fill: Colours.palette.m3primary
-            ink: Colours.palette.m3onPrimary
-            pillFill: Colours.palette.m3onPrimary
-            pillInk: Colours.palette.m3primary
+    // The three regions: start and end held to their ends of the bar, the
+    // centre in the middle.
+    Repeater {
+        model: BarLayout.regionNames
 
-            BarControl {
-                id: sound
+        Grid {
+            id: region
 
-                shellScreen: root.shellScreen
-                popout: "sound"
-                // The album art while something plays, else the speaker.
-                icon: Media.playing && Media.art ? "" : Audio.muted ? "volume_off" : Audio.volume === 0 ? "volume_mute" : Audio.volume < 0.5 ? "volume_down" : "volume_up"
-                alert: Audio.muted ? Colours.palette.m3error : "transparent"
-                onRightClicked: Audio.toggleMute()
-                onMiddleClicked: Media.togglePlaying()
-                onScrolled: up => Audio.setVolume(Audio.volume + (up ? 0.05 : -0.05))
+            required property string modelData
 
-                ClippingRectangle {
-                    visible: Media.playing && Media.art !== ""
-                    width: 24
-                    height: 24
-                    radius: Tokens.rounding.small
-                    color: "transparent"
+            anchors.top: !root.horizontal && modelData === "start" ? parent.top : undefined
+            anchors.bottom: !root.horizontal && modelData === "end" ? parent.bottom : undefined
+            anchors.left: root.horizontal && modelData === "start" ? parent.left : undefined
+            anchors.right: root.horizontal && modelData === "end" ? parent.right : undefined
+            anchors.topMargin: root.endInset
+            anchors.bottomMargin: root.endInset
+            anchors.leftMargin: root.endInset
+            anchors.rightMargin: root.endInset
+            anchors.horizontalCenter: !root.horizontal || modelData === "center" ? parent.horizontalCenter : undefined
+            anchors.verticalCenter: root.horizontal || modelData === "center" ? parent.verticalCenter : undefined
+            columns: root.horizontal ? 64 : 1
+            spacing: Tokens.spacing.normal
+            horizontalItemAlignment: Grid.AlignHCenter
+            verticalItemAlignment: Grid.AlignVCenter
 
-                    Image {
-                        anchors.fill: parent
-                        source: Media.art
-                        sourceSize: Qt.size(48, 48)
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
+            Repeater {
+                model: root.runs(BarLayout.widgets(root.edge, region.modelData))
+
+                Loader {
+                    id: run
+
+                    required property var modelData
+                    readonly property var look: root.style(modelData.family)
+
+                    sourceComponent: look ? capsule : bare
+
+                    Component {
+                        id: bare
+
+                        Loader {
+                            id: single
+
+                            width: root.horizontal ? implicitWidth : root.width
+                            height: root.horizontal ? root.height : implicitHeight
+                            Component.onCompleted: root.load(single, run.modelData.ids[0])
+                            onLoaded: root.wire(item, null)
+                        }
+                    }
+
+                    Component {
+                        id: capsule
+
+                        BarGroup {
+                            id: group
+
+                            horizontal: root.horizontal
+                            fill: run.look.fill
+                            ink: run.look.ink
+                            pillFill: run.look.pillFill
+                            pillInk: run.look.pillInk
+                            padding: run.look.padding
+                            radius: run.look.radius
+
+                            Repeater {
+                                model: run.modelData.ids
+
+                                Loader {
+                                    id: w
+
+                                    required property string modelData
+
+                                    width: root.horizontal ? implicitWidth : group.width - group.padding * 2
+                                    height: root.horizontal ? group.height - group.padding * 2 : implicitHeight
+                                    Component.onCompleted: root.load(w, modelData)
+                                    onLoaded: root.wire(item, group)
+                                }
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
 
-            BarControl {
-                shellScreen: root.shellScreen
-                popout: "connect"
-                icon: Network.icon
-                // A dot while a Bluetooth device is connected.
-                dot: BluetoothState.connected.length > 0
-                onRightClicked: Network.toggleWifi()
-            }
+    readonly property var kernel: ({
+            clock: clockWidget,
+            tray: trayWidget,
+            sound: soundWidget,
+            connect: connectWidget,
+            battery: batteryWidget,
+            power: powerWidget
+        })
 
-            BarControl {
-                id: battery
+    Component {
+        id: clockWidget
 
-                shellScreen: root.shellScreen
-                visible: Power.hasBattery
-                popout: "battery"
-                alert: Power.low ? Colours.palette.m3error : "transparent"
+        Clock {}
+    }
 
-                BatteryIcon {
-                    ink: battery.ink
-                    hole: battery.active ? Colours.palette.m3onPrimary : Colours.palette.m3primary
+    Component {
+        id: trayWidget
+
+        Tray {}
+    }
+
+    // The album art while something plays, else the speaker.
+    Component {
+        id: soundWidget
+
+        BarControl {
+            popout: "sound"
+            icon: Media.playing && Media.art ? "" : Audio.muted ? "volume_off" : Audio.volume === 0 ? "volume_mute" : Audio.volume < 0.5 ? "volume_down" : "volume_up"
+            alert: Audio.muted ? Colours.palette.m3error : "transparent"
+            onRightClicked: Audio.toggleMute()
+            onMiddleClicked: Media.togglePlaying()
+            onScrolled: up => Audio.setVolume(Audio.volume + (up ? 0.05 : -0.05))
+
+            ClippingRectangle {
+                visible: Media.playing && Media.art !== ""
+                width: 24
+                height: 24
+                radius: Tokens.rounding.small
+                color: "transparent"
+
+                Image {
+                    anchors.fill: parent
+                    source: Media.art
+                    sourceSize: Qt.size(48, 48)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
                 }
             }
         }
+    }
 
-        BarGroup {
-            fill: Colours.palette.m3errorContainer
-            ink: Colours.palette.m3onErrorContainer
-            pillFill: Colours.palette.m3error
-            pillInk: Colours.palette.m3onError
-            radius: Tokens.rounding.small
-            padding: 3
+    // A dot while a Bluetooth device is connected.
+    Component {
+        id: connectWidget
 
-            BarControl {
-                shellScreen: root.shellScreen
-                popout: "session"
-                icon: "power_settings_new"
+        BarControl {
+            popout: "connect"
+            icon: Network.icon
+            dot: BluetoothState.connected.length > 0
+            onRightClicked: Network.toggleWifi()
+        }
+    }
+
+    Component {
+        id: batteryWidget
+
+        BarControl {
+            id: battery
+
+            popout: "battery"
+            alert: Power.low ? Colours.palette.m3error : "transparent"
+
+            BatteryIcon {
+                ink: battery.ink
+                hole: battery.active ? battery.groupInk : battery.groupActiveInk
             }
+        }
+    }
+
+    Component {
+        id: powerWidget
+
+        BarControl {
+            popout: "session"
+            icon: "power_settings_new"
         }
     }
 }

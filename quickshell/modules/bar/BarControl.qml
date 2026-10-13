@@ -58,6 +58,7 @@ Item {
     width: parent?.width ?? 28
     readonly property bool hasContent: holder.visibleChildren.length > 0
 
+    implicitWidth: Math.max(30, hasContent ? holder.childrenRect.width + 12 : 0)
     implicitHeight: Math.max(30, hasContent ? holder.childrenRect.height + 12 : 0)
 
     MaterialIcon {

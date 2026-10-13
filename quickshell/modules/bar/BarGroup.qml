@@ -8,6 +8,7 @@ import qs.components
 // A capsule of bar controls in one colour pair. An active pill (in the
 // group's inverse colours, a goo blob) springs to whichever control is
 // active: hovered, or showing its popout. Controls take their ink from the group.
+// Down a vertical bar, or across a `horizontal` one.
 Item {
     id: root
 
@@ -17,6 +18,9 @@ Item {
     property color pillInk
     property real padding: 4
     property real radius: Tokens.rounding.normal
+    property bool horizontal: false
+    // The capsule's thickness across the bar.
+    readonly property real cross: Tokens.barWidth - Tokens.spacing.large
 
     default property alias controls: column.data
 
@@ -53,9 +57,9 @@ Item {
         const from = pill.at;
         pill.glide = from !== null;
         if (from && Tokens.goo.enabled)
-            tail.leave(pill.y, pill.height);
-        pill.y = c.y + column.y;
-        pill.height = c.height;
+            tail.leave(pill.along, pill.length);
+        pill.along = horizontal ? c.x + column.x : c.y + column.y;
+        pill.length = horizontal ? c.width : c.height;
         pill.at = c;
     }
 
@@ -66,8 +70,8 @@ Item {
         onTriggered: pill.at = null
     }
 
-    implicitWidth: Tokens.barWidth - Tokens.spacing.large
-    implicitHeight: column.implicitHeight + padding * 2
+    implicitWidth: horizontal ? column.implicitWidth + padding * 2 : cross
+    implicitHeight: horizontal ? cross : column.implicitHeight + padding * 2
     // No self-hiding from its children's visibility: an item counts as
     // invisible while its parent is hidden, so a group that hid itself while
     // the bar was hidden (fullscreen, lock) would never come back. Hide a
@@ -106,18 +110,25 @@ Item {
 
             // Only drawn while it has real size: a sliver on its way to
             // nothing would show as a hairline across the bar.
-            group: width > 1 && height > 1 ? pillInk : null
-            x: pill.x + (pill.width - width) / 2
-            width: 0
-            height: 0
-            radius: Math.min(width / 2, Tokens.rounding.small)
+            // Along the bar and across it (y and height down a vertical
+            // bar, x and width across a horizontal one).
+            property real along: 0
+            property real length: 0
+            property real breadth: 0
+
+            group: length > 1 && breadth > 1 ? pillInk : null
+            x: root.horizontal ? along : root.padding + (root.width - root.padding * 2 - breadth) / 2
+            y: root.horizontal ? root.padding + (root.height - root.padding * 2 - breadth) / 2 : along
+            width: root.horizontal ? length : breadth
+            height: root.horizontal ? breadth : length
+            radius: Math.min(breadth / 2, Tokens.rounding.small)
             deformScale: 0
 
-            function leave(fromY: real, fromHeight: real): void {
+            function leave(fromAlong: real, fromLength: real): void {
                 shrink.stop();
-                y = fromY;
-                height = fromHeight;
-                width = pill.width;
+                along = fromAlong;
+                length = fromLength;
+                breadth = root.horizontal ? root.height - root.padding * 2 : root.width - root.padding * 2;
                 shrink.start();
             }
 
@@ -126,7 +137,7 @@ Item {
 
                 NumberAnimation {
                     target: tail
-                    property: "width"
+                    property: "breadth"
                     to: 0
                     duration: Tokens.anim.slow
                     easing.bezierCurve: Tokens.anim.emphasizedAccel
@@ -134,7 +145,7 @@ Item {
                 }
                 NumberAnimation {
                     target: tail
-                    property: "height"
+                    property: "length"
                     to: 0
                     duration: Tokens.anim.slow
                     easing.bezierCurve: Tokens.anim.emphasizedAccel
@@ -142,8 +153,8 @@ Item {
                 }
                 NumberAnimation {
                     target: tail
-                    property: "y"
-                    to: tail.y + tail.height / 2
+                    property: "along"
+                    to: tail.along + tail.length / 2
                     duration: Tokens.anim.slow
                     easing.bezierCurve: Tokens.anim.emphasizedAccel
                     easing.type: Easing.BezierSpline
@@ -162,18 +173,21 @@ Item {
             // (appearing from nowhere).
             property bool glide: false
 
-            group: height > 1 ? pillInk : null
-            x: root.padding
-            width: root.width - root.padding * 2
-            y: 0
-            height: 0
-            radius: Math.min(width / 2, Tokens.rounding.small)
+            property real along: 0
+            property real length: 0
+
+            group: length > 1 ? pillInk : null
+            x: root.horizontal ? along : root.padding
+            y: root.horizontal ? root.padding : along
+            width: root.horizontal ? length : root.width - root.padding * 2
+            height: root.horizontal ? root.height - root.padding * 2 : length
+            radius: Math.min((root.horizontal ? height : width) / 2, Tokens.rounding.small)
             stiffness: Tokens.goo.stiffness
             damping: Tokens.goo.damping
             deformScale: Tokens.goo.enabled ? Tokens.goo.scale * 3.5 : 0
             maxStretch: 0.3
 
-            Behavior on y {
+            Behavior on along {
                 enabled: pill.glide
                 SpringAnimation {
                     spring: Tokens.springK(4)
@@ -181,7 +195,7 @@ Item {
                     epsilon: 0.25
                 }
             }
-            Behavior on height {
+            Behavior on length {
                 enabled: pill.glide
                 SpringAnimation {
                     spring: Tokens.springK(4)
@@ -192,12 +206,15 @@ Item {
         }
     }
 
-    Column {
+    Grid {
         id: column
 
         x: root.padding
         y: root.padding
-        width: root.width - root.padding * 2
+        width: root.horizontal ? implicitWidth : root.width - root.padding * 2
+        height: root.horizontal ? root.height - root.padding * 2 : implicitHeight
+        // One column down a vertical bar, one row across a horizontal one.
+        columns: root.horizontal ? 64 : 1
         spacing: 2
 
         // Controls take the group's ink (and the pill's while active).
