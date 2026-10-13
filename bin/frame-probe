@@ -1,0 +1,36 @@
+#!/bin/bash
+# Frame timing probe (ROADMAP Stage P): restarts the shell with Qt's render
+# timing on (QSG_RENDER_TIMING, QSG_INFO), plays the panels' animations, and
+# reports the frames that missed the display's interval: the render loop's own
+# time per frame (sync / render / swap), and the gaps between frames while
+# animating. The shell is restarted normally after.
+#   frame-probe [seconds-to-settle]
+set -u
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+qml=$root/quickshell
+log=${XDG_RUNTIME_DIR:-/tmp}/nafeel-shell-frames.log
+shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $qml/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }
+ipc() { qs -p "$qml" ipc call "$@" >/dev/null 2>&1; }
+
+for p in $(pgrep -f "$root/bin/nafeel-shell"); do [ "$(ps -o comm= -p $p)" != zsh ] && [ "$(ps -o comm= -p $p)" != bash ] && kill "$p"; done
+old=$(shell_pid); [ -n "$old" ] && qs kill --pid "$old" >/dev/null 2>&1
+sleep 2
+: > "$log"
+# Appended to (not truncated) so the MARK lines stay in order. LOOP picks the
+# render loop to try (basic | threaded).
+env ${LOOP:+QSG_RENDER_LOOP=$LOOP} QSG_INFO=1 QSG_RENDER_TIMING=1 QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi \
+QML_IMPORT_PATH="$root/native/build/qml" setsid quickshell -p "$qml" >>"$log" 2>&1 &
+sleep "${1:-25}"
+mark() { echo "MARK $1" >> "$log"; }
+mark start
+for d in bar:sound bar:connect bar:battery bar:session bar:workspaces bar:notifications bar:clipboard dashboard actions notes wallpapers; do
+    mark "open $d"; ipc shell open "$d"; sleep 1.2; mark "close $d"; ipc shell close; sleep 1
+done
+for t in home apps media system; do mark "command $t"; ipc shell command "$t"; sleep 1.2; done
+mark "close command"; ipc shell close; sleep 1
+mark "settings"; ipc shell open settings; sleep 1.2; ipc shell close; sleep 1
+mark idle; sleep 5
+mark end
+p=$(shell_pid); qs kill --pid "$p" >/dev/null 2>&1; sleep 1
+setsid "$root/bin/nafeel-shell" >/dev/null 2>&1 &
+echo "log: $log"

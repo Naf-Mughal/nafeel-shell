@@ -253,18 +253,6 @@ Item {
             readonly property real cy: shape.height / 2 - y
             readonly property matrix4x4 m: root.deform
 
-            // The content soaks out from the side it grows from, like ink
-            // into paper, keeping pace with the paper (only while revealing:
-            // nothing extra at rest).
-            layer.enabled: root.active && root.soak < 0.999 && Tokens.goo.enabled
-            layer.effect: ShaderEffect {
-                property real progress: root.soak
-                property vector2d origin: Qt.vector2d((root.goo.x + 1) / 2, (root.goo.y + 1) / 2)
-                property vector2d size: Qt.vector2d(out.width, out.height)
-
-                fragmentShader: Qt.resolvedUrl("../../shaders/soak.frag.qsb")
-            }
-
             transform: Matrix4x4 {
                 matrix: Qt.matrix4x4(out.m.m11, out.m.m12, 0, out.cx + out.m.m14 - out.m.m11 * out.cx - out.m.m12 * out.cy, out.m.m21, out.m.m22, 0, out.cy + out.m.m24 - out.m.m21 * out.cx - out.m.m22 * out.cy, 0, 0, 1, 0, 0, 0, 0, 1)
             }
@@ -281,6 +269,21 @@ Item {
                 // Reduced motion: a plain fade instead of the soak.
                 opacity: Tokens.goo.enabled ? 1 : root.inked
                 visible: opacity > 0 && root.active && root.emerge > 0
+
+                // The content soaks out from the side it grows from, like ink
+                // into paper, keeping pace with the paper. The layer is the
+                // content's own, at the panel's size, made once and kept: on
+                // the growing window (`out`) it was reallocated at a new size
+                // every frame, and switched on and off as a panel opened and
+                // closed, both mid-animation (dropped frames on every close).
+                layer.enabled: Tokens.goo.enabled
+                layer.effect: ShaderEffect {
+                    property real progress: root.soak
+                    property vector2d origin: Qt.vector2d((root.goo.x + 1) / 2, (root.goo.y + 1) / 2)
+                    property vector2d size: Qt.vector2d(body.width, body.height)
+
+                    fragmentShader: Qt.resolvedUrl("../../shaders/soak.frag.qsb")
+                }
             }
         }
     }

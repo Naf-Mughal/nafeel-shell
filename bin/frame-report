@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Reads bin/frame-probe's log: per window, the frames rendered while the
+panels animate, how many took longer than the display's interval, and the
+gaps between frames (dropped frames). Phase costs show where time goes."""
+import re, sys, os, statistics
+log = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nafeel-shell-frames.log")
+interval = float(sys.argv[2]) if len(sys.argv) > 2 else 1000 / 60.05
+# basic loop: "[window W][gui thread] syncAndRender: frame rendered in Tms, polish=P, sync=S, render=R, swap=W, perWindowFrameDelta=D"
+# threaded:   "[window W][render thread X] syncAndRender: frame rendered in Tms, sync=S, render=R, swap=W"
+#             "[window W][render thread X] syncAndRender: start, elapsed since last call: D ms"
+rx = re.compile(r"\[window (0x[0-9a-f]+)\]\[(\w+) thread[^\]]*\] syncAndRender: frame rendered in (\d+)ms,(?: polish=\d+,)? sync=(\d+), render=(\d+), swap=(\d+)(?:, perWindowFrameDelta=(\d+))?")
+rxd = re.compile(r"\[window (0x[0-9a-f]+)\]\[render thread[^\]]*\] syncAndRender: start, elapsed since last call: (\d+) ms")
+inside = False
+wins = {}
+loop = "?"
+for raw in open(log, errors="replace"):
+    line = re.sub(r"\x1b\[[0-9;]*m", "", raw)
+    if "render loop" in line and "qt.scenegraph.general" in line:
+        loop = line.split("qt.scenegraph.general:")[-1].strip()
+    if line.startswith("MARK start"): inside = True
+    if line.startswith("MARK idle"): inside = False
+    if not inside: continue
+    m = rx.search(line)
+    if m:
+        w = wins.setdefault(m.group(1), {"t": [], "swap": [], "sync": [], "render": [], "delta": [], "thread": m.group(2)})
+        w["t"].append(int(m.group(3))); w["sync"].append(int(m.group(4))); w["render"].append(int(m.group(5))); w["swap"].append(int(m.group(6)))
+        if m.group(7): w["delta"].append(int(m.group(7)))
+        continue
+    m = rxd.search(line)
+    if m:
+        w = wins.setdefault(m.group(1), {"t": [], "swap": [], "sync": [], "render": [], "delta": [], "thread": "render"})
+        w["delta"].append(int(m.group(2)))
+print(f"render loop: {loop}; interval {interval:.1f} ms")
+for k, w in wins.items():
+    n = len(w["t"]); slow = sum(1 for t in w["t"] if t > interval)
+    d = [x for x in w["delta"] if x < 200]
+    late = sum(1 for x in d if x > interval * 1.5)
+    print(f"window {k} ({w['thread']} thread): {n} frames; over {interval:.0f} ms: {slow} ({100*slow/max(1,n):.0f}%); "
+          f"mean sync {statistics.mean(w['sync'] or [0]):.1f} render {statistics.mean(w['render'] or [0]):.1f} swap {statistics.mean(w['swap'] or [0]):.1f} ms; "
+          f"gaps over 1.5 intervals while animating: {late}/{len(d)}")

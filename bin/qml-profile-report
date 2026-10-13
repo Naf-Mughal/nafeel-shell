@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Reads a qmlprofiler trace (bin/qml-profile): where the GUI thread's time
+went (self time per QML/JS source location, by kind), the frames the
+animation driver had (gaps), and the slowest moments (the events that ran
+longest, with what they were). Times in ms."""
+import os, sys, xml.etree.ElementTree as ET
+from collections import defaultdict
+path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nafeel-shell.qtd")
+events = {}
+ranges = []
+for ev, el in ET.iterparse(path, events=("end",)):
+    if el.tag == "event":
+        idx = int(el.get("index"))
+        events[idx] = {
+            "type": el.findtext("type"), "name": el.findtext("displayname") or "",
+            "file": (el.findtext("filename") or "").split("/quickshell/")[-1],
+            "line": el.findtext("line"), "details": (el.findtext("details") or "")[:70],
+            "rangeType": el.findtext("rangeType"), "bindingType": el.findtext("bindingType"),
+            "animationFrame": el.findtext("animationFrame"),
+        }
+        el.clear()
+    elif el.tag == "range":
+        ranges.append((int(el.get("startTime")), int(el.get("duration") or 0), int(el.get("eventIndex")),
+                       el.get("framerate"), el.get("animationcount"), el.get("thread")))
+        el.clear()
+QML = {"Binding", "Javascript", "Creating", "Compiling", "HandlingSignal"}
+# Self time: nested QML ranges subtract from their parent.
+qml = sorted((r for r in ranges if events.get(r[2], {}).get("rangeType") in QML or events.get(r[2], {}).get("type") in QML), key=lambda r: (r[0], -r[1]))
+selft = defaultdict(int); total = defaultdict(int); stack = []
+for s, d, i, *_ in qml:
+    while stack and stack[-1][0] + stack[-1][1] <= s:
+        stack.pop()
+    if stack:
+        selft[stack[-1][2]] -= d
+    selft[i] += d; total[i] += d
+    stack.append((s, d, i))
+kind = defaultdict(int)
+for i, t in selft.items():
+    e = events[i]; kind[e.get("rangeType") or e["type"]] += t
+print("GUI-thread QML time by kind (self, ms):")
+for k, t in sorted(kind.items(), key=lambda x: -x[1]):
+    print(f"  {t/1e6:9.1f}  {k}")
+print("\nTop sources by self time (ms):")
+for i, t in sorted(selft.items(), key=lambda x: -x[1])[:30]:
+    e = events[i]
+    print(f"  {t/1e6:8.1f}  {e.get('rangeType') or e['type']:14s} {e['file']}:{e['line']}  {e['details']}")
+# Animation frames: gaps between the animation driver's ticks.
+anim = sorted(r[0] for r in ranges if events.get(r[2], {}).get("type") == "AnimationFrame" or events.get(r[2], {}).get("name", "").startswith("AnimationFrame"))
+if anim:
+    gaps = [(b - a) / 1e6 for a, b in zip(anim, anim[1:]) if (b - a) < 300e6]
+    late = [g for g in gaps if g > 25]
+    print(f"\nAnimation ticks: {len(anim)}; gaps over 25 ms (under 300): {len(late)}  e.g. {[round(g) for g in late[:15]]}")
+print("\nLongest single QML events (total, ms):")
+for s, d, i, *_ in sorted(qml, key=lambda r: -r[1])[:25]:
+    e = events[i]
+    print(f"  {d/1e6:7.1f}  at {s/1e9:7.2f}s  {e.get('rangeType') or e['type']:14s} {e['file']}:{e['line']}  {e['details']}")

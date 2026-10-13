@@ -80,6 +80,30 @@ Singleton {
             def: true
         }
         SettingItem {
+            key: "liveCovered"
+            icon: "layers"
+            label: "While windows cover it"
+            description: "A live wallpaper behind windows that cover the screen: keep playing, or hold still until any of it shows (nothing to see, so no GPU or battery spent). Auto plays on the charger and holds on battery."
+            def: "auto"
+            options: [
+                {
+                    value: "auto",
+                    icon: "battery_charging_full",
+                    label: "Auto"
+                },
+                {
+                    value: "play",
+                    icon: "play_arrow",
+                    label: "Play"
+                },
+                {
+                    value: "pause",
+                    icon: "pause",
+                    label: "Hold"
+                }
+            ]
+        }
+        SettingItem {
             key: "wallhavenKey"
             icon: "key"
             kind: "text"
@@ -92,6 +116,8 @@ Singleton {
         }
     }
     readonly property string liveQuality: settings.v.liveQuality
+    // Holds every live wallpaper still (IPC `wallpaper hold`): for measuring.
+    property bool held: false
     // The biggest screen in pixels: the "screen" live resolution's size.
     readonly property size screenSize: {
         let w = 0, h = 0;
@@ -333,6 +359,11 @@ Singleton {
     IpcHandler {
         target: "wallpaper"
 
+        // Hold live wallpapers still ("on") or let them play ("off"): for
+        // measuring.
+        function hold(state: string): void {
+            root.held = state === "on";
+        }
         function set(path: string): void {
             root.set(path);
         }

@@ -33,8 +33,15 @@ Variants {
         readonly property WallSlot shown: front === 0 ? a : b
         readonly property WallSlot spare: front === 0 ? b : a
         // A live wallpaper plays unless the screen is locked, a fullscreen
-        // window covers it, or (unless allowed) the laptop is on battery.
-        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !Power.hasBattery || Power.charging)
+        // window covers it, (unless allowed) the laptop is on battery, or
+        // windows cover nine tenths of it and the covered rule holds it
+        // ("auto": on battery only; each frame shown costs the whole screen
+        // recomposited, ~17% of this GPU). `held` (IPC) holds it for a measure.
+        readonly property bool onBattery: Power.hasBattery && !Power.charging
+        readonly property string coveredRule: Wallpapers.settings.v.liveCovered ?? "auto"
+        readonly property bool holdCovered: coveredRule === "pause" || (coveredRule === "auto" && onBattery)
+        readonly property bool covered: holdCovered && Umbriel.coverageOn(modelData.name, modelData.width, modelData.height) >= 0.9
+        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !onBattery) && !covered && !Wallpapers.held
 
         function url(path: string): string {
             return path ? "file://" + path : "";

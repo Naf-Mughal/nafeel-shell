@@ -147,7 +147,7 @@ Singleton {
 
         // What it shows: "index/count id,id,…" (for testing).
         function state(): string {
-            return `${root.index}/${root.list.length} ${root.list.map(w => w.title).join(" | ")}`;
+            return `${root.index}/${root.list.length} ${root.list.map(w => Umbriel.titleOf(w)).join(" | ")}`;
         }
     }
 }

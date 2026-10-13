@@ -10,8 +10,12 @@ import qs.components
 Item {
     id: root
 
-    Component.onCompleted: SystemStats.watchers++
-    Component.onDestruction: SystemStats.watchers--
+    // A watcher only while shown (it stays made, warm: counted from its
+    // making, SystemStats kept polling behind closed panels).
+    property bool watching: visible
+    onWatchingChanged: SystemStats.watchers += watching ? 1 : -1
+    Component.onCompleted: if (watching) SystemStats.watchers++
+    Component.onDestruction: if (watching) SystemStats.watchers--
 
     Row {
         id: rings

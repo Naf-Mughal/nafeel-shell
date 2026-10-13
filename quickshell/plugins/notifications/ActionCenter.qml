@@ -191,8 +191,12 @@ Item {
                 width: parent.width - 40 - Tokens.spacing.small
                 value: Brightness.level
                 onMoved: v => Brightness.set(v)
-                Component.onCompleted: Brightness.watchers++
-                Component.onDestruction: Brightness.watchers--
+                // A watcher only while shown (it stays made, warm: counted from its
+                // making, Brightness kept polling behind closed panels).
+                property bool watching: visible
+                onWatchingChanged: Brightness.watchers += watching ? 1 : -1
+                Component.onCompleted: if (watching) Brightness.watchers++
+                Component.onDestruction: if (watching) Brightness.watchers--
             }
         }
 

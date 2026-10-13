@@ -68,6 +68,16 @@ Singleton {
 
     property var workspaces: []
     property var windows: []
+    // Window titles by id. Kept apart from `windows`: a title changes often
+    // (a terminal's spinner, a browser tab) and replacing `windows` re-ran
+    // every binding over it (~10 ms on the GUI thread each time); a change of
+    // titles only reaches what shows them (titleOf).
+    property var titles: ({})
+    property string _shape: ""
+
+    function titleOf(w: var): string {
+        return titles[w?.id] ?? w?.title ?? "";
+    }
     property bool overviewOpen: false
     property var layouts: []
     property int layoutIndex: 0
@@ -101,6 +111,24 @@ Singleton {
     function emptyOn(output: string): bool {
         const ws = activeWorkspace(output);
         return !!ws && !windows.some(w => w.workspace === ws.id);
+    }
+
+    // How much of a screen its active workspace's windows cover (0..1; their
+    // areas inside it, summed: windows here tile, they rarely overlap).
+    function coverageOn(output: string, width: int, height: int): real {
+        const ws = activeWorkspace(output);
+        if (!ws || width <= 0 || height <= 0)
+            return 0;
+        let area = 0;
+        for (const w of windows) {
+            if (w.workspace !== ws.id)
+                continue;
+            const x0 = Math.max(0, w.x), y0 = Math.max(0, w.y);
+            const x1 = Math.min(width, w.x + w.w), y1 = Math.min(height, w.y + w.h);
+            if (x1 > x0 && y1 > y0)
+                area += (x1 - x0) * (y1 - y0);
+        }
+        return Math.min(1, area / (width * height));
     }
 
     function fullscreenOn(output: string, width: int, height: int): bool {
@@ -177,10 +205,23 @@ Singleton {
         case "workspaces":
             workspaces = msg.data ?? [];
             break;
-        case "windows":
-            windows = msg.data ?? [];
-            updateMru();
+        case "windows": {
+            const data = msg.data ?? [];
+            const names = {};
+            for (const w of data)
+                names[w.id] = w.title ?? "";
+            const shape = JSON.stringify(data.map(w => Object.assign({}, w, {
+                title: ""
+            })));
+            if (JSON.stringify(names) !== JSON.stringify(titles))
+                titles = names;
+            if (shape !== _shape) {
+                _shape = shape;
+                windows = data;
+                updateMru();
+            }
             break;
+        }
         case "submap":
             submap = msg.data?.name ?? msg.data?.submap ?? (typeof msg.data === "string" ? msg.data : "");
             break;

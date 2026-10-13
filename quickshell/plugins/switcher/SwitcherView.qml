@@ -174,7 +174,7 @@ Item {
 
                     StyledText {
                         width: parent.width
-                        text: card.modelData.title
+                        text: Umbriel.titleOf(card.modelData)
                         color: Colours.palette.m3onSurfaceVariant
                         font.pixelSize: Tokens.font.small
                         elide: Text.ElideRight

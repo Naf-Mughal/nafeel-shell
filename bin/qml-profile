@@ -1,0 +1,31 @@
+#!/bin/bash
+# GUI-thread profile (ROADMAP Stage P): restarts the shell under the QML
+# profiler (quickshell --debug), plays the panels that dropped frames, and
+# saves a trace (qmlprofiler .qtd) for bin/qml-profile-report. The shell is
+# restarted normally after.   qml-profile [out.qtd]
+set -u
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+qml=$root/quickshell
+out=${1:-${XDG_RUNTIME_DIR:-/tmp}/nafeel-shell.qtd}
+port=3768
+shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $qml/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }
+ipc() { qs -p "$qml" ipc call "$@" >/dev/null 2>&1; }
+for p in $(pgrep -f "$root/bin/nafeel-shell"); do c=$(ps -o comm= -p $p); [ "$c" != zsh ] && [ "$c" != bash ] && kill "$p"; done
+old=$(shell_pid); [ -n "$old" ] && qs kill --pid "$old" >/dev/null 2>&1
+sleep 2
+QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi QML_IMPORT_PATH="$root/native/build/qml" \
+    setsid quickshell --debug $port -p "$qml" >/dev/null 2>&1 &
+sleep 3
+qmlprofiler -a localhost -p $port -o "$out" >/dev/null 2>&1 &
+prof=$!
+sleep 22
+for i in 1 2; do ipc shell open wallpapers; sleep 1.5; ipc shell close; sleep 1; done
+for t in home apps media system power; do ipc shell command "$t"; sleep 1.2; done
+ipc shell close; sleep 1
+ipc shell open dashboard; sleep 1.2; ipc shell close; sleep 1
+sleep 5   # idle
+ipc shell quit
+for _ in $(seq 60); do kill -0 $prof 2>/dev/null || break; sleep 1; done
+kill $prof 2>/dev/null
+setsid "$root/bin/nafeel-shell" >/dev/null 2>&1 &
+ls -la "$out"

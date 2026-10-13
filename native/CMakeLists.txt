@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Gui Quick ShaderTools DBus)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Gui Quick ShaderTools DBus OpenGL)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND REQUIRED IMPORTED_TARGET wayland-client)
 pkg_get_variable(WL_PROTOCOLS wayland-protocols pkgdatadir)
@@ -98,6 +98,7 @@ qt_add_qml_module(nafeelnative
         src/blobmaterial.hpp src/blobmaterial.cpp
         src/nightlight.h src/nightlight.cpp
         src/clipboard.h src/clipboard.cpp
+        src/mpvvideo.h src/mpvvideo.cpp
         src/caelestia/service.hpp src/caelestia/service.cpp
         src/caelestia/serviceref.hpp src/caelestia/serviceref.cpp
         src/caelestia/audiocollector.hpp src/caelestia/audiocollector.cpp
@@ -114,8 +115,10 @@ pkg_check_modules(XKB REQUIRED IMPORTED_TARGET xkbcommon)
 target_sources(nafeelnative PRIVATE src/cava/cavacore.c)
 pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+# Live wallpapers: libmpv's render API (VAAPI decoding, drawn in the scene).
+pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 target_include_directories(nafeelnative PRIVATE ${CMAKE_CURRENT_BINARY_DIR} src src/noctalia src/caelestia)
-target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE)
+target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV Qt6::OpenGL)
 
 qt_add_shaders(nafeelnative "blob_shaders"
     BATCHABLE

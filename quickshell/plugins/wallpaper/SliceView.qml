@@ -208,7 +208,8 @@ Item {
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: false
-                        playing: true
+                        // Only while shown (the studio stays made, warm).
+                        playing: visible
                         smooth: true
                     }
                 }

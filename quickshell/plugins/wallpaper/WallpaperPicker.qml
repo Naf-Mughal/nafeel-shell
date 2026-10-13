@@ -29,7 +29,10 @@ Item {
     // The room the drawer has (set by the frame for content-sized drawers):
     // the picker sizes itself to its view, as Ryoku's slice band runs nearly
     // the screen's width.
-    property real availableWidth: 1600
+    // Starts at what the frame will say on the usual layout (the screen less
+    // the bar and the border), so the warm build isn't laid out twice: made
+    // at 1600 and then told the real room, every slice moved (~350 ms).
+    property real availableWidth: (Quickshell.screens[0]?.width ?? 1920) - Tokens.barWidth - Tokens.border
     readonly property real screenWidth: availableWidth + 2 * Tokens.barWidth
     implicitWidth: (Wallpapers.view === "slice" ? availableWidth - 120 : Math.min(1280, screenWidth - 260)) - 2 * Tokens.spacing.large
     implicitHeight: (Wallpapers.view === "mosaic" ? 560 : Wallpapers.view === "slice" ? 600 : 330) + (Quickshell.screens.length > 1 ? 36 : 0) - 2 * Tokens.spacing.large
@@ -603,7 +606,7 @@ Item {
         id: strip
 
         StripView {
-            awake: root.visible
+            awake: true
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }
@@ -613,7 +616,7 @@ Item {
         id: slices
 
         SliceView {
-            awake: root.visible
+            awake: true
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }
@@ -623,7 +626,7 @@ Item {
         id: mosaic
 
         MosaicView {
-            awake: root.visible
+            awake: true
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }

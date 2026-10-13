@@ -1,7 +1,9 @@
 //@ pragma UseQApplication
 //@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
-// One render thread for every window: ~30 MB less than the threaded loop.
-//@ pragma DefaultEnv QSG_RENDER_LOOP=basic
+// The threaded render loop: each window renders and waits for vsync on its
+// own render thread, so animations and input keep their pace on the GUI
+// thread (the basic loop swapped every window on it in turn).
+//@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
 
 // nafeel shell: every on-screen surface of the desktop (frame, bar, drawers,
 // dock, command center…) in one Quickshell process, on top of umbriel and

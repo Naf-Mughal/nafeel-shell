@@ -236,6 +236,12 @@ Singleton {
             root.preview(drawer, Umbriel.focusedOutput);
         }
 
+        // Quit cleanly (the supervisor starts it again): profilers
+        // (bin/qml-profile) flush their trace on a clean exit.
+        function quit(): void {
+            Qt.quit();
+        }
+
         // The open drawer on the focused screen ("" for none).
         function current(): string {
             return root.current(Umbriel.focusedOutput);

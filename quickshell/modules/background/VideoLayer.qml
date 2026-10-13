@@ -1,71 +1,37 @@
 import QtQuick
-import QtMultimedia
+import Nafeel
 
-// A live wallpaper's player: the video looped and silent (no audio output at
-// all), `run` to play or hold. firstFrame() once there's a picture.
+// A live wallpaper's player: the video looped and silent, `run` to play or
+// hold (held, it keeps its frame). firstFrame() once there's a picture.
+// libmpv in the scene (Nafeel's MpvVideo): decoded on the GPU (VAAPI) and drawn
+// straight into the item, scaled to it, the frame never through the CPU. (Qt
+// Multimedia's player cost ~20% of the GPU for a 4K video, its frames copied
+// and converted; a play() asked before the file loaded was dropped.)
 Item {
     id: layer
 
     property string source
     property bool run: true
     property int startAt: 0
-    readonly property int position: player.position
+    readonly property int position: video.position
     property bool started: false
 
     signal firstFrame
     signal broken
 
-    MediaPlayer {
-        id: player
-
-        source: layer.source
-        loops: MediaPlayer.Infinite
-        videoOutput: out
-        Component.onCompleted: play()
-        onMediaStatusChanged: {
-            if (mediaStatus === MediaPlayer.BufferedMedia || mediaStatus === MediaPlayer.LoadedMedia) {
-                // A play() asked for before the file had loaded is dropped
-                // (Qt 6.12): ask again now, if it's meant to run. (The desktop
-                // got going when `run` changed later; the lock screen, whose
-                // `run` is on from the start, stayed on the first frame.)
-                if (layer.run && player.playbackState !== MediaPlayer.PlayingState)
-                    player.play();
-                if (layer.startAt > 0 && player.seekable)
-                    player.position = layer.startAt + 150;
-                settle.restart();
-            } else if (mediaStatus === MediaPlayer.InvalidMedia) {
-                layer.broken();
-            }
-        }
-        onErrorOccurred: layer.broken()
-    }
-
-    VideoOutput {
-        id: out
+    MpvVideo {
+        id: video
 
         anchors.fill: parent
-        fillMode: VideoOutput.PreserveAspectCrop
-    }
-
-    // A frame or two in, so there's a picture to show.
-    Timer {
-        id: settle
-
-        interval: 150
-        onTriggered: {
+        source: layer.source
+        playing: layer.run
+        startAt: layer.startAt
+        onFirstFrame: {
             if (layer.started)
                 return;
             layer.started = true;
             layer.firstFrame();
-            if (!layer.run)
-                player.pause();
         }
-    }
-
-    onRunChanged: {
-        if (run)
-            player.play();
-        else if (started)
-            player.pause();
+        onBroken: layer.broken()
     }
 }

@@ -30,8 +30,12 @@ Item {
         return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
     }
 
-    Component.onCompleted: Lyrics.watchers++
-    Component.onDestruction: Lyrics.watchers--
+    // A watcher only while shown (it stays made, warm: counted from its
+    // making, Lyrics kept polling behind closed panels).
+    property bool watching: visible
+    onWatchingChanged: Lyrics.watchers += watching ? 1 : -1
+    Component.onCompleted: if (watching) Lyrics.watchers++
+    Component.onDestruction: if (watching) Lyrics.watchers--
 
     // MPRIS only updates the position when asked.
     Timer {

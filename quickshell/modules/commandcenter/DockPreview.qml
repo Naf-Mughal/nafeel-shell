@@ -77,7 +77,7 @@ Row {
                 anchors.topMargin: Tokens.spacing.small
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
-                text: card.modelData.title || card.modelData.app_id
+                text: Umbriel.titleOf(card.modelData) || card.modelData.app_id
                 color: card.modelData.focused ? Colours.palette.m3primary : Colours.palette.m3onSurface
                 font.pixelSize: Tokens.font.small
                 elide: Text.ElideRight
