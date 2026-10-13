@@ -717,8 +717,13 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   left before right, top, bottom), centre first. Down a side it's a column, the command center
   and window previews beside it (CommandCenter `edge`, DockBar `vertical`). In the studio as
   the Dock panel chip.
-- [ ] **B7 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
-  draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
+- [x] **B7 Edit mode on the real bar** (2026-10-13; modules/frame/BarEditor.qml): Mod+B
+  (`shell-msg baredit`, `qs ipc call bar edit`; Mod+. was umbriel's window-consume-right) or ✎
+  in the studio. The desktop veiled; a drop zone just inside each edge for each region, and one
+  in each corner, holding their chips, beside the real bars (which re-lay out live: a draft);
+  the toolbar in the middle has the presets, Hidden, Revert, Save and Done (Esc). The frame takes
+  all input and the keyboard meanwhile. The chip is components/LayoutChip.qml, shared with the
+  studio; the chip lists and moves live in BarLayout (chipsAt, panelChips, put, unplace).
 
 ## Ideas, not scheduled
 

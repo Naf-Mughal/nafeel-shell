@@ -119,6 +119,8 @@ PanelWindow {
     // makes way.
     readonly property bool modalHere: pluginDrawers.some(d => d.modal && d.open)
     readonly property bool focusedHere: Umbriel.focusedOutput === "" || Umbriel.focusedOutput === (screen?.name ?? "")
+    // The edit mode on the bar is up here (on the focused screen).
+    readonly property bool editingHere: BarLayout.editing && focusedHere && !fullscreen
 
     // Every drawer on this screen (the blob engine takes up to sixteen shapes
     // near any one).
@@ -160,10 +162,10 @@ PanelWindow {
     // A pinned drawer (opened by a keybind or a click) takes the keyboard, so
     // Esc closes it and its fields can be typed in straight away; a hover
     // preview never does, so typing in apps isn't interrupted.
-    WlrLayershell.keyboardFocus: modalHere || pinnedHere ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: modalHere || pinnedHere || editingHere ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
 
-    mask: fullscreen ? noInput : pinnedHere ? everywhere : frameInput
+    mask: fullscreen ? noInput : pinnedHere || editingHere ? everywhere : frameInput
 
     // Caffeine: keeps the session from going idle (dim, lock, sleep) while on.
     IdleInhibitor {
@@ -822,6 +824,20 @@ PanelWindow {
         width: r.width
         height: r.height
         intersection: Intersection.Subtract
+    }
+
+    // The edit mode on the bar: drop zones beside every edge, over
+    // everything but the dragged chip.
+    Loader {
+        anchors.fill: parent
+        z: 3
+        active: win.editingHere
+        sourceComponent: BarEditor {
+            tLeft: win.tLeft
+            tTop: win.tTop
+            tRight: win.tRight
+            tBottom: win.tBottom
+        }
     }
 
     // The shell's ink transition: this window's still (the frame, the bars,

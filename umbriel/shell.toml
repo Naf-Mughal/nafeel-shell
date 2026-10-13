@@ -12,6 +12,8 @@
 # The dashboard, and the desktop: an empty workspace, and back again.
 "Mod+Shift+D" = "spawn:shell-msg dashboard"
 "Mod+D" = "spawn:shell-msg desktop"
+# The edit mode on the bar: move icons and panels on the real bar.
+"Mod+B" = "spawn:shell-msg baredit"
 "Alt+Shift+Tab" = { action = "spawn:shell-msg switch prev", allow_when_inhibited = true }
 "Mod+Tab" = { action = "spawn:sh -c 'umbriel msg overview-open; umbriel msg window-focus-next'", allow_when_inhibited = true }
 "Ctrl+Alt+Escape" = { action = "submap:reset", submap = "switcher" }

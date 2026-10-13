@@ -18,6 +18,7 @@
 #                           Record, and pressed again, start (Mod+Shift+R)
 #   wallpaper               the wallpaper picker
 #   settings                the shell's settings (Mod+S)
+#   baredit                 the edit mode on the bar (Mod+B)
 #   notes                   the notes pad
 #   caffeine                toggle caffeine (keeps the shell's OSD in step)
 #   clipboard               the clipboard history (top-left corner)
@@ -63,6 +64,7 @@ wallpaper) ipc shell toggle wallpapers || down ;;
 notes) ipc shell toggle notes || down ;;
 dashboard) ipc shell toggle dashboard ;;
 settings) ipc shell toggle settings || down ;;
+baredit) ipc bar edit || down ;;
 desktop) ipc desktop toggle ;;
 caffeine) ipc display caffeine || down ;;
 clipboard) ipc shell toggle bar:clipboard || down ;;

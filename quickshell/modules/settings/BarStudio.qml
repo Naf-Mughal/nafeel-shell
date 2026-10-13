@@ -43,8 +43,12 @@ Item {
 
     implicitHeight: page.implicitHeight
 
-    // Leaving the studio with unsaved changes walks the desktop back.
-    Component.onDestruction: BarLayout.revert()
+    // Leaving the studio with unsaved changes walks the desktop back (not
+    // when it handed them to the edit mode on the bar).
+    Component.onDestruction: {
+        if (!BarLayout.editing)
+            BarLayout.revert();
+    }
 
     Connections {
         target: BarLayout
@@ -63,72 +67,33 @@ Item {
         return `${edgeName[at.edge]} edge · ${regionName[at.region]}`;
     }
 
-    // A region's chips: its icons, then the panels placed there.
     function chipsAt(edge: string, region: string): var {
-        const hidden = BarLayout.layout.hidden ?? [];
-        return BarLayout.rawWidgets(edge, region).filter(id => !hidden.includes(id)).map(id => ({
-                    kind: "icon",
-                    id: id,
-                    icon: BarLayout.catalogue[id]?.icon ?? "widgets",
-                    label: BarLayout.catalogue[id]?.name ?? id
-                })).concat(panelsAt(at => !at.corner && at.edge === edge && at.region === region));
+        return BarLayout.chipsAt(edge, region);
     }
 
-    // The panels whose place passes `test`: drawers, and the popouts whose
-    // icon is hidden (a shown icon carries its panel).
     function panelsAt(test: var): var {
-        const out = [];
-        for (const p of BarLayout.panelList) {
-            const at = BarLayout.panelAt(p.name);
-            if (at && test(at))
-                out.push({
-                    kind: "panel",
-                    id: p.name,
-                    icon: p.icon,
-                    label: p.label
-                });
-        }
-        for (const id of (BarLayout.layout.hidden ?? [])) {
-            const pop = BarLayout.catalogue[id]?.popout;
-            const at = pop ? BarLayout.popoutPlace(pop) : null;
-            if (at && test(at))
-                out.push({
-                    kind: "panel",
-                    id: "bar:" + pop,
-                    icon: BarLayout.catalogue[id].icon,
-                    label: `${BarLayout.catalogue[id].name} panel`
-                });
-        }
-        return out;
+        return BarLayout.panelChips(test);
     }
 
     function placeOfChip(c: var): var {
         return c.kind === "icon" ? BarLayout.placeOf(c.id) : BarLayout.panelAt(c.id);
     }
 
-    // Whether `c` can go to `at` (a corner takes panels only).
-    function fits(c: var, at: var): bool {
-        return !!c && !(at.corner && c.kind === "icon");
+    function isPicked(c: var): bool {
+        return picked !== null && picked.kind === c.kind && picked.id === c.id;
     }
 
-    // Move a chip to a place (before the icon `before`, else last).
+    function fits(c: var, at: var): bool {
+        return BarLayout.fits(c, at);
+    }
+
     function put(c: var, at: var, before: string): void {
-        if (!fits(c, at))
-            return;
-        if (c.kind === "icon")
-            BarLayout.moveWidget(c.id, at.edge, at.region, before === c.id ? "" : before);
-        else
-            BarLayout.placePanel(c.id, at);
+        BarLayout.put(c, at, before);
         picked = null;
     }
 
     function hide(c: var): void {
-        if (!c)
-            return;
-        if (c.kind === "icon")
-            BarLayout.hideWidget(c.id);
-        else
-            BarLayout.placePanel(c.id, null);
+        BarLayout.unplace(c);
         picked = null;
     }
 
@@ -145,6 +110,13 @@ Item {
             gloss: "布局"
 
             trailing: [
+                IconButton {
+                    icon: "edit"
+                    onClicked: {
+                        BarLayout.editing = true;
+                        ShellState.close();
+                    }
+                },
                 IconButton {
                     icon: "undo"
                     enabled: BarLayout.dirty
@@ -212,7 +184,7 @@ Item {
             StyledText {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: BarLayout.dirty ? "Unsaved: the desktop shows it live. Save keeps it; Revert or leaving Settings walks back." : "Drag an icon or a panel to move it, or click it and then where it goes."
+                text: BarLayout.dirty ? "Unsaved: the desktop shows it live. Save keeps it; Revert or leaving Settings walks back." : "Drag an icon or a panel to move it, or click it and then where it goes. ✎ edits on the bar itself (Mod+B)."
                 color: BarLayout.dirty ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                 font.pixelSize: Tokens.font.small
             }
@@ -445,12 +417,7 @@ Item {
             Surface {
                 id: hiddenTray
 
-                readonly property var chips: (BarLayout.layout.hidden ?? []).filter(id => BarLayout.catalogue[id]).map(id => ({
-                            kind: "icon",
-                            id: id,
-                            icon: BarLayout.catalogue[id].icon,
-                            label: BarLayout.catalogue[id].name
-                        }))
+                readonly property var chips: BarLayout.hiddenChips()
                 readonly property bool target: hiddenDrop.containsDrag || root.picked !== null
 
                 width: parent.width
@@ -481,10 +448,13 @@ Item {
                     Repeater {
                         model: hiddenTray.chips
 
-                        StudioChip {
+                        LayoutChip {
                             required property var modelData
 
                             info: modelData
+                            overlay: dragLayer
+                            isPicked: root.isPicked(modelData)
+                            onPick: root.picked = isPicked ? null : modelData
                         }
                     }
                 }
@@ -705,7 +675,7 @@ Item {
 
     // Above everything: a chip's face while it's dragged.
     Item {
-        id: overlay
+        id: dragLayer
 
         anchors.fill: parent
         z: 10
@@ -746,105 +716,16 @@ Item {
             Repeater {
                 model: zone.chips
 
-                StudioChip {
+                LayoutChip {
                     required property var modelData
 
                     info: modelData
+                    overlay: dragLayer
+                    isPicked: root.isPicked(modelData)
+                    onPick: root.picked = isPicked ? null : modelData
                     // Dropped on an icon: goes before it.
                     onDroppedOn: c => root.put(c, zone.place, modelData.kind === "icon" ? modelData.id : "")
                 }
-            }
-        }
-    }
-
-    // An icon (filled) or a panel (outlined). Click to pick it; drag it (its
-    // face floats over the studio, the page doesn't scroll) and let go on a
-    // zone, on another icon (to go before it) or on Hidden.
-    component StudioChip: Item {
-        id: chip
-
-        required property var info
-        readonly property bool isPicked: root.picked !== null && root.picked.kind === info.kind && root.picked.id === info.id
-        signal droppedOn(var info)
-
-        width: 26
-        height: 26
-
-        DropArea {
-            function accept(c: var): void {
-                if (!(c.kind === chip.info.kind && c.id === chip.info.id))
-                    chip.droppedOn(c);
-            }
-
-            anchors.fill: parent
-        }
-
-        Surface {
-            id: face
-
-            // What a drop reads.
-            readonly property var info: chip.info
-
-            width: chip.width
-            height: chip.height
-            role: chip.isPicked ? "primary" : chip.info.kind === "panel" ? "tertiary" : "secondary"
-            emphasis: chip.isPicked ? "strong" : chip.info.kind === "panel" ? "ghost" : "soft"
-            outlined: chip.info.kind === "panel" && !chip.isPicked
-            shape: "small"
-            scale: grab.drag.active ? 1.2 : grab.containsMouse ? 1.08 : 1
-
-            Behavior on scale {
-                Anim {
-                    duration: Tokens.anim.fast
-                }
-            }
-
-            Drag.active: grab.drag.active
-            Drag.source: face
-            Drag.hotSpot.x: width / 2
-            Drag.hotSpot.y: height / 2
-
-            MaterialIcon {
-                anchors.centerIn: parent
-                text: chip.info.icon
-                size: 16
-                fill: chip.info.kind === "panel" ? 0 : 1
-                color: face.ink
-            }
-        }
-
-        MouseArea {
-            id: grab
-
-            anchors.fill: parent
-            hoverEnabled: true
-            preventStealing: true
-            cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
-            drag.target: face
-            onPressed: {
-                const p = face.mapToItem(overlay, 0, 0);
-                face.parent = overlay;
-                face.x = p.x;
-                face.y = p.y;
-            }
-            // The drop target is read first and the face put back before the
-            // move: the move remakes the chips, this one included.
-            onReleased: {
-                const dragged = drag.active;
-                const target = face.Drag.target;
-                const info = chip.info;
-                face.parent = chip;
-                face.x = 0;
-                face.y = 0;
-                if (!dragged)
-                    root.picked = chip.isPicked ? null : info;
-                else if (target && typeof target.accept === "function")
-                    Qt.callLater(() => target.accept(info));
-            }
-            onCanceled: {
-                face.parent = chip;
-                face.x = 0;
-                face.y = 0;
             }
         }
     }

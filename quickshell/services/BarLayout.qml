@@ -457,6 +457,91 @@ Singleton {
                 }
             }])
 
+    // ── Chips (the studio and the edit mode on the bar) ──
+    // { kind: "icon" | "panel", id, icon, label }
+
+    // A region's chips: its icons, then the panels placed there.
+    function chipsAt(edge: string, region: string): var {
+        const hidden = layout.hidden ?? [];
+        return rawWidgets(edge, region).filter(id => !hidden.includes(id)).map(id => ({
+                    kind: "icon",
+                    id: id,
+                    icon: catalogue[id]?.icon ?? "widgets",
+                    label: catalogue[id]?.name ?? id
+                })).concat(panelChips(at => !at.corner && at.edge === edge && at.region === region));
+    }
+
+    // The panels whose place passes `test`: drawers, and the popouts whose
+    // icon is hidden (a shown icon carries its panel).
+    function panelChips(test: var): var {
+        const out = [];
+        for (const p of panelList) {
+            const at = panelAt(p.name);
+            if (at && test(at))
+                out.push({
+                    kind: "panel",
+                    id: p.name,
+                    icon: p.icon,
+                    label: p.label
+                });
+        }
+        for (const id of (layout.hidden ?? [])) {
+            const pop = catalogue[id]?.popout;
+            const at = pop ? popoutPlace(pop) : null;
+            if (at && test(at))
+                out.push({
+                    kind: "panel",
+                    id: "bar:" + pop,
+                    icon: catalogue[id].icon,
+                    label: `${catalogue[id].name} panel`
+                });
+        }
+        return out;
+    }
+
+    function hiddenChips(): var {
+        return (layout.hidden ?? []).filter(id => catalogue[id]).map(id => ({
+                    kind: "icon",
+                    id: id,
+                    icon: catalogue[id].icon,
+                    label: catalogue[id].name
+                }));
+    }
+
+    // Whether chip `c` can go to place `at` (a corner takes panels only).
+    function fits(c: var, at: var): bool {
+        return !!c && !(at.corner && c.kind === "icon");
+    }
+
+    // Move a chip to a place (before the icon `before`, else last).
+    function put(c: var, at: var, before: string): void {
+        if (!fits(c, at))
+            return;
+        if (c.kind === "icon")
+            moveWidget(c.id, at.edge, at.region, before === c.id ? "" : before);
+        else
+            placePanel(c.id, at);
+    }
+
+    // Hide an icon, or put a panel back where it opens by default.
+    function unplace(c: var): void {
+        if (!c)
+            return;
+        if (c.kind === "icon")
+            hideWidget(c.id);
+        else
+            placePanel(c.id, null);
+    }
+
+    // The edit mode on the bar (B7): every edge's regions and the corners
+    // light up where they are, holding their chips.
+    property bool editing: false
+
+    function finishEditing(): void {
+        editing = false;
+        revert();
+    }
+
     // ── The dock ──
     // The dock (and the command center grown out of it) needs a region to
     // itself: its place (`panels.command`, by default the bottom's centre)
@@ -640,6 +725,15 @@ Singleton {
         }
         function revert(): void {
             root.revert();
+        }
+        // The edit mode on the bar, on or off.
+        function edit(): void {
+            if (root.editing)
+                root.finishEditing();
+            else {
+                ShellState.close();
+                root.editing = true;
+            }
         }
         // The layout in effect (the draft while editing), as JSON.
         function json(): string {
