@@ -27,6 +27,9 @@ Item {
     property bool horizontal: false
     readonly property real span: spaces.length * cell + Math.max(0, spaces.length - 1) * gap
 
+    // So a popout out of an edge can grow from it (ShellState.anchorTo).
+    Component.onCompleted: ShellState.barControls[key] = root
+
     width: parent?.width ?? 28
     implicitWidth: horizontal ? span : 28
     implicitHeight: horizontal ? 28 : span

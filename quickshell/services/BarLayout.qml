@@ -218,13 +218,16 @@ Singleton {
         return [left, right];
     }
 
-    // The corner a bar popout grows out of: the one at its widget's end of
-    // the edge (a centre widget's: its edge's start, until B3).
+    // Where a bar popout grows out of: the corner at its widget's end of the
+    // edge, or for a centre widget "edge:<edge>" (a drawer out of the edge at
+    // the widget).
     function cornerFor(popout: string): string {
         const id = Object.keys(catalogue).find(k => catalogue[k].popout === popout);
         const at = id ? placeOf(id) : null;
         if (!at)
             return Plugins.popouts[popout]?.corner ?? "topLeft";
+        if (at.region === "center")
+            return "edge:" + at.edge;
         const end = at.region === "end";
         switch (at.edge) {
         case "left":

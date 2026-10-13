@@ -678,7 +678,7 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   `corners.<corner>` setting on a conflict, default the side bar, or `none`), struts written by
   the shell into shell-frost.toml (static umbriel/shell.toml no longer has them). Left for B5:
   icon-less widgets placed in a bare (`none`) corner.
-- [ ] **B3 Popouts from the widget's place** (corner or edge drawer at the widget).
+- [x] **B3 Popouts from the widget's place** (2026-10-13): a start/end widget's at its corner, a centre one's out of its edge at the widget (CornerPopout with `side`, centred on ShellState.anchor/anchorX, kept on screen); the input mask has 20 drawer slots.
 - [ ] **B4 Modes**: full / regions, flush / pill, reserve / overlay / autohide (edge and region).
 - [ ] **B5 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
   regions and corners; per-edge mode, style, visibility; corner owners; presets; Save / Revert.

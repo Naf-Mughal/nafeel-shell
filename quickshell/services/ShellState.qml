@@ -46,9 +46,11 @@ Singleton {
     signal keyboardGranted(var req)
     property string screen: ""
 
-    // Where the bar popout points: the centre (y, in screen coordinates) of the
-    // bar icon that opened it.
+    // Where the bar popout points: the centre (in screen coordinates) of the
+    // bar widget that opened it; a popout out of an edge (a centre widget's)
+    // grows from there.
     property real anchor: 0
+    property real anchorX: 0
     // The bar icon under the pointer ("" for none); an open popout's icon
     // shows as active only while no other icon is hovered.
     property string barHover: ""
@@ -114,8 +116,11 @@ Singleton {
 
     function anchorTo(name: string): void {
         const c = barControls[name];
-        if (c)
-            anchor = c.mapToItem(null, 0, c.height / 2).y;
+        if (c) {
+            const p = c.mapToItem(null, c.width / 2, c.height / 2);
+            anchor = p.y;
+            anchorX = p.x;
+        }
     }
 
     // The open drawer on a screen, or "".

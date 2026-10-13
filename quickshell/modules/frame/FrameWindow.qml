@@ -61,7 +61,9 @@ PanelWindow {
 
     // Every drawer on this screen (the blob engine takes up to sixteen shapes
     // near any one).
-    readonly property var drawers: [commandCenter, topLeft, bottomLeft, topRight, bottomRight, settings].concat(pluginDrawers)
+    readonly property var drawers: [commandCenter, topLeft, bottomLeft, topRight, bottomRight, settings].concat(edgePopouts, pluginDrawers)
+    // The edges' popouts (made by a Repeater).
+    property var edgePopouts: []
     // The drawers plugins add (their manifests: Plugins.drawers).
     property var pluginDrawers: []
 
@@ -177,6 +179,18 @@ PanelWindow {
         }
         DrawerRegion {
             index: 15
+        }
+        DrawerRegion {
+            index: 16
+        }
+        DrawerRegion {
+            index: 17
+        }
+        DrawerRegion {
+            index: 18
+        }
+        DrawerRegion {
+            index: 19
         }
 
         // The bars' bulges (at most three per edge).
@@ -553,6 +567,24 @@ PanelWindow {
         enabled: !win.fullscreen
         minHeight: 420
         components: win.cornerPopouts
+    }
+
+    // Each edge's popout, for the widgets in its centre: out of the edge at
+    // the widget.
+    Repeater {
+        model: BarLayout.edgeNames
+        onItemAdded: (i, item) => win.edgePopouts = win.edgePopouts.concat([item])
+        onItemRemoved: (i, item) => win.edgePopouts = win.edgePopouts.filter(d => d !== item)
+
+        CornerPopout {
+            required property string modelData
+
+            side: modelData
+            thickness: win.edgeThickness(modelData)
+            shellScreen: win.screen
+            enabled: !win.fullscreen
+            components: win.cornerPopouts
+        }
     }
 
     Component {
