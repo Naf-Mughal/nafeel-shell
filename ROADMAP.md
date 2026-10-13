@@ -751,7 +751,9 @@ other ~250 MB of anon is outside malloc: the JS heap, scene graph and GL buffers
 - [x] **O1 Measure** (2026-10-13): `shell-msg mem` (PSS, anon, file, threads); `bin/mem-soak
   [--restart] [--rounds N]` (every panel once, then rounds; the steps' kept MB; the budget's
   verdict; logs in ~/.cache/nafeel-shell/mem/); budget: after a soak idle <= 350 MB, a panel's
-  first open keeps <= 15 MB; heaptrack when a budget breaks. First run, with the 4K video
+  first open keeps <= 15 MB; heaptrack when a budget breaks. (Changed the same day: Qt's image
+cache holds a closed panel's images ~30 s, so a step's figure a second after closing overstates
+it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settle.) First run, with the 4K video
   wallpaper on: 562 MB fresh -> 746 MB idle after the soak; over budget: wallpaper studio +66,
   notifications +35, Settings +27, the command center's notifications tab +19.
 - [x] **O2 Fonts** (2026-10-13; -103 MB idle after the soak, 746 -> 643 with the video
