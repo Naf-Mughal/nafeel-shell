@@ -63,8 +63,10 @@ Surface {
             Image {
                 anchors.fill: parent
                 source: Media.art
+                sourceSize: Qt.size(420, 420)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
+                cache: false
 
                 RotationAnimation on rotation {
                     running: Media.playing && !Tokens.reduceMotion

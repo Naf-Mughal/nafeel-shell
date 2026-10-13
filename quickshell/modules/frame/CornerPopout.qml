@@ -33,6 +33,12 @@ Drawer {
     // Kinds that need another width than the default ({ kind: px }).
     property var widths: ({})
     property int minHeight: 420
+    property bool opened: false
+
+    onActiveChanged: {
+        if (active)
+            opened = true;
+    }
     readonly property int pad: Tokens.spacing.large
     // On the bar's side the content starts right at the bar's icons (they're
     // the panel's tabs), not a full margin away.
@@ -102,7 +108,8 @@ Drawer {
         y: root.pad
         width: root.panelWidth - root.pad - (root.side ? root.pad : root.barPad)
         // Made afresh each time it opens, as the wallpaper picker is.
-        active: root.active
+        // Warm: the last panel shown here stays made while closed (O4).
+        active: root.active || root.opened
         sourceComponent: root.components[root.shownKind] ?? (root.pluginPopouts[root.shownKind] ? Qt.createComponent(root.pluginPopouts[root.shownKind].url) : null)
         // Opened pinned (a keybind): the panel arrives after the frame got
         // the keyboard, so it takes it now.

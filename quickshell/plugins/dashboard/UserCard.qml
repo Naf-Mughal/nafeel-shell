@@ -19,9 +19,11 @@ Surface {
         Image {
             anchors.fill: parent
             source: Session.wallpaper ? "file://" + Session.wallpaper : ""
-            sourceSize: Qt.size(width, height)
+            // Never 0x0 (the full picture) before the layout has a size.
+            sourceSize: Qt.size(Math.max(64, Math.ceil(width)), Math.max(64, Math.ceil(height)))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            cache: false
             opacity: 0.5
         }
 
@@ -58,6 +60,7 @@ Surface {
 
                 anchors.fill: parent
                 source: "file://" + Session.home + "/.face"
+                sourceSize: Qt.size(128, 128)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
             }

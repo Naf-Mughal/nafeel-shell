@@ -18,6 +18,12 @@ Item {
     id: root
 
     required property bool expanded
+    property bool opened: false
+
+    onExpandedChanged: {
+        if (expanded)
+            opened = true;
+    }
     property ShellScreen shellScreen
     property string edge: "bottom"
     readonly property bool vertical: edge === "left" || edge === "right"
@@ -181,7 +187,8 @@ Item {
 
                 anchors.fill: parent
                 onLoaded: Choreo.cascade(item?.contentItem ?? item, 40)
-                active: root.expanded
+                // Warm: the tab stays made once the command center has opened (O4).
+                active: root.expanded || root.opened
                 sourceComponent: ({
                         home: home,
                         apps: apps,

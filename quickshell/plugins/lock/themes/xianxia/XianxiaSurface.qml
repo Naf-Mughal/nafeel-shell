@@ -183,7 +183,7 @@ Item {
                 // The host's player: the live file, playing until the screen
                 // dims (as the rest of the motion).
                 onLoaded: {
-                    item.source = Qt.binding(() => xian.host.wallpaper);
+                    item.source = Qt.binding(() => xian.host.wallpaperPlay ?? xian.host.wallpaper);
                     item.run = Qt.binding(() => xian.ctx.awake);
                     item.firstFrame.connect(() => wallItem.liveReady = true);
                 }

@@ -245,8 +245,11 @@ Panel {
                 anchors.margins: Tokens.spacing.normal
                 anchors.bottomMargin: actionsRow.height + Tokens.spacing.normal * 2
                 source: root.entry?.image ? Clipboard.imageUrl(root.index) : ""
+                // At the size shown (a pasted screenshot is screen-sized).
+                sourceSize: Qt.size(Math.max(64, Math.ceil(width * 2)), Math.max(64, Math.ceil(height * 2)))
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
+                cache: false
             }
 
             Row {

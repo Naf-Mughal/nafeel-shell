@@ -14,6 +14,8 @@ pragma Singleton
 //                     "width" / "height": a number (capped to the screen)
 //                       or "content" (the entry's implicit size),
 //                     "keyboard", "hoverZone", "zoneLength", "padding",
+//                     "warm" (default true: once opened, its content stays
+//                       made while closed; false for a heavy one),
 //                     "openWhen" / "openIf": a root property that opens it
 //                       by itself / must also hold, "yieldTo": [drawers it
 //                       stays shut under], "modal", "overFullscreen" }],

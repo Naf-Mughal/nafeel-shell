@@ -1030,6 +1030,8 @@ def main() -> int:
     ix = sub.add_parser("index", help="index the wallpaper library (thumbnails, colours) for the picker")
     ix.add_argument("--root", default=str(HOME / "Pictures/Wallpapers"))
     ix.add_argument("--force", action="store_true")
+    # The screen's size in pixels (WxH), for the "screen" live resolution.
+    ix.add_argument("--screen", default="")
     b = sub.add_parser("build")
     b.add_argument("--scheme", type=Path, default=SCHEME_JSON)
     b.add_argument("--mode", choices=["dark", "light"])
@@ -1066,6 +1068,8 @@ def main() -> int:
         quality = load_settings().get("liveQuality", "original")
         if quality in ("1080", "720"):
             cmd.append(f"--live-copies={quality}")
+        elif quality == "screen" and args.screen:
+            cmd.append(f"--live-copies={args.screen}")
         return subprocess.run(cmd + (["--force"] if args.force else [])).returncode
 
     STATE.mkdir(parents=True, exist_ok=True)

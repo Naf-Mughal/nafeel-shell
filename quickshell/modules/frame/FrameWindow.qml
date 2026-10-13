@@ -722,7 +722,12 @@ PanelWindow {
 
             anchors.fill: parent
             anchors.margins: Tokens.spacing.large
+            // Heavy: let go when closed (every page's controls), and collected.
             active: settings.active
+            onActiveChanged: {
+                if (!active)
+                    Qt.callLater(gc);
+            }
             sourceComponent: SettingsPanel {}
         }
     }
@@ -750,6 +755,18 @@ PanelWindow {
             // (default the panel rhythm; 0 for edge-to-edge content).
             readonly property var yieldTo: modelData.yieldTo ?? []
             readonly property real pad: modelData.padding ?? Tokens.spacing.large
+            // Warm: once opened, its content stays made while closed, so it
+            // opens at once next time (ROADMAP O4). A heavy one says
+            // "warm": false in its manifest and is let go on close.
+            readonly property bool warm: modelData.warm ?? true
+            property bool opened: false
+
+            onActiveChanged: {
+                if (active)
+                    opened = true;
+                else if (!warm)
+                    Qt.callLater(gc);
+            }
             // Where it opens: the layout's place for it, else its manifest's.
             readonly property var at: win.placeOf(modelData.name, modelData)
 
@@ -799,7 +816,7 @@ PanelWindow {
 
                 anchors.fill: parent
                 anchors.margins: pd.pad
-                active: pd.active
+                active: pd.active || (pd.warm && pd.opened)
                 source: pd.modelData.url
                 // Content that sizes itself can know the room it has.
                 onLoaded: {

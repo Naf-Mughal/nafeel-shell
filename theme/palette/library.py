@@ -51,13 +51,18 @@ def write_atomic(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-# Live wallpapers can play from a copy at 1080p or 720p (the "Live wallpaper
-# resolution" setting; Ryoku converts them too): lighter for 4K videos
-# (measured over a still: 4K +345 MB / 12% CPU, 1080p +137 MB / 8%).
+# Live wallpapers can play from a copy at the screen's size, 1080p or 720p
+# (the "Live wallpaper resolution" setting; Ryoku converts them too): lighter
+# for 4K videos (measured over a still: 4K +345 MB / 12% CPU, 1080p +137 MB /
+# 8%). --live-copies=<height> (16:9) or =<width>x<height> (the screen's).
 def _live_size():
     for a in sys.argv:
         if a.startswith("--live-copies="):
-            h = int(a.split("=", 1)[1])
+            v = a.split("=", 1)[1]
+            if "x" in v:
+                w, h = (int(x) for x in v.split("x", 1))
+                return (w, h)
+            h = int(v)
             return (h * 16 // 9, h)
     return None
 
@@ -192,7 +197,16 @@ def main() -> int:
         prev = old.get(str(path))
         try:
             st = path.stat()
-            if prev and not force and prev.get("size") == st.st_size and prev.get("mtime") == int(st.st_mtime) and prev.get("thumbW") == THUMB_W and Path(prev.get("thumb", "")).exists() and (not prev.get("video") or bool(prev.get("preview"))) and (not prev.get("video") or not LIVE_COPIES or f"-{SCREEN[1]}." in prev.get("live", "")):
+            if prev and not force and prev.get("size") == st.st_size and prev.get("mtime") == int(st.st_mtime) and prev.get("thumbW") == THUMB_W and Path(prev.get("thumb", "")).exists() and (not prev.get("video") or bool(prev.get("preview"))):
+                # The live copy is settled afresh every time: the setting may
+                # have changed, and a copy the last run removed (back at
+                # original) must not be pointed at (it played a missing
+                # file: a black wallpaper). live_copy returns one that exists
+                # at once, and makes a missing one.
+                if prev.get("video"):
+                    prev = dict(prev)
+                    key = hashlib.sha1(f"{path}|{st.st_size}|{int(st.st_mtime)}|{THUMB_W}".encode()).hexdigest()[:20]
+                    prev["live"] = live_copy(path, key, thumbs.parent / "live") if LIVE_COPIES else ""
                 out.append(prev)
             else:
                 out.append(entry_for(path, root, thumbs))

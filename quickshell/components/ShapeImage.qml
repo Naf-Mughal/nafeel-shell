@@ -42,6 +42,9 @@ Item {
 
         anchors.fill: parent
         visible: false
+        // Decoded at the size it's shown (album art can be huge), never 0x0
+        // (the full picture) before the layout has a size.
+        sourceSize: Qt.size(Math.max(64, Math.ceil(root.width * 2)), Math.max(64, Math.ceil(root.height * 2)))
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         smooth: true

@@ -46,13 +46,18 @@ Singleton {
             icon: "movie"
             section: "Live wallpapers"
             label: "Resolution"
-            description: "Original plays the video file as it is. 1080p or 720p play a copy made at that size (once, in the background): lighter on memory and CPU for 4K videos, a little softer."
+            description: "Original plays the video file as it is. Screen, 1080p or 720p play a copy made at that size (once, in the background, at high quality): Screen matches your display exactly, so a 4K video costs what your screen does."
             def: "original"
             options: [
                 {
                     value: "original",
                     icon: "hd",
                     label: "Original"
+                },
+                {
+                    value: "screen",
+                    icon: "fit_screen",
+                    label: "Screen"
                 },
                 {
                     value: "1080",
@@ -87,6 +92,18 @@ Singleton {
         }
     }
     readonly property string liveQuality: settings.v.liveQuality
+    // The biggest screen in pixels: the "screen" live resolution's size.
+    readonly property size screenSize: {
+        let w = 0, h = 0;
+        for (const s of Quickshell.screens) {
+            const d = s.devicePixelRatio || 1;
+            if (s.width * s.height * d * d > w * h) {
+                w = Math.round(s.width * d);
+                h = Math.round(s.height * d);
+            }
+        }
+        return Qt.size(w || 1920, h || 1080);
+    }
 
     readonly property string dir: {
         const d = (settings.v["wallpaper.dir"] ?? "").trim() || "~/Pictures/Wallpapers";
@@ -255,7 +272,8 @@ Singleton {
         if (liveQuality === "original" || !isVideo(path))
             return path;
         const live = all.find(w => w.path === path)?.live ?? "";
-        return live.includes(`-${liveQuality}.`) ? live : path;
+        const height = liveQuality === "screen" ? screenSize.height : liveQuality;
+        return live.includes(`-${height}.`) ? live : path;
     }
 
 
@@ -543,7 +561,7 @@ Singleton {
     Process {
         id: indexer
 
-        command: [root.bin, "index"]
+        command: [root.bin, "index", "--screen", `${root.screenSize.width}x${root.screenSize.height}`]
         stdout: SplitParser {
             onRead: line => {
                 try {

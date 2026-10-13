@@ -86,15 +86,30 @@ Panel {
             contentHeight: items.implicitHeight
             clip: true
 
+            // Each page starts at its top.
+            Connections {
+                target: root
+
+                function onPageChanged(): void {
+                    flick.contentY = 0;
+                }
+            }
+
             Column {
                 id: items
 
                 width: flick.width
                 spacing: Tokens.spacing.large
 
-                // A page's own UI.
+                // A page's own UI. Out of the column when the page has none (an
+                // unloaded Loader keeps its last size: the Bar studio's left a
+                // blank screen's height above the next page's settings).
                 Loader {
+                    id: pageUi
+
                     width: items.width
+                    height: item ? item.implicitHeight : 0
+                    visible: active
                     active: !!root.page && root.page.content.toString() !== ""
                     source: root.page?.content ?? ""
                 }
