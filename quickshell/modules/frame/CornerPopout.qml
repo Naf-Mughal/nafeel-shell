@@ -49,6 +49,18 @@ Drawer {
     // What's shown: kept while the drawer closes, so it doesn't empty first.
     property string shownKind: ""
 
+    // A bar popout of this corner's being grabbed: its content shown ahead.
+    function grabs(panel: string): bool {
+        if (!panel.startsWith("bar:"))
+            return false;
+        const k = panel.slice(4);
+        return !!(components[k] || pluginPopouts[k]) && BarLayout.cornerFor(k) === place;
+    }
+    onPreparingChanged: {
+        if (preparing)
+            shownKind = ShellState.grabbing.slice(4);
+    }
+
     onKindChanged: {
         if (!kind)
             return;

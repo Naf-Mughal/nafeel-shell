@@ -182,7 +182,25 @@ Item {
             contentShown = true;
         else
             Qt.callLater(() => {
-                if (!root.active)
+                if (!root.active && !root.preparing)
+                    root.contentShown = false;
+            });
+    }
+
+    // About to open (ShellState.grabbing: the keyboard being taken first):
+    // the content is made live now, still clipped to nothing, so its first
+    // frame (its nodes, the soak layer's texture, glyphs and images) is drawn
+    // before the panel moves, not on the open's first frames.
+    readonly property bool preparing: ShellState.grabbing !== "" && ShellState.screen === screenName && grabs(ShellState.grabbing)
+    function grabs(panel: string): bool {
+        return panel === name || panel === key;
+    }
+    onPreparingChanged: {
+        if (preparing)
+            contentShown = true;
+        else if (!active)
+            Qt.callLater(() => {
+                if (!root.active && !root.preparing)
                     root.contentShown = false;
             });
     }

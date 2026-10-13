@@ -190,7 +190,8 @@ Singleton {
         // From closed: the frame window takes the keyboard first (grabbing):
         // that makes umbriel re-arrange its layers and Qt redraws the window
         // synchronously on the GUI thread; done mid-open it took frames from
-        // it. The panel then opens two refreshes later. Switching between
+        // it. The panel's content is made live meanwhile (Drawer.preparing),
+        // and it opens three refreshes later. Switching between
         // open panels, or one already grabbing, goes at once.
         if (pinned === "" && previewed === "") {
             grabbing = name;
@@ -206,6 +207,7 @@ Singleton {
         if (pinned !== name)
             FramePacer.mark("open");
         grabTick.stop();
+        settleTick.stop();
         grabbing = "";
         pinned = name;
         previewed = "";
@@ -215,8 +217,27 @@ Singleton {
     // The panel about to open (keyboard taken, motion not started).
     property string grabbing: ""
 
+    Connections {
+        target: FramePacer
+
+        function onExposed(): void {
+        }
+    }
+
+    // Opens two refreshes after umbriel's configure for the grab has been
+    // handled (the frame window exposed: Qt redraws for it at once, out of
+    // step), so the motion starts on a settled pipeline; at most 150 ms on.
     NumberAnimation {
         id: grabTick
+
+        duration: 34
+        onFinished: {
+            if (root.grabbing !== "")
+                root.commitPin(root.grabbing, root.screen);
+        }
+    }
+    NumberAnimation {
+        id: settleTick
 
         duration: 30
         onFinished: {

@@ -286,7 +286,7 @@ public:
         for (const auto &w : std::as_const(m_windows))
             if (w.window == window)
                 return;
-        m_windows.append({window, true, false, strict});
+        m_windows.append({window, true, false, strict, false, QSize()});
         window->installEventFilter(this);
         if (!m_logChecked) {
             m_logChecked = true;
@@ -310,9 +310,27 @@ public:
 
     bool eventFilter(QObject *obj, QEvent *event) override {
         if (event->type() == QEvent::Expose) {
-            for (const auto &w : std::as_const(m_windows))
-                if (w.window == obj && !w.strict && onExposed)
+            for (auto &w : m_windows) {
+                if (w.window != obj || w.strict)
+                    continue;
+                if (onExposed)
                     QMetaObject::invokeMethod(this, [this]() { if (onExposed) onExposed(); }, Qt::QueuedConnection);
+                // umbriel re-configures the surface (same size) when layers are
+                // re-arranged, e.g. as the frame window takes or lets go of the
+                // keyboard. Qt takes that as a new expose and renders a frame
+                // synchronously on the GUI thread, out of step: a dropped
+                // frame of whatever was animating. For a window already shown
+                // at that size, a normal (paced) frame does instead.
+                QWindow *win = w.window;
+                const QSize size = win->size();
+                if (w.shown && size == w.size && win->isExposed()) {
+                    win->requestUpdate();
+                    return true;
+                }
+                w.shown = win->isExposed();
+                w.size = size;
+                return false;
+            }
             return false;
         }
         if (event->type() != QEvent::UpdateRequest)
@@ -404,6 +422,8 @@ private:
         bool allow;
         bool held;
         bool strict;
+        bool shown = false;
+        QSize size;
     };
     qint64 m_lastTickUs = 0;
     QList<Watched> m_windows;
