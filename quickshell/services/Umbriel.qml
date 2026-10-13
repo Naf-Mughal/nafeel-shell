@@ -30,7 +30,7 @@ Singleton {
     // The space windows keep clear of on each edge: the frame's thickness
     // there (a full bar's, or the strip under a regions-mode bar, whose
     // bulges sit over windows like the dock). From the bar layout.
-    readonly property string strutsText: `\n# The frame: windows keep clear of its edges (the bar layout).\n[layout.struts]\nleft = ${BarLayout.thickness("left")}\ntop = ${BarLayout.thickness("top")}\nright = ${BarLayout.thickness("right")}\nbottom = ${BarLayout.thickness("bottom")}\n`
+    readonly property string strutsText: `\n# The frame: windows keep clear of its edges (the bar layout).\n[layout.struts]\nleft = ${BarLayout.reserve("left")}\ntop = ${BarLayout.reserve("top")}\nright = ${BarLayout.reserve("right")}\nbottom = ${BarLayout.reserve("bottom")}\n`
     readonly property string frostText: "# Written by the shell (services/Umbriel.qml); edits here are overwritten.\n" + "# Included from ~/.config/umbriel/config.toml.\n" + strutsText + (frosted ? "\n# Frosted paper: blur behind the shell's frame and panels.\n[[layer_rule]]\nmatch.namespace = \"^nafeel-shell\"\nblur = true\nblur_ignore_alpha = 0.05\nblur_optimized = false\n" : "\n# Paper is solid: no blur.\n")
 
     function writeFrost(): void {

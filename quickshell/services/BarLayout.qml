@@ -178,6 +178,30 @@ Singleton {
         return mode(edge) === "full" ? barThickness(edge) : Tokens.border;
     }
 
+    // How a bar shows (`visibility` on the edge, `regionVisibility.<region>`
+    // for a region in regions mode):
+    //   "reserve"   always, and windows keep clear of it (full mode; a
+    //               regions-mode bulge always sits over windows, like the dock)
+    //   "overlay"   always, over windows
+    //   "autohide"  the thin strip until hovered, while one of its popouts is
+    //               open, or on an empty workspace
+    function visibility(edge: string, region: string): string {
+        const e = layout.edges?.[edge];
+        const own = region ? e?.regionVisibility?.[region] : undefined;
+        return own ?? e?.visibility ?? "reserve";
+    }
+
+    // The space windows keep clear of on an edge (umbriel's struts).
+    function reserve(edge: string): real {
+        return mode(edge) === "full" && visibility(edge, "") === "reserve" ? thickness(edge) : Tokens.border;
+    }
+
+    // Where the widget that opens a popout is, or null.
+    function popoutPlace(popout: string): var {
+        const id = Object.keys(catalogue).find(k => catalogue[k].popout === popout);
+        return id ? placeOf(id) : null;
+    }
+
     // The edges and regions meeting at each corner: [vertical, horizontal].
     readonly property var cornerEnds: ({
             topLeft: [["left", "start"], ["top", "start"]],

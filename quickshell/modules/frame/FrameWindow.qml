@@ -26,10 +26,17 @@ PanelWindow {
     readonly property real barWidth: Tokens.barWidth * (1 - fsProg)
     // Each edge's thickness: a bar's where the layout puts widgets, the thin
     // border elsewhere (BarLayout).
-    readonly property real tLeft: BarLayout.thickness("left") * (1 - fsProg)
-    readonly property real tTop: BarLayout.thickness("top") * (1 - fsProg)
-    readonly property real tRight: BarLayout.thickness("right") * (1 - fsProg)
-    readonly property real tBottom: BarLayout.thickness("bottom") * (1 - fsProg)
+    // An autohidden full bar shrinks to the strip as it hides.
+    readonly property real tLeft: revealed("left") * (1 - fsProg)
+    readonly property real tTop: revealed("top") * (1 - fsProg)
+    readonly property real tRight: revealed("right") * (1 - fsProg)
+    readonly property real tBottom: revealed("bottom") * (1 - fsProg)
+
+    function revealed(edge: string): real {
+        const full = BarLayout.thickness(edge);
+        const bar = barItems.find(b => b.edge === edge);
+        return Tokens.border + (full - Tokens.border) * (bar ? bar.reveal : 1);
+    }
     // The desktop's width between the side bars.
     readonly property real innerWidth: width - tLeft - tRight
 

@@ -651,7 +651,6 @@ connections, battery; actions: notifications, clipboard, capture; …).
   or `regions` (only a region with icon widgets bulges, the length of its content, grown out of
   the strip like the dock). In a region that mixes both kinds they share one panel: the icon part
   bulges, the icon-less part sits on the strip next to it, joined into it.
-- **Style**: `flush` (part of the frame) or `pill` (each region a dock-like pill).
 - **Visibility**, per edge (per region in `regions` mode): `reserve` (windows keep clear; the
   left bar today), `overlay` (always shown, over windows; bulges in `regions` mode always
   overlay, like the dock) or `autohide` (the thin strip until hovered, as the dock while windows
@@ -679,7 +678,12 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   the shell into shell-frost.toml (static umbriel/shell.toml no longer has them). Left for B5:
   icon-less widgets placed in a bare (`none`) corner.
 - [x] **B3 Popouts from the widget's place** (2026-10-13): a start/end widget's at its corner, a centre one's out of its edge at the widget (CornerPopout with `side`, centred on ShellState.anchor/anchorX, kept on screen); the input mask has 20 drawer slots.
-- [ ] **B4 Modes**: full / regions, flush / pill, reserve / overlay / autohide (edge and region).
+- [x] **B4 Modes** (2026-10-13): `visibility` per edge and `regionVisibility.<region>`:
+  reserve / overlay / autohide (the strip until hovered, a popout of its open, or an empty
+  workspace; a full bar's frame thickness follows its `reveal`, a region's bulge sinks into the
+  strip; in regions mode only the hovered region shows). Struts: BarLayout.reserve. The "pill"
+  style was dropped: the user's answer made the per-region pills regions mode, and corners their
+  own setting.
 - [ ] **B5 Studio page** (Settings → Bar): a miniature of the screen, drag widgets between edges,
   regions and corners; per-edge mode, style, visibility; corner owners; presets; Save / Revert.
 - [ ] **B6 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become

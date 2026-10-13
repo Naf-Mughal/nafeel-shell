@@ -54,11 +54,77 @@ Item {
             const len = horizontal ? width : height;
             const a = Math.max(0, s[0] - endInset);
             const b = Math.min(len, s[1] + endInset);
-            out.push(horizontal ? Qt.rect(a, edge === "bottom" ? height - thick : 0, b - a, thick) : Qt.rect(edge === "right" ? width - thick : 0, a, thick, b - a));
+            // Autohidden, it sinks back into the strip.
+            const t = strip + (thick - strip) * r.reveal;
+            out.push(horizontal ? Qt.rect(a, edge === "bottom" ? height - t : 0, b - a, t) : Qt.rect(edge === "right" ? width - t : 0, a, t, b - a));
         }
         return out;
     }
     property var regionItems: []
+
+    // ── Showing and hiding (BarLayout.visibility) ──
+    // A full bar shows or hides as one (`reveal`, 0..1, which the frame's
+    // thickness follows); in regions mode each region does on its own.
+    readonly property string screenName: shellScreen?.name ?? ""
+    readonly property bool emptyDesk: {
+        const ws = Umbriel.activeWorkspace(screenName);
+        return !ws || Umbriel.windowsOn(ws.id).length === 0;
+    }
+    // Whether a popout from a widget here (in `region`, or anywhere on the
+    // edge) is open.
+    function popoutOpen(region: string): bool {
+        const c = ShellState.current(screenName);
+        if (!c.startsWith("bar:"))
+            return false;
+        const at = BarLayout.popoutPlace(c.slice(4));
+        return !!at && at.edge === edge && (!region || at.region === region);
+    }
+    function wants(vis: string, held: bool, region: string): bool {
+        return vis !== "autohide" || held || emptyDesk || popoutOpen(region);
+    }
+
+    property bool held: false
+    readonly property bool shown: mode !== "full" || wants(BarLayout.visibility(edge, ""), held, "")
+    property real reveal: shown ? 1 : 0
+
+    Behavior on reveal {
+        Anim {
+            duration: Tokens.anim.normal
+        }
+    }
+
+    // Hovering the bar (its strip, while hidden) shows it; leaving lets it
+    // go after the panels' close delay. In regions mode only the region
+    // under the pointer (`hoverAlong`, where along the bar it was).
+    property real hoverAlong: -1
+
+    HoverHandler {
+        onPointChanged: {
+            if (hovered)
+                root.hoverAlong = root.horizontal ? point.position.x : point.position.y;
+        }
+        onHoveredChanged: {
+            if (hovered) {
+                unhold.stop();
+                root.held = true;
+            } else {
+                unhold.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: unhold
+
+        interval: ShellState.closeDelay
+        onTriggered: root.held = false
+    }
+
+    // Where the content slides to while hidden: out past the screen's edge.
+    function hideOffset(reveal: real): point {
+        const d = (1 - reveal) * thick;
+        return edge === "left" ? Qt.point(-d, 0) : edge === "right" ? Qt.point(d, 0) : edge === "top" ? Qt.point(0, -d) : Qt.point(0, d);
+    }
 
     // A family's capsule.
     function style(family: string): var {
@@ -170,6 +236,30 @@ Item {
             id: region
 
             required property string modelData
+            // In regions mode, shown and hidden on its own (hovered: the
+            // pointer on the bar along its span); in full mode, with the bar.
+            readonly property bool held: {
+                const a = root.horizontal ? x : y;
+                const len = root.horizontal ? width : height;
+                return root.held && root.hoverAlong >= a - root.endInset * 2 && root.hoverAlong <= a + len + root.endInset * 2;
+            }
+            readonly property bool shown: root.mode === "full" || root.wants(BarLayout.visibility(root.edge, modelData), held, modelData)
+            property real reveal: shown ? 1 : 0
+            readonly property point slide: root.hideOffset(root.mode === "full" ? root.reveal : reveal)
+
+            Behavior on reveal {
+                Anim {
+                    duration: Tokens.anim.normal
+                }
+            }
+
+            opacity: Math.min(1, (root.mode === "full" ? root.reveal : reveal) * 1.5)
+            transform: Translate {
+                x: region.slide.x
+                y: region.slide.y
+            }
+
+
             // Where its icon widgets run along the bar ([from, to] in the
             // bar's coordinates), or null.
             readonly property var iconSpan: {
