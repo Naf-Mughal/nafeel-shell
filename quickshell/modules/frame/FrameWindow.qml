@@ -727,7 +727,7 @@ PanelWindow {
             // Once made it stays made (the turn stays due).
             property bool made: false
 
-            Component.onCompleted: turn = Prewarm.enlist()
+            Component.onCompleted: turn = Prewarm.enlist("settings")
             active: settings.active || made || Prewarm.due(turn)
             asynchronous: !settings.active
             onLoaded: made = true
@@ -826,7 +826,7 @@ PanelWindow {
                 // Its place in the warm-up queue, taken once.
                 Component.onCompleted: {
                     if (pd.warm)
-                        turn = Prewarm.enlist();
+                        turn = Prewarm.enlist(`drawer ${pd.name}`);
                 }
                 active: pd.active || (pd.warm && (pd.opened || Prewarm.due(turn)))
                 asynchronous: !pd.active

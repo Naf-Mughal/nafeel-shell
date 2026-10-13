@@ -192,7 +192,7 @@ Item {
                     anchors.fill: parent
                     visible: shown
                     // Its place in the warm-up queue, taken once.
-                    Component.onCompleted: turn = Prewarm.enlist()
+                    Component.onCompleted: turn = Prewarm.enlist(`command center ${tabId}`)
                     active: (shown && root.expanded) || Prewarm.due(turn)
                     asynchronous: !(shown && root.expanded)
                     onShownChanged: {

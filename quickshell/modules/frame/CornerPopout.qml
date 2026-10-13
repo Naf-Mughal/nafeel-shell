@@ -122,7 +122,7 @@ Drawer {
             width: root.panelWidth - root.pad - (root.side ? root.pad : root.barPad)
             visible: shown
             // Its place in the warm-up queue, taken once.
-            Component.onCompleted: turn = Prewarm.enlist()
+            Component.onCompleted: turn = Prewarm.enlist(`popout ${kind} (${root.place})`)
             active: (shown && root.active) || Prewarm.due(turn)
             asynchronous: !(shown && root.active)
             sourceComponent: root.components[kind] ?? (root.pluginPopouts[kind] ? Qt.createComponent(root.pluginPopouts[kind].url) : null)

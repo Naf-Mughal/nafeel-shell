@@ -71,7 +71,9 @@ Item {
         }
     }
 
-    Scroller {
+    // The history, virtualised: only the cards in view (and a screen's worth
+    // around) are made, not all of it (up to 100, kept warm in three panels).
+    Strip {
         id: list
 
         anchors.top: header.bottom
@@ -79,35 +81,26 @@ Item {
         anchors.bottom: controls.top
         anchors.bottomMargin: Tokens.spacing.normal
         width: parent.width
-        contentHeight: cards.implicitHeight
-        clip: true
+        orientation: ListView.Vertical
+        spacing: Tokens.spacing.small
+        cacheBuffer: 400
+        model: Notifs.history
 
-        Column {
-            id: cards
+        delegate: NotificationCard {
+            required property var modelData
 
-            width: parent.width
-            spacing: Tokens.spacing.small
-
-            Repeater {
-                model: Notifs.history
-
-                NotificationCard {
-                    required property var modelData
-
-                    width: cards.width
-                    entry: modelData
-                }
-            }
+            width: list.width
+            entry: modelData
         }
+    }
 
-        EmptyState {
-            anchors.centerIn: parent
-            width: parent.width
-            visible: Notifs.history.length === 0
-            icon: "notifications_paused"
-            title: "All quiet"
-            hint: Notifs.dnd ? "Do not disturb is on" : "No messages have arrived"
-        }
+    EmptyState {
+        anchors.centerIn: list
+        width: list.width
+        visible: Notifs.history.length === 0
+        icon: "notifications_paused"
+        title: "All quiet"
+        hint: Notifs.dnd ? "Do not disturb is on" : "No messages have arrived"
     }
 
     Column {

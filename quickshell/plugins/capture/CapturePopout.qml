@@ -180,7 +180,9 @@ Column {
 
                 Tile {
                     required property var modelData
-                    readonly property string current: root.shot ? root.p.shot : root.p.area
+                    // ("" until the capture service has its settings: built ahead,
+                    // the popout can be made before it.)
+                    readonly property string current: (root.shot ? root.p?.shot : root.p?.area) ?? ""
 
                     width: (root.width - Tokens.spacing.small * (root.shot ? 2 : 1)) / (root.shot ? 3 : 2)
                     icon: modelData.icon

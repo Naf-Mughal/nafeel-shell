@@ -50,29 +50,25 @@ Panel {
         hint: root.notifs.dnd ? "Do not disturb is on" : "No messages have arrived"
     }
 
-    Scroller {
+    // The history, virtualised: only the cards in view (and a screen's
+    // worth around) are made, not all of it (up to 100, kept warm here and
+    // in the command center's tab).
+    Strip {
+        id: cards
+
         width: parent.width
-        height: Math.min(cards.implicitHeight, 460)
+        height: Math.min(contentHeight, 460)
         visible: root.notifs.history.length > 0
-        contentHeight: cards.implicitHeight
-        clip: true
+        orientation: ListView.Vertical
+        spacing: Tokens.spacing.small
+        cacheBuffer: 400
+        model: root.notifs.history
 
-        Column {
-            id: cards
+        delegate: NotificationCard {
+            required property var modelData
 
-            width: parent.width
-            spacing: Tokens.spacing.small
-
-            Repeater {
-                model: root.notifs.history
-
-                NotificationCard {
-                    required property var modelData
-
-                    width: cards.width
-                    entry: modelData
-                }
-            }
+            width: cards.width
+            entry: modelData
         }
     }
 }

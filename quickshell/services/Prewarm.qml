@@ -19,8 +19,15 @@ Singleton {
 
     property bool started: false
 
+    // Who's in the queue, by place (for the log).
+    property var names: []
+    // NAFEEL_PREWARM_LOG=1: a turn every 1.5 s, each logged ("prewarm:
+    // <name>"), to measure what each panel costs (bin/mem-prewarm).
+    readonly property bool logging: Quickshell.env("NAFEEL_PREWARM_LOG") === "1"
+
     // A place in the queue.
-    function enlist(): int {
+    function enlist(name: string): int {
+        names.push(name ?? "");
         return enlisted++;
     }
 
@@ -42,13 +49,18 @@ Singleton {
     Timer {
         id: tick
 
-        interval: 150
+        interval: root.logging ? 1500 : 150
         repeat: true
         onTriggered: {
-            if (root.step < root.enlisted)
+            if (root.step < root.enlisted) {
+                if (root.logging)
+                    console.info(`prewarm: ${root.names[root.step] || root.step}`);
                 root.step++;
-            else
+            } else {
+                if (root.logging)
+                    console.info("prewarm: done");
                 stop();
+            }
         }
     }
 
