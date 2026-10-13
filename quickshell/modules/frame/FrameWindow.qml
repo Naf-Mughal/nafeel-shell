@@ -657,10 +657,19 @@ PanelWindow {
         shellScreen: win.screen
         enabled: !win.fullscreen
         // Grown by the window previews while one app's show beside the dock.
-        // Leaving altogether (no dock to become: a window on the
-        // workspace), it leaves at its size: switched to the dock's as it
-        // closed, it shrank a quarter in one frame before it went.
-        readonly property bool big: expanded || !open
+        // The command center leaving altogether (no dock to become: a window
+        // on the workspace) leaves at its size: switched to the dock's as it
+        // closed, it shrank a quarter in one frame before it went. Only it:
+        // the dock closing stays the dock's size (grown toward the command
+        // center's as it left, it reached back under the pointer and hover
+        // opened it again, over and over).
+        property bool keepBig: false
+        readonly property bool big: expanded || keepBig
+        onExpandedChanged: keepBig = !expanded && !(current === "dock" || workspaceEmpty)
+        onActiveChanged: {
+            if (!active)
+                keepBig = false;
+        }
         panelWidth: big ? 920 : side ? dockDepth : dockLength
         panelHeight: big ? 640 : side ? dockLength : dockDepth
 
