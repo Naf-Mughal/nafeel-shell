@@ -136,7 +136,10 @@ MpvVideo::MpvVideo(QQuickItem *parent) : QQuickFramebufferObject(parent) {
              {"demuxer-max-bytes", "8MiB"},
              {"demuxer-max-back-bytes", "2MiB"},
              {"cache", "no"},
-             {"vd-lavc-threads", "2"},
+             // The GPU decodes; a CPU decoder thread each only kept its own
+             // set of 4K frame contexts (ffmpeg's pools, tens of MB).
+             {"vd-lavc-threads", "1"},
+             {"hwdec-extra-frames", "2"},
              {"stop-screensaver", "no"},
              {"terminal", "no"},
          })

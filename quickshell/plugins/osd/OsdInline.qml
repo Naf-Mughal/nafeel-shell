@@ -19,7 +19,7 @@ Surface {
     role: "paper"
     emphasis: "strong"
     level: 3
-    radius: Tokens.rounding.morph
+    shapeRadius: Tokens.rounding.morph
     clip: true
     opacity: (Plugins.instance("osd")?.shown ?? false) ? 1 : 0
     scale: (Plugins.instance("osd")?.shown ?? false) ? 1 : 0.92

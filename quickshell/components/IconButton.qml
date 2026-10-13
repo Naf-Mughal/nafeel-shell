@@ -21,10 +21,10 @@ Surface {
     pressDepth: 0.9
     implicitWidth: size
     implicitHeight: size
-    color: filled ? fillColour : Colours.roleFill("paper", "soft", 3)
+    fill: filled ? fillColour : Colours.roleFill("paper", "soft", 3)
     ink: filled ? inkColour : Colours.palette.m3onSurface
     // M3 Expressive shape morph: rounder at rest, squarer while pressed.
-    radius: pressed ? Tokens.rounding.small : Math.min(size / 2, Tokens.rounding.morph)
+    shapeRadius: pressed ? Tokens.rounding.small : Math.min(size / 2, Tokens.rounding.morph)
 
     Column {
         anchors.centerIn: parent

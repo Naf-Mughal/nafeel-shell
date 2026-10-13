@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.config
 import qs.services
 
@@ -70,7 +71,8 @@ Item {
     // so it's let go while the lock screen plays it).
     Loader {
         anchors.fill: parent
-        active: root.path !== "" && Wallpapers.isVideo(root.path) && !ShellState.locked
+        // (NAFEEL_NO_VIDEO=1: the still only, to measure what the player costs.)
+        active: root.path !== "" && Wallpapers.isVideo(root.path) && !ShellState.locked && Quickshell.env("NAFEEL_NO_VIDEO") !== "1"
         sourceComponent: VideoLayer {
             source: "file://" + Wallpapers.playOf(root.path)
             run: root.playing

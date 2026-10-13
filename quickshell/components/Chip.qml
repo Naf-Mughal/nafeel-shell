@@ -14,7 +14,7 @@ Surface {
 
     role: selected ? "secondary" : "paper"
     level: 3
-    radius: pressed ? Tokens.rounding.small : Tokens.rounding.morph
+    shapeRadius: pressed ? Tokens.rounding.small : Tokens.rounding.morph
     interactive: true
     pressDepth: 0.94
     implicitHeight: 32

@@ -170,7 +170,7 @@ Panel {
             height: 56
             role: "primary"
             emphasis: "strong"
-            radius: root.player?.isPlaying ? Tokens.rounding.small : Tokens.rounding.morph * 1.6
+            shapeRadius: root.player?.isPlaying ? Tokens.rounding.small : Tokens.rounding.morph * 1.6
 
             Behavior on radius {
                 Anim {

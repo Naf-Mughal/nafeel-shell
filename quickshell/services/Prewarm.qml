@@ -24,6 +24,9 @@ Singleton {
     // NAFEEL_PREWARM_LOG=1: a turn every 1.5 s, each logged ("prewarm:
     // <name>"), to measure what each panel costs (bin/mem-prewarm).
     readonly property bool logging: Quickshell.env("NAFEEL_PREWARM_LOG") === "1"
+    // NAFEEL_PREWARM_SKIP=part,part: never warm the panels whose name holds
+    // one of these (bin/mem-prewarm compares what each costs).
+    readonly property var skip: (Quickshell.env("NAFEEL_PREWARM_SKIP") || "").split(",").filter(s => s)
 
     // A place in the queue.
     function enlist(name: string): int {
@@ -33,7 +36,7 @@ Singleton {
 
     // Whether the turn of the one holding place `n` has come.
     function due(n: int): bool {
-        return n >= 0 && n < step;
+        return n >= 0 && n < step && !skip.some(s => (names[n] ?? "").includes(s));
     }
 
     Timer {

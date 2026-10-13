@@ -21,7 +21,7 @@ Surface {
     interactive: true
     pressDepth: 0.97
     implicitHeight: 64
-    radius: checked ? Tokens.rounding.large : pressed ? Tokens.rounding.small : Tokens.rounding.normal
+    shapeRadius: checked ? Tokens.rounding.large : pressed ? Tokens.rounding.small : Tokens.rounding.normal
 
     Column {
         visible: root.stacked

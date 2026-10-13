@@ -11,6 +11,11 @@ import qs.services
 //   Surface { role: "primary"; emphasis: "strong"; interactive: true; onClicked: … }
 //
 // Children read `ink` / `subInk` for their text and icons.
+//
+// Only an interactive one carries the interaction: its state layer, press
+// bounce, handlers and the animations of its fill, radius and scale are made
+// with it (a Loader); a still card is just its rectangle. (Every Surface made
+// them all: ~2500 surfaces, each a dozen objects, most never touched.)
 StyledRect {
     id: root
 
@@ -29,64 +34,110 @@ StyledRect {
 
     property color ink: Colours.roleInk(role, emphasis)
     property color subInk: Colours.roleSubInk(role, emphasis)
-    readonly property bool hovered: hover.hovered
-    readonly property bool pressed: tap.pressed
+    readonly property bool hovered: interaction.item?.hovered ?? false
+    readonly property bool pressed: interaction.item?.pressed ?? false
     readonly property real restRadius: shape === "full" ? Math.min(width, height) / 2 : shape === "small" ? Tokens.rounding.small : shape === "large" ? Tokens.rounding.large : Tokens.rounding.normal
+    // The fill for its role, and the radius for its shape (squarer while
+    // pressed, the Expressive morph): what it shows; an interactive one
+    // animates to them. A control with its own fill or shape sets these, not
+    // `color` or `radius`.
+    property color fill: Colours.roleFill(role, emphasis, level)
+    property real shapeRadius: morph && pressed ? Math.min(restRadius, Tokens.rounding.small) : restRadius
 
     signal clicked
     signal rightClicked
     signal middleClicked
 
-    color: Colours.roleFill(role, emphasis, level)
-    radius: morph && pressed ? Math.min(restRadius, Tokens.rounding.small) : restRadius
+    color: fill
+    radius: shapeRadius
     border.width: outlined ? Tokens.hairline : 0
     border.color: Qt.alpha(Colours.palette.m3onSurface, 0.13)
 
-    Behavior on radius {
-        Anim {
-            duration: Tokens.anim.fast
-            easing.bezierCurve: Tokens.anim.expressiveFastSpatial
-        }
-    }
-    Behavior on scale {
-        SpringAnimation {
-            spring: Tokens.spring.bouncy.spring
-            damping: Tokens.spring.bouncy.damping
-            epsilon: 0.002
-        }
-    }
+    Loader {
+        id: interaction
 
-    StateLayer {
-        visible: root.interactive
-        hovered: root.hovered
-        pressed: root.pressed
-        ink: root.ink
-    }
+        anchors.fill: parent
+        active: root.interactive
+        sourceComponent: Item {
+            id: ix
 
-    PressBounce {
-        pressed: root.interactive && root.pressed
-        depth: root.pressDepth
-    }
+            readonly property bool hovered: hover.hovered
+            readonly property bool pressed: tap.pressed
 
-    HoverHandler {
-        id: hover
+            // The fill fades between states (checked, selected, …).
+            property color fill: root.fill
+            Behavior on fill {
+                CAnim {}
+            }
+            Binding {
+                target: root
+                property: "color"
+                value: ix.fill
+                restoreMode: Binding.RestoreBindingOrValue
+            }
 
-        enabled: root.interactive
-        cursorShape: Qt.PointingHandCursor
-    }
+            // The shape, animated (the Expressive morph while pressed).
+            property real shapeRadius: root.shapeRadius
+            Behavior on shapeRadius {
+                Anim {
+                    duration: Tokens.anim.fast
+                    easing.bezierCurve: Tokens.anim.expressiveFastSpatial
+                }
+            }
+            Binding {
+                target: root
+                property: "radius"
+                value: ix.shapeRadius
+                restoreMode: Binding.RestoreBindingOrValue
+            }
 
-    TapHandler {
-        id: tap
+            // Press physics: a squash that springs back past rest.
+            property real bounce: pressed ? root.pressDepth : 1
+            Behavior on bounce {
+                SpringAnimation {
+                    spring: Tokens.spring.bouncy.spring
+                    damping: Tokens.spring.bouncy.damping
+                    epsilon: 0.002
+                }
+            }
+            Binding {
+                target: root
+                property: "scale"
+                value: ix.bounce
+                restoreMode: Binding.RestoreBindingOrValue
+            }
 
-        enabled: root.interactive
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onTapped: (eventPoint, button) => {
-            if (button === Qt.RightButton)
-                root.rightClicked();
-            else if (button === Qt.MiddleButton)
-                root.middleClicked();
-            else
-                root.clicked();
+            StateLayer {
+                hovered: ix.hovered
+                pressed: ix.pressed
+                ink: root.ink
+                // The surface's shape (its parent here is this holder).
+                radius: root.radius
+                topLeftRadius: root.topLeftRadius
+                topRightRadius: root.topRightRadius
+                bottomLeftRadius: root.bottomLeftRadius
+                bottomRightRadius: root.bottomRightRadius
+            }
+
+            HoverHandler {
+                id: hover
+
+                cursorShape: Qt.PointingHandCursor
+            }
+
+            TapHandler {
+                id: tap
+
+                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                onTapped: (eventPoint, button) => {
+                    if (button === Qt.RightButton)
+                        root.rightClicked();
+                    else if (button === Qt.MiddleButton)
+                        root.middleClicked();
+                    else
+                        root.clicked();
+                }
+            }
         }
     }
 }
