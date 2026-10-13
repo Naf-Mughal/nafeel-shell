@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.SystemTray
 import qs.config
 
@@ -536,5 +537,47 @@ Singleton {
         if (!at)
             return Plugins.popouts[popout]?.corner ?? "topLeft";
         return target(at);
+    }
+
+    // The studio's edits from the command line (and for testing it):
+    //   qs ipc call bar move clock top center ""   (before "" = last)
+    IpcHandler {
+        target: "bar"
+
+        function move(id: string, edge: string, region: string, before: string): void {
+            root.moveWidget(id, edge, region, before);
+        }
+        function hide(id: string): void {
+            root.hideWidget(id);
+        }
+        // A panel to an edge's region, or a corner (region ""), or back to
+        // its default (edge "").
+        function place(name: string, edge: string, region: string): void {
+            root.placePanel(name, edge === "" ? null : region === "" ? {
+                corner: edge
+            } : {
+                edge: edge,
+                region: region
+            });
+        }
+        function edge(edge: string, key: string, value: string): void {
+            root.setEdge(edge, key, value);
+        }
+        function corner(corner: string, value: string): void {
+            root.setCorner(corner, value);
+        }
+        function preset(name: string): void {
+            root.usePreset(name);
+        }
+        function save(): void {
+            root.save();
+        }
+        function revert(): void {
+            root.revert();
+        }
+        // The layout in effect (the draft while editing), as JSON.
+        function json(): string {
+            return JSON.stringify(root.layout);
+        }
     }
 }

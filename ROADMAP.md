@@ -701,7 +701,13 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   panels only), the Hidden tray (an icon dropped there is hidden, its panel staying put; a
   panel dropped there goes back to its default place), the selected edge's shape (full /
   regions) and visibility (per region in regions mode), and the corners' owners on a conflict.
-  Drag and drop untested by hand yet.
+  Rebuilt the same day after the user's review (it looked bad, didn't follow the primitives and
+  dragging didn't work: the dragged face was reparented into a Column and the page's Flickable
+  stole the drag): Sheets with glosses, Surfaces for the screen, bands, zones and chips,
+  IconButtons for Save/Revert, Chips for presets; pick-then-place by clicking as well as
+  dragging (MouseArea preventStealing, the face floats in an overlay Item, the drop target is
+  read and applied after the face is put back); a picked-chip card (hide / back to default).
+  `qs ipc call bar move|hide|place|edge|corner|preset|save|revert|json` drives the same edits.
 - [ ] **B7 Edit mode on the real bar** (from the studio page or a key): the bars' widgets become
   draggable, the drop zones light up, a small toolbar has the presets, Save and Revert.
 

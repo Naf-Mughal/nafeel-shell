@@ -5,45 +5,77 @@ import qs.config
 import qs.services
 import qs.components
 
-// Settings → Bar: the bar studio (ROADMAP B6). A miniature of the screen
-// with a drop zone for each edge's start, centre and end and each corner;
-// icons (filled chips) and panels (outlined chips) are dragged between
-// them, an icon dropped on "Hidden" is hidden (its panel stays where it was
-// until placed). Click an edge to set its mode and how it shows; the
-// corners' owners are set below. Every change is live on the desktop (a
-// BarLayout draft); Save keeps it, Revert, or closing Settings unsaved,
-// walks back.
-Column {
+// Settings → Bar: the bar studio (ROADMAP B6). A miniature of the screen:
+// each edge's start, centre and end, and the four corners, holding the
+// icons (filled) and panels (outlined) placed there. Move one by dragging
+// it, or by clicking it and then where it goes; an icon put on Hidden is
+// hidden (its panel stays where it was until it's placed). Click an edge
+// for its shape and how it shows; the corners' owners are below. Every
+// change is live on the desktop (a BarLayout draft): Save keeps it, Revert
+// (or leaving Settings unsaved) walks back. Scriptable too: `qs ipc call bar …`.
+Item {
     id: root
 
-    // The edge whose settings show below the miniature.
+    // The edge whose settings show below the screen.
     property string selectedEdge: "left"
-    // The chip under the pointer, named in the status line.
-    property string hoverText: ""
+    // The chip picked to move by clicking ({ kind, id, icon, label }), or null.
+    property var picked: null
+    // The preset last applied (its chip shows selected until the next edit).
+    property string preset: ""
 
-    spacing: Tokens.spacing.large
-
-    // Closing the studio with unsaved changes walks the desktop back.
-    Component.onDestruction: BarLayout.revert()
-
-    readonly property var edgeLabels: ({
+    readonly property var edgeGloss: ({
+            left: "左",
+            top: "上",
+            right: "右",
+            bottom: "下"
+        })
+    readonly property var edgeName: ({
             left: "Left",
             top: "Top",
             right: "Right",
             bottom: "Bottom"
         })
+    readonly property var regionName: ({
+            start: "start",
+            center: "centre",
+            end: "end"
+        })
+
+    implicitHeight: page.implicitHeight
+
+    // Leaving the studio with unsaved changes walks the desktop back.
+    Component.onDestruction: BarLayout.revert()
+
+    Connections {
+        target: BarLayout
+
+        function onDraftChanged(): void {
+            if (BarLayout.draft === null)
+                root.preset = "";
+        }
+    }
+
+    function describe(at: var): string {
+        if (!at)
+            return "not placed";
+        if (at.corner)
+            return `${at.corner.replace(/([A-Z])/, " $1").toLowerCase()} corner`;
+        return `${edgeName[at.edge]} edge · ${regionName[at.region]}`;
+    }
 
     // A region's chips: its icons, then the panels placed there.
     function chipsAt(edge: string, region: string): var {
-        const out = BarLayout.rawWidgets(edge, region).filter(id => !(BarLayout.layout.hidden ?? []).includes(id)).map(id => ({
-                    kind: "widget",
+        const hidden = BarLayout.layout.hidden ?? [];
+        return BarLayout.rawWidgets(edge, region).filter(id => !hidden.includes(id)).map(id => ({
+                    kind: "icon",
                     id: id,
                     icon: BarLayout.catalogue[id]?.icon ?? "widgets",
                     label: BarLayout.catalogue[id]?.name ?? id
-                }));
-        return out.concat(panelsAt(p => !p.corner && p.edge === edge && p.region === region));
+                })).concat(panelsAt(at => !at.corner && at.edge === edge && at.region === region));
     }
 
+    // The panels whose place passes `test`: drawers, and the popouts whose
+    // icon is hidden (a shown icon carries its panel).
     function panelsAt(test: var): var {
         const out = [];
         for (const p of BarLayout.panelList) {
@@ -56,12 +88,9 @@ Column {
                     label: p.label
                 });
         }
-        // Popouts whose icon is hidden: placed on their own.
         for (const id of (BarLayout.layout.hidden ?? [])) {
             const pop = BarLayout.catalogue[id]?.popout;
-            if (!pop)
-                continue;
-            const at = BarLayout.popoutPlace(pop);
+            const at = pop ? BarLayout.popoutPlace(pop) : null;
             if (at && test(at))
                 out.push({
                     kind: "panel",
@@ -73,263 +102,382 @@ Column {
         return out;
     }
 
-    // What a drop on a place does.
-    function dropAt(data: var, at: var, before: string): void {
-        if (!data)
-            return;
-        if (data.kind === "widget") {
-            if (at.corner)
-                return; // icons go on bars; a corner takes panels
-            BarLayout.moveWidget(data.id, at.edge, at.region, before === data.id ? "" : before);
-        } else {
-            BarLayout.placePanel(data.id, at);
-        }
+    function placeOfChip(c: var): var {
+        return c.kind === "icon" ? BarLayout.placeOf(c.id) : BarLayout.panelAt(c.id);
     }
 
-    // ── Presets, Save, Revert ──
-    Row {
-        width: parent.width
-        spacing: Tokens.spacing.normal
+    // Whether `c` can go to `at` (a corner takes panels only).
+    function fits(c: var, at: var): bool {
+        return !!c && !(at.corner && c.kind === "icon");
+    }
 
-        ButtonGroup {
-            width: parent.width - actions.width - Tokens.spacing.normal
-            model: [
-                {
-                    value: "default",
-                    icon: "view_sidebar",
-                    label: "Default"
+    // Move a chip to a place (before the icon `before`, else last).
+    function put(c: var, at: var, before: string): void {
+        if (!fits(c, at))
+            return;
+        if (c.kind === "icon")
+            BarLayout.moveWidget(c.id, at.edge, at.region, before === c.id ? "" : before);
+        else
+            BarLayout.placePanel(c.id, at);
+        picked = null;
+    }
+
+    function hide(c: var): void {
+        if (!c)
+            return;
+        if (c.kind === "icon")
+            BarLayout.hideWidget(c.id);
+        else
+            BarLayout.placePanel(c.id, null);
+        picked = null;
+    }
+
+    Column {
+        id: page
+
+        width: root.width
+        spacing: Tokens.spacing.large
+
+        // ── Presets, Save, Revert ──
+        Sheet {
+            width: parent.width
+            title: "Layout"
+            gloss: "布局"
+
+            trailing: [
+                IconButton {
+                    icon: "undo"
+                    enabled: BarLayout.dirty
+                    opacity: enabled ? 1 : 0.38
+                    onClicked: BarLayout.revert()
                 },
-                {
-                    value: "top",
-                    icon: "toolbar",
-                    label: "Top bar"
-                },
-                {
-                    value: "floating",
-                    icon: "bubble_chart",
-                    label: "Floating"
-                },
-                {
-                    value: "hidden",
-                    icon: "visibility_off",
-                    label: "Autohide"
+                IconButton {
+                    icon: "check"
+                    filled: BarLayout.dirty
+                    fillColour: Colours.palette.m3primary
+                    inkColour: Colours.palette.m3onPrimary
+                    enabled: BarLayout.dirty
+                    opacity: enabled ? 1 : 0.38
+                    onClicked: BarLayout.save()
                 }
             ]
-            current: ""
-            onSelected: v => BarLayout.usePreset(v)
-        }
 
-        Row {
-            id: actions
-
-            spacing: Tokens.spacing.small
-
-            ActionButton {
-                text: "Revert"
-                icon: "undo"
-                enabled: BarLayout.dirty
-                onClicked: BarLayout.revert()
-            }
-
-            ActionButton {
-                text: "Save"
-                icon: "check"
-                primary: true
-                enabled: BarLayout.dirty
-                onClicked: BarLayout.save()
-            }
-        }
-    }
-
-    // ── The miniature ──
-    Item {
-        id: mini
-
-        readonly property real band: 46
-        readonly property real cornerSize: band
-
-        width: parent.width
-        height: Math.round(width * 0.56)
-
-        // The desktop.
-        Surface {
-            anchors.fill: parent
-            anchors.margins: mini.band
-            level: 1
-            shape: "small"
-
-            Column {
-                anchors.centerIn: parent
-                width: parent.width - Tokens.spacing.large * 2
+            Flow {
+                width: parent.width
                 spacing: Tokens.spacing.small
 
-                MaterialIcon {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "drag_pan"
-                    size: 28
-                    color: Colours.palette.m3outline
-                }
+                Repeater {
+                    model: [
+                        {
+                            value: "default",
+                            icon: "view_sidebar",
+                            label: "Default"
+                        },
+                        {
+                            value: "top",
+                            icon: "toolbar",
+                            label: "Top bar"
+                        },
+                        {
+                            value: "floating",
+                            icon: "bubble_chart",
+                            label: "Floating"
+                        },
+                        {
+                            value: "hidden",
+                            icon: "visibility_off",
+                            label: "Autohide"
+                        }
+                    ]
 
-                StyledText {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    text: root.hoverText || "Drag icons and panels between the edges and corners. Click an edge for its settings."
-                    color: Colours.palette.m3onSurfaceVariant
-                    font.pixelSize: Tokens.font.small
-                }
+                    Chip {
+                        required property var modelData
 
-                MicroLabel {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: BarLayout.dirty
-                    text: "unsaved · live on the desktop"
-                    color: Colours.palette.m3primary
+                        icon: modelData.icon
+                        text: modelData.label
+                        selected: root.preset === modelData.value
+                        onClicked: {
+                            BarLayout.usePreset(modelData.value);
+                            root.preset = modelData.value;
+                        }
+                    }
                 }
+            }
+
+            StyledText {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: BarLayout.dirty ? "Unsaved: the desktop shows it live. Save keeps it; Revert or leaving Settings walks back." : "Drag an icon or a panel to move it, or click it and then where it goes."
+                color: BarLayout.dirty ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                font.pixelSize: Tokens.font.small
             }
         }
 
-        // Each edge's band (click to select) with its three zones.
-        Repeater {
-            model: BarLayout.edgeNames
+        // ── The screen ──
+        Sheet {
+            width: parent.width
+            title: "Screen"
+            gloss: "屏幕"
 
             Item {
-                id: band
+                id: mini
 
-                required property string modelData
-                readonly property bool vertical: modelData === "left" || modelData === "right"
-                readonly property bool selected: root.selectedEdge === modelData
+                readonly property real side: 72
+                readonly property real across: 44
 
-                x: modelData === "right" ? mini.width - mini.band : vertical ? 0 : mini.cornerSize
-                y: modelData === "bottom" ? mini.height - mini.band : vertical ? mini.cornerSize : 0
-                width: vertical ? mini.band : mini.width - mini.cornerSize * 2
-                height: vertical ? mini.height - mini.cornerSize * 2 : mini.band
+                width: parent.width
+                height: Math.round(width * 0.6)
 
-                StyledRect {
-                    anchors.fill: parent
-                    anchors.margins: 1
-                    radius: Tokens.rounding.small
-                    color: band.selected ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainer
-                    border.width: band.selected ? 1 : 0
-                    border.color: Colours.palette.m3secondary
-                }
+                // The desktop: what's picked, or how to use it.
+                Surface {
+                    x: mini.side
+                    y: mini.across
+                    width: mini.width - mini.side * 2
+                    height: mini.height - mini.across * 2
+                    level: 1
+                    shape: "large"
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.selectedEdge = band.modelData
-                }
+                    Column {
+                        anchors.centerIn: parent
+                        width: parent.width - Tokens.spacing.large * 2
+                        spacing: Tokens.spacing.small
 
-                Grid {
-                    anchors.fill: parent
-                    anchors.margins: 3
-                    columns: band.vertical ? 1 : 3
-                    spacing: 3
-
-                    Repeater {
-                        model: BarLayout.regionNames
-
-                        Zone {
-                            required property string modelData
-
-                            width: band.vertical ? parent.width : (parent.width - 6) / 3
-                            height: band.vertical ? (parent.height - 6) / 3 : parent.height
-                            place: ({
-                                    edge: band.modelData,
-                                    region: modelData
-                                })
-                            chips: root.chipsAt(band.modelData, modelData)
-                            hint: `${root.edgeLabels[band.modelData]} · ${modelData}`
+                        MaterialIcon {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: root.picked ? root.picked.icon : "drag_pan"
+                            size: 30
+                            fill: root.picked ? 1 : 0
+                            color: root.picked ? Colours.palette.m3primary : Colours.palette.m3outline
                         }
+
+                        StyledText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            text: root.picked ? root.picked.label : "Your screen"
+                            font.pixelSize: Tokens.font.row
+                            font.weight: Font.DemiBold
+                        }
+
+                        StyledText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            text: root.picked ? `${root.describe(root.placeOfChip(root.picked))} · click where it goes${root.picked.kind === "icon" ? ", or Hidden" : ""}` : "Click an edge for its settings"
+                            color: Colours.palette.m3onSurfaceVariant
+                            font.pixelSize: Tokens.font.small
+                        }
+                    }
+                }
+
+                // Each edge: a band (click it for its settings) with three zones.
+                Repeater {
+                    model: BarLayout.edgeNames
+
+                    Surface {
+                        id: band
+
+                        required property string modelData
+                        readonly property bool vertical: modelData === "left" || modelData === "right"
+                        readonly property bool selected: root.selectedEdge === modelData
+
+                        x: modelData === "right" ? mini.width - mini.side : vertical ? 0 : mini.side
+                        y: modelData === "bottom" ? mini.height - mini.across : vertical ? mini.across : 0
+                        width: vertical ? mini.side : mini.width - mini.side * 2
+                        height: vertical ? mini.height - mini.across * 2 : mini.across
+                        role: selected ? "secondary" : "paper"
+                        emphasis: selected ? "ghost" : "soft"
+                        level: 0
+                        shape: "small"
+                        outlined: selected
+                        interactive: true
+                        onClicked: root.selectedEdge = modelData
+
+                        Grid {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            columns: band.vertical ? 1 : 3
+                            spacing: 4
+
+                            Repeater {
+                                model: BarLayout.regionNames
+
+                                Zone {
+                                    required property string modelData
+
+                                    width: band.vertical ? parent.width : (parent.width - 8) / 3
+                                    height: band.vertical ? (parent.height - 8) / 3 : parent.height
+                                    place: ({
+                                            edge: band.modelData,
+                                            region: modelData
+                                        })
+                                    chips: root.chipsAt(band.modelData, modelData)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // The corners: panels only.
+                Repeater {
+                    model: ["topLeft", "topRight", "bottomLeft", "bottomRight"]
+
+                    Zone {
+                        required property string modelData
+
+                        x: modelData.endsWith("Right") ? mini.width - mini.side : 0
+                        y: modelData.startsWith("bottom") ? mini.height - mini.across : 0
+                        width: mini.side
+                        height: mini.across
+                        place: ({
+                                corner: modelData
+                            })
+                        chips: root.panelsAt(at => at.corner === modelData)
                     }
                 }
             }
         }
 
-        // The corners: panels only.
-        Repeater {
-            model: ["topLeft", "topRight", "bottomLeft", "bottomRight"]
+        // ── What's picked ──
+        Surface {
+            visible: root.picked !== null
+            width: parent.width
+            height: 64
+            level: 2
+            shape: "large"
 
-            Zone {
-                required property string modelData
+            Row {
+                anchors.fill: parent
+                anchors.margins: Tokens.spacing.normal
+                spacing: Tokens.spacing.normal
 
-                x: modelData.endsWith("Right") ? mini.width - mini.cornerSize : 0
-                y: modelData.startsWith("bottom") ? mini.height - mini.cornerSize : 0
-                width: mini.cornerSize
-                height: mini.cornerSize
-                place: ({
-                        corner: modelData
-                    })
-                corner: true
-                chips: root.panelsAt(p => p.corner === modelData)
-                hint: "Corner · panels only"
-            }
-        }
-    }
+                Surface {
+                    id: badge
 
-    // ── Hidden icons (drop an icon here to hide it, a panel to put it back
-    // where it opens by default) ──
-    Surface {
-        id: hiddenTray
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 40
+                    height: 40
+                    role: root.picked?.kind === "panel" ? "tertiary" : "secondary"
+                    emphasis: "soft"
+                    shape: "small"
 
-        width: parent.width
-        height: Math.max(56, hiddenFlow.implicitHeight + Tokens.spacing.normal * 2 + 18)
-        level: 2
-        shape: "small"
-        outlined: hiddenDrop.containsDrag
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        text: root.picked?.icon ?? ""
+                        fill: 1
+                        color: badge.ink
+                    }
+                }
 
-        MicroLabel {
-            x: Tokens.spacing.normal
-            y: Tokens.spacing.small
-            text: "Hidden icons · drop here to hide"
-        }
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 40 - actions.width - Tokens.spacing.normal * 2
 
-        Flow {
-            id: hiddenFlow
+                    StyledText {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        text: root.picked?.label ?? ""
+                        font.weight: Font.DemiBold
+                    }
 
-            x: Tokens.spacing.normal
-            y: Tokens.spacing.small + 18
-            width: parent.width - Tokens.spacing.normal * 2
-            spacing: 4
+                    StyledText {
+                        width: parent.width
+                        elide: Text.ElideRight
+                        text: root.picked ? `${root.picked.kind === "panel" ? "Panel" : "Icon"} · ${root.describe(root.placeOfChip(root.picked))}` : ""
+                        color: Colours.palette.m3onSurfaceVariant
+                        font.pixelSize: Tokens.font.small
+                    }
+                }
 
-            Repeater {
-                model: (BarLayout.layout.hidden ?? []).filter(id => BarLayout.catalogue[id]).map(id => ({
-                            kind: "widget",
-                            id: id,
-                            icon: BarLayout.catalogue[id].icon,
-                            label: BarLayout.catalogue[id].name
-                        }))
+                Row {
+                    id: actions
 
-                StudioChip {
-                    required property var modelData
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.spacing.small
 
-                    info: modelData
+                    IconButton {
+                        icon: root.picked?.kind === "panel" ? "restart_alt" : "visibility_off"
+                        onClicked: root.hide(root.picked)
+                    }
+
+                    IconButton {
+                        icon: "close"
+                        onClicked: root.picked = null
+                    }
                 }
             }
         }
 
-        DropArea {
-            id: hiddenDrop
+        // ── Hidden icons ──
+        Sheet {
+            width: parent.width
+            title: "Hidden"
+            gloss: "隐"
 
-            anchors.fill: parent
-            onDropped: drop => {
-                const d = drop.source?.info;
-                if (!d)
-                    return;
-                if (d.kind === "widget")
-                    BarLayout.hideWidget(d.id);
-                else
-                    BarLayout.placePanel(d.id, null);
+            Surface {
+                id: hiddenTray
+
+                readonly property var chips: (BarLayout.layout.hidden ?? []).filter(id => BarLayout.catalogue[id]).map(id => ({
+                            kind: "icon",
+                            id: id,
+                            icon: BarLayout.catalogue[id].icon,
+                            label: BarLayout.catalogue[id].name
+                        }))
+                readonly property bool target: hiddenDrop.containsDrag || root.picked !== null
+
+                width: parent.width
+                height: Math.max(56, hiddenFlow.implicitHeight + Tokens.spacing.normal * 2)
+                role: target ? "primary" : "paper"
+                emphasis: "ghost"
+                level: 2
+                shape: "normal"
+                outlined: true
+                interactive: root.picked !== null
+                onClicked: root.hide(root.picked)
+
+                StyledText {
+                    anchors.centerIn: parent
+                    visible: hiddenTray.chips.length === 0
+                    text: root.picked ? (root.picked.kind === "icon" ? "Click to hide it" : "Click to put it back where it opens by default") : "Drop an icon here to hide it"
+                    color: hiddenTray.subInk
+                    font.pixelSize: Tokens.font.small
+                }
+
+                Flow {
+                    id: hiddenFlow
+
+                    anchors.fill: parent
+                    anchors.margins: Tokens.spacing.normal
+                    spacing: 4
+
+                    Repeater {
+                        model: hiddenTray.chips
+
+                        StudioChip {
+                            required property var modelData
+
+                            info: modelData
+                        }
+                    }
+                }
+
+                DropArea {
+                    id: hiddenDrop
+
+                    function accept(c: var): void {
+                        root.hide(c);
+                    }
+
+                    anchors.fill: parent
+                }
             }
         }
-    }
 
-    // ── The selected edge ──
-    Sheet {
-        width: parent.width
-        title: `${root.edgeLabels[root.selectedEdge]} edge`
-
-        Column {
+        // ── The selected edge ──
+        Sheet {
             width: parent.width
-            spacing: Tokens.spacing.normal
+            title: `${root.edgeName[root.selectedEdge]} edge`
+            gloss: root.edgeGloss[root.selectedEdge]
 
             SectionLabel {
                 text: "Shape"
@@ -354,7 +502,7 @@ Column {
             }
 
             SectionLabel {
-                text: BarLayout.mode(root.selectedEdge) === "regions" ? "Shows (each region)" : "Shows"
+                text: BarLayout.mode(root.selectedEdge) === "regions" ? "Shows, each region" : "Shows"
             }
 
             Repeater {
@@ -370,13 +518,13 @@ Column {
 
                     MicroLabel {
                         visible: visRow.modelData !== ""
-                        width: 56
+                        width: 52
                         anchors.verticalCenter: parent.verticalCenter
-                        text: visRow.modelData
+                        text: root.regionName[visRow.modelData] ?? ""
                     }
 
                     ButtonGroup {
-                        width: parent.width - (visRow.modelData !== "" ? 56 + Tokens.spacing.normal : 0)
+                        width: parent.width - (visRow.modelData !== "" ? 52 + Tokens.spacing.normal : 0)
                         model: [
                             {
                                 value: "reserve",
@@ -400,21 +548,17 @@ Column {
                 }
             }
         }
-    }
 
-    // ── Corners: who gets one when both bars have something at that end ──
-    Sheet {
-        width: parent.width
-        title: "Corners"
-
-        Column {
+        // ── Corners ──
+        Sheet {
             width: parent.width
-            spacing: Tokens.spacing.small
+            title: "Corners"
+            gloss: "角"
 
             StyledText {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "A corner goes to the bar with something at that end. When both have, it goes to:"
+                text: "A corner goes to the bar with something at that end. When both have, to:"
                 color: Colours.palette.m3onSurfaceVariant
                 font.pixelSize: Tokens.font.small
             }
@@ -456,13 +600,13 @@ Column {
                     spacing: Tokens.spacing.normal
 
                     MicroLabel {
-                        width: 90
+                        width: 84
                         anchors.verticalCenter: parent.verticalCenter
                         text: cornerRow.modelData.label
                     }
 
                     ButtonGroup {
-                        width: parent.width - 90 - Tokens.spacing.normal
+                        width: parent.width - 84 - Tokens.spacing.normal
                         model: [
                             {
                                 value: "vertical",
@@ -488,34 +632,45 @@ Column {
         }
     }
 
-    // A drop zone: an edge's region or a corner, holding its chips.
-    component Zone: Item {
+    // Above everything: a chip's face while it's dragged.
+    Item {
+        id: overlay
+
+        anchors.fill: parent
+        z: 10
+    }
+
+    // A drop zone: an edge's region or a corner, holding its chips. With a
+    // chip picked, clicking it moves the chip here.
+    component Zone: Surface {
         id: zone
 
         required property var place
         property var chips: []
-        property bool corner: false
-        property string hint: ""
+        readonly property bool target: (drop.containsDrag && root.fits(drop.drag.source?.info ?? null, place)) || (root.fits(root.picked, place) && hovered)
 
-        StyledRect {
-            anchors.fill: parent
-            radius: Tokens.rounding.small
-            color: drop.containsDrag ? Colours.palette.m3primaryContainer : zone.corner ? Colours.palette.m3surfaceContainerHigh : "transparent"
-            border.width: 1
-            border.color: drop.containsDrag ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
-        }
+        role: target ? "primary" : "paper"
+        emphasis: target ? "ghost" : "soft"
+        level: place.corner ? 4 : 3
+        shape: "small"
+        outlined: true
+        interactive: root.fits(root.picked, place)
+        onClicked: root.put(root.picked, zone.place, "")
 
         DropArea {
             id: drop
 
+            function accept(c: var): void {
+                root.put(c, zone.place, "");
+            }
+
             anchors.fill: parent
-            onDropped: d => root.dropAt(d.source?.info, zone.place, "")
         }
 
         Flow {
             anchors.fill: parent
             anchors.margins: 3
-            spacing: 2
+            spacing: 3
 
             Repeater {
                 model: zone.chips
@@ -524,48 +679,56 @@ Column {
                     required property var modelData
 
                     info: modelData
-                    // Dropped on a chip: goes before it.
-                    onDroppedOn: d => root.dropAt(d, zone.place, modelData.kind === "widget" ? modelData.id : "")
+                    // Dropped on an icon: goes before it.
+                    onDroppedOn: c => root.put(c, zone.place, modelData.kind === "icon" ? modelData.id : "")
                 }
             }
         }
     }
 
-    // An icon (filled) or panel (outlined) to drag. While dragged, its face
-    // floats above everything (reparented to the studio) and follows the
-    // pointer; let go, it drops on whatever is under it.
+    // An icon (filled) or a panel (outlined). Click to pick it; drag it (its
+    // face floats over the studio, the page doesn't scroll) and let go on a
+    // zone, on another icon (to go before it) or on Hidden.
     component StudioChip: Item {
         id: chip
 
         required property var info
+        readonly property bool isPicked: root.picked !== null && root.picked.kind === info.kind && root.picked.id === info.id
         signal droppedOn(var info)
 
-        width: 21
-        height: 21
+        width: 26
+        height: 26
 
         DropArea {
-            anchors.fill: parent
-            onDropped: d => {
-                if (d.source?.info && d.source.info !== chip.info)
-                    chip.droppedOn(d.source.info);
+            function accept(c: var): void {
+                if (!(c.kind === chip.info.kind && c.id === chip.info.id))
+                    chip.droppedOn(c);
             }
+
+            anchors.fill: parent
         }
 
-        Rectangle {
+        Surface {
             id: face
 
-            // What a drop target reads.
+            // What a drop reads.
             readonly property var info: chip.info
 
             width: chip.width
             height: chip.height
-            radius: 5
-            color: chip.info.kind === "panel" ? "transparent" : Colours.palette.m3secondaryContainer
-            border.width: chip.info.kind === "panel" ? 1 : 0
-            border.color: Colours.palette.m3tertiary
-            scale: dragArea.drag.active ? 1.25 : dragArea.containsMouse ? 1.1 : 1
+            role: chip.isPicked ? "primary" : chip.info.kind === "panel" ? "tertiary" : "secondary"
+            emphasis: chip.isPicked ? "strong" : chip.info.kind === "panel" ? "ghost" : "soft"
+            outlined: chip.info.kind === "panel" && !chip.isPicked
+            shape: "small"
+            scale: grab.drag.active ? 1.2 : grab.containsMouse ? 1.08 : 1
 
-            Drag.active: dragArea.drag.active
+            Behavior on scale {
+                Anim {
+                    duration: Tokens.anim.fast
+                }
+            }
+
+            Drag.active: grab.drag.active
             Drag.source: face
             Drag.hotSpot.x: width / 2
             Drag.hotSpot.y: height / 2
@@ -573,70 +736,44 @@ Column {
             MaterialIcon {
                 anchors.centerIn: parent
                 text: chip.info.icon
-                size: 15
+                size: 16
                 fill: chip.info.kind === "panel" ? 0 : 1
-                color: chip.info.kind === "panel" ? Colours.palette.m3tertiary : Colours.palette.m3onSecondaryContainer
+                color: face.ink
             }
         }
 
         MouseArea {
-            id: dragArea
+            id: grab
 
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+            preventStealing: true
+            cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
             drag.target: face
-            onContainsMouseChanged: root.hoverText = containsMouse ? `${chip.info.label} · ${chip.info.kind === "panel" ? "panel" : "icon"}` : ""
             onPressed: {
-                const p = face.mapToItem(root, 0, 0);
-                face.parent = root;
+                const p = face.mapToItem(overlay, 0, 0);
+                face.parent = overlay;
                 face.x = p.x;
                 face.y = p.y;
-                face.z = 100;
             }
+            // The drop target is read first and the face put back before the
+            // move: the move remakes the chips, this one included.
             onReleased: {
-                face.Drag.drop();
+                const dragged = drag.active;
+                const target = face.Drag.target;
+                const info = chip.info;
                 face.parent = chip;
                 face.x = 0;
                 face.y = 0;
+                if (!dragged)
+                    root.picked = chip.isPicked ? null : info;
+                else if (target && typeof target.accept === "function")
+                    Qt.callLater(() => target.accept(info));
             }
-        }
-    }
-
-    // A labelled action button (Save, Revert).
-    component ActionButton: Surface {
-        id: button
-
-        property string text
-        property string icon
-        property bool primary: false
-
-        interactive: enabled
-        role: primary ? "primary" : "paper"
-        emphasis: primary ? "strong" : "soft"
-        shape: "full"
-        opacity: enabled ? 1 : 0.4
-        implicitWidth: label.implicitWidth + 44
-        implicitHeight: 36
-
-        Row {
-            id: label
-
-            anchors.centerIn: parent
-            spacing: 6
-
-            MaterialIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                text: button.icon
-                size: 18
-                color: button.ink
-            }
-
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: button.text
-                color: button.ink
-                font.weight: Font.DemiBold
+            onCanceled: {
+                face.parent = chip;
+                face.x = 0;
+                face.y = 0;
             }
         }
     }
