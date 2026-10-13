@@ -725,11 +725,51 @@ every change); Save keeps it, Revert or closing unsaved walks back.
   all input and the keyboard meanwhile. The chip is components/LayoutChip.qml, shared with the
   studio; the chip lists and moves live in BarLayout (chipsAt, panelChips, put, unplace).
 
+## Stage O: optimization (asked 2026-10-13; then primitives and behaviours, then each panel)
+
+Target: idle about 200-250 MB PSS, never above 350 MB with use.
+
+**Baseline (2026-10-13, measured, nothing changed yet).** With the 4K H.264 live wallpaper
+(motionbgs wandering-samurai, `liveQuality: original`, decoded in-process by ffmpeg on the CPU):
+578 MB fresh, ~700 MB after using panels, up to ~1 GB over a day. With a static wallpaper, from
+a fresh start (soak: every bar popout, dashboard tab, command center tab, Settings page and the
+edit mode once, then five rounds of the heavy panels): **296 MB** idle (226 anon, 69 file,
+36 threads) -> 489 MB after everything once -> 496-521 MB over the rounds (it levels off). Kept
+on first open: wallpaper studio +80, notifications +41, Settings pages +27, the command center's
+notifications tab +16, the dashboard's performance tab +11. `malloc_trim(0)` (gdb as root)
+freed nothing: it's held memory, not fragmentation. heaptrack (peak malloc heap 254 MB; the
+other ~250 MB of anon is outside malloc: the JS heap, scene graph and GL buffers, stacks):
+- decoded images ~96 MB: 55 MB in 480 scaled images kept by Qt Quick's pixmap cache (the
+  wallpaper studio's thumbnails), 16.6 MB in 22 images decoded at full size (no sourceSize:
+  ShapeImage, dashboard UserCard/MediaCard, WallCard, SliceView, lock CaptureImage and the
+  xianxia lock surface, WorkspacesPopout, ClipboardPopout, NotificationCard), 8 MB conversions,
+  4.7 MB WebP;
+- fonts ~60 MB (FreeType + HarfBuzz): a font engine per font x size x weight, each copying the
+  font's tables; Noto Serif CJK (three weights) and the variable Material Symbols at many sizes;
+- Qt GUI caches 35 MB; Mesa's shader compiler 16 MB at peak.
+
+- [ ] **O1 Measure** `shell-msg mem` (PSS, anon, file, threads); the soak as `bin/mem-soak`;
+  budget: after a soak idle <= 350 MB, a panel's first open keeps <= 15 MB; heaptrack when a
+  budget breaks.
+- [ ] **O2 Fonts** (~-40..-50 MB heap, -7 MB mapped): a subset CJK serif of the glyphs the shell
+  uses (glosses, numerals, 时辰, the lock's text); the sizes and weights folded into the tokens;
+  Material Symbols at a few fixed sizes and fills.
+- [ ] **O3 Images** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
+  card, gone on close; a sourceSize on every Image; notification, clipboard, album and avatar
+  images at their shown size, uncached; the wallpaper decoded at screen size.
+- [ ] **O4 Unload closed panels**: every drawer's content destroyed when closed (the studio,
+  notifications, the action center, Settings pages); gc() after a close.
+- [ ] **O5 Outside the heap** (~250 MB): measure, then try the basic render loop, windows made
+  only when needed (overview keys, idle fade, picker), smaller thread pools, live window previews
+  only while visible and at preview size.
+- [ ] **O6 Live wallpaper out of process**: mpv (VAAPI) on the background layer at screen size,
+  paused when covered, fullscreen or locked (and the battery rule); the shell never loads ffmpeg.
+- [ ] **O7 Allocator** (MALLOC_ARENA_MAX, trimming): last; the trim test freed nothing.
+
 ## Ideas, not scheduled
 
 - Custom panels as plugins (a Ryoku Rashin-style dashboard).
 - Dock window thumbnails (WindowThumb).
-- Trim memory (about 230 MB PSS with everything opened once).
 
 ## Notes
 
