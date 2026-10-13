@@ -1,7 +1,5 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
-import Quickshell.Widgets
 import qs.config
 import qs.services
 
@@ -47,22 +45,34 @@ Item {
         color: root.ink
     }
 
-    IconImage {
+    // The app's own icon: shown as it is, or the source of its tint.
+    Image {
         id: own
 
         anchors.centerIn: parent
-        implicitSize: root.size
-        source: Apps.icon(root.appId)
+        width: root.size
+        height: root.size
+        sourceSize: Qt.size(root.size, root.size)
+        fillMode: Image.PreserveAspectFit
+        source: root.glyph ? "" : Apps.icon(root.appId)
         visible: !root.glyph && !root.tint
     }
 
-    // The app's own icon in its kind's colour.
-    MultiEffect {
-        anchors.fill: own
-        visible: root.tint
-        source: own
-        colorization: 1
-        colorizationColor: root.ink
-        brightness: 0.15
+    // The app's own icon in its kind's colour: a shader on the icon's own
+    // texture, made only for a tinted icon. (A MultiEffect on every icon,
+    // tinted or not, was a dozen items and an offscreen copy each: ~1400 of
+    // them in the launcher, dock and switcher.)
+    Loader {
+        anchors.centerIn: parent
+        width: own.paintedWidth
+        height: own.paintedHeight
+        active: root.tint
+        sourceComponent: ShaderEffect {
+            property variant source: own
+            property color ink: root.ink
+            property real lift: 0.15
+
+            fragmentShader: Qt.resolvedUrl("../shaders/tint.frag.qsb")
+        }
     }
 }

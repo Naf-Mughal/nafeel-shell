@@ -68,6 +68,13 @@ plugin_modules() {
 # GPU's video engine (VAAPI) rather than the CPU: less CPU and battery.
 export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
 
+# Quickshell's allocator (jemalloc) holds on to memory it has freed: pages
+# kept dirty for reuse, one arena per CPU, big per-thread caches. Warm, that
+# was ~175 MB of a 647 MB shell. Freed pages go back to the system within half
+# a second (on a jemalloc thread of its own, so not on a frame), one arena,
+# smaller caches: 452 MB, frame timing unchanged (bin/frame-probe).
+export MALLOC_CONF="background_thread:true,dirty_decay_ms:500,muzzy_decay_ms:0,narenas:1,tcache_max:1024${MALLOC_CONF:+,$MALLOC_CONF}"
+
 while :; do
     plugin_modules
     start=$(date +%s)

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import M3Shapes
 import qs.config
 import qs.services
@@ -50,13 +49,15 @@ Item {
         smooth: true
     }
 
-    MultiEffect {
+    // The picture cut to the shape: a shader on the image's own texture and
+    // the shape's layer (a MultiEffect was a dozen items and an offscreen copy
+    // of the picture).
+    ShaderEffect {
+        property variant source: img
+        property variant mask: mask
+
         anchors.fill: parent
         visible: root.ready
-        source: img
-        maskEnabled: true
-        maskSource: mask
-        maskSpreadAtMin: 1
-        maskThresholdMin: 0.5
+        fragmentShader: Qt.resolvedUrl("../shaders/shapemask.frag.qsb")
     }
 }
