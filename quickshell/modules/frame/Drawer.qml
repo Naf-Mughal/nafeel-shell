@@ -73,7 +73,9 @@ Item {
     property real progX: 0
     property real progY: 0
     readonly property real shown: depth * Math.max(0, prog)
-    readonly property bool active: prog > 0.002 || (isCorner && (progX > 0.002 || progY > 0.002)) || leaving
+    // Out, leaving, or about to open (preparing: its shape, blob and layout
+    // set up before it moves, not on its first frames).
+    readonly property bool active: prog > 0.002 || (isCorner && (progX > 0.002 || progY > 0.002)) || leaving || preparing
 
     // Input/hover area: the border strip plus the part that's out.
     readonly property rect region: Qt.rect(shape.x, shape.y, shape.width, shape.height)

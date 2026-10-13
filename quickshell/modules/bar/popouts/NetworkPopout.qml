@@ -19,7 +19,7 @@ Panel {
     // Scans only while the list shows: counted from its making, the panel
     // being made ahead (warm) kept Wi-Fi scanning all the time (battery, and
     // a list re-sorted every few seconds behind whatever was animating).
-    property bool scanning: visible && (ShellState.pinned === "bar:connect" || ShellState.previewed === "bar:connect")
+    property bool scanning: (visible && (ShellState.pinned === "bar:connect" || ShellState.previewed === "bar:connect")) || ShellState.grabbing === "bar:connect"
     onScanningChanged: Network.scanners += scanning ? 1 : -1
     Component.onCompleted: {
         if (scanning)

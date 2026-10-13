@@ -80,7 +80,7 @@ Column {
                     ScreencopyView {
                         id: shot
 
-                        readonly property bool open: ShellState.pinned === "bar:workspaces" || ShellState.previewed === "bar:workspaces"
+                        readonly property bool open: ShellState.pinned === "bar:workspaces" || ShellState.previewed === "bar:workspaces" || ShellState.grabbing === "bar:workspaces"
 
                         anchors.fill: parent
                         visible: card.active && root.screen !== null
@@ -89,7 +89,9 @@ Column {
 
                         Timer {
                             running: shot.open && card.active && shot.captureSource !== null
-                            interval: 500
+                            // The first as it's about to open (before it
+                            // moves), the next once it's out.
+                            interval: 700
                             repeat: true
                             triggeredOnStart: true
                             onTriggered: shot.captureFrame()
