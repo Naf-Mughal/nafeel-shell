@@ -64,6 +64,10 @@ plugin_modules() {
     cmp -s "$out.tmp" "$out" && rm -f "$out.tmp" || mv -f "$out.tmp" "$out"
 }
 
+# Live wallpapers (the desktop's and the lock screen's) are decoded by the
+# GPU's video engine (VAAPI) rather than the CPU: less CPU and battery.
+export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
+
 while :; do
     plugin_modules
     start=$(date +%s)
