@@ -24,6 +24,12 @@ Item {
         Component.onCompleted: play()
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.BufferedMedia || mediaStatus === MediaPlayer.LoadedMedia) {
+                // A play() asked for before the file had loaded is dropped
+                // (Qt 6.12): ask again now, if it's meant to run. (The desktop
+                // got going when `run` changed later; the lock screen, whose
+                // `run` is on from the start, stayed on the first frame.)
+                if (layer.run && player.playbackState !== MediaPlayer.PlayingState)
+                    player.play();
                 if (layer.startAt > 0 && player.seekable)
                     player.position = layer.startAt + 150;
                 settle.restart();
