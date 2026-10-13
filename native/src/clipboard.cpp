@@ -8,6 +8,7 @@
 #include "noctalia/wayland/virtual_keyboard_service.h"
 
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QMetaObject>
 #include <QPointer>
@@ -66,6 +67,8 @@ struct Clipboard::Worker {
     security::SecretStore secretStore;
     security::StorageKeyProvider keys{secretStore};
     ClipboardService clipboard{keys};
+    // The current image preview's file (Clipboard::imageFile).
+    QString previewPath;
     ClipboardPollSource clipboardPoll{clipboard};
     VirtualKeyboardService keyboard;
 
@@ -356,15 +359,79 @@ void Clipboard::retry() {
     });
 }
 
-QString Clipboard::text(int index) {
-    return call<QString>([index](Worker &w) -> QString {
+QString Clipboard::text(int index, int maxChars) {
+    return call<QString>([index, maxChars](Worker &w) -> QString {
         const auto &h = w.clipboard.history();
-        if (index < 0 || std::size_t(index) >= h.size() || h[std::size_t(index)].isImage() ||
-            !w.clipboard.ensureEntryLoaded(std::size_t(index)))
+        if (index < 0 || std::size_t(index) >= h.size() || h[std::size_t(index)].isImage())
+            return {};
+        const bool wasLoaded = h[std::size_t(index)].payloadLoaded;
+        if (!w.clipboard.ensureEntryLoaded(std::size_t(index)))
             return {};
         const auto &d = h[std::size_t(index)].data;
-        return QString::fromUtf8(reinterpret_cast<const char *>(d.data()), qsizetype(d.size()));
+        QString out = QString::fromUtf8(reinterpret_cast<const char *>(d.data()), qsizetype(d.size()));
+        if (maxChars >= 0 && out.size() > maxChars)
+            out.truncate(maxChars);
+        // Only what's on screen stays in memory.
+        if (!wasLoaded)
+            w.clipboard.evictEntryPayload(std::size_t(index));
+        return out;
     }, QString());
+}
+
+namespace {
+QString previewDir() {
+    const QByteArray run = qgetenv("XDG_RUNTIME_DIR");
+    return QString::fromLocal8Bit(run.isEmpty() ? QByteArray("/tmp") : run) + QStringLiteral("/nafeel-shell");
+}
+}
+
+QString Clipboard::imageFile(int index) {
+    return call<QString>([index](Worker &w) -> QString {
+        const auto &h = w.clipboard.history();
+        if (index < 0 || std::size_t(index) >= h.size() || !h[std::size_t(index)].isImage())
+            return {};
+        const auto &e = h[std::size_t(index)];
+        const QString mime = QString::fromStdString(e.dataMimeType);
+        const QString ext = mime.endsWith(QLatin1String("png")) ? QStringLiteral(".png")
+            : mime.contains(QLatin1String("jp")) ? QStringLiteral(".jpg")
+            : mime.endsWith(QLatin1String("webp")) ? QStringLiteral(".webp")
+            : mime.endsWith(QLatin1String("gif")) ? QStringLiteral(".gif")
+            : QStringLiteral(".img");
+        const QString id = e.storageId.empty() ? QString::number(index) : QString::fromStdString(e.storageId);
+        const QString path = previewDir() + QStringLiteral("/clip-") + id + ext;
+        if (path == w.previewPath && QFile::exists(path))
+            return path;
+        const bool wasLoaded = e.payloadLoaded;
+        if (!w.clipboard.ensureEntryLoaded(std::size_t(index)))
+            return {};
+        QDir().mkpath(previewDir());
+        QFile::setPermissions(previewDir(), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        QFile f(path);
+        bool ok = f.open(QIODevice::WriteOnly | QIODevice::Truncate);
+        if (ok) {
+            f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+            ok = f.write(reinterpret_cast<const char *>(e.data.data()), qint64(e.data.size())) == qint64(e.data.size());
+            f.close();
+        }
+        if (!wasLoaded)
+            w.clipboard.evictEntryPayload(std::size_t(index));
+        if (!ok) {
+            QFile::remove(path);
+            return {};
+        }
+        if (!w.previewPath.isEmpty() && w.previewPath != path)
+            QFile::remove(w.previewPath);
+        w.previewPath = path;
+        return path;
+    }, QString());
+}
+
+void Clipboard::clearPreview() {
+    post([](Worker &w) {
+        if (!w.previewPath.isEmpty())
+            QFile::remove(w.previewPath);
+        w.previewPath.clear();
+    });
 }
 
 QString Clipboard::imageUrl(int index) {

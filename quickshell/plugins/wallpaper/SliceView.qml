@@ -25,6 +25,9 @@ Item {
 
     property var model: []
     property int currentIndex: 0
+    // The studio is open: every slice holds its picture; closed (it stays
+    // made, warm), only the ten nearest the current one do, and no full one.
+    property bool awake: true
     readonly property int count: model.length
     // For the store's paging (the picker asks for more near the end).
     readonly property bool atXEnd: count > 0 && currentIndex >= count - 3
@@ -181,7 +184,7 @@ Item {
                     id: img
 
                     anchors.fill: parent
-                    source: Wallpapers.picture(slice.modelData)
+                    source: root.awake || Math.abs(slice.idx - root.currentIndex) <= 5 ? Wallpapers.picture(slice.modelData) : ""
                     sourceSize: Qt.size(Math.round(root.expandedWidth), Math.round(root.height))
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
@@ -191,7 +194,7 @@ Item {
                 Loader {
                     anchors.fill: parent
                     // Open (or opening) only: one full image at a time.
-                    active: slice.isCurrent
+                    active: slice.isCurrent && root.awake
                     // A live wallpaper moves here: its animated preview (the
                     // indexer's, a few seconds as animated WebP), not the video.
                     sourceComponent: (slice.modelData.video ?? false) ? livePreview : stillFull

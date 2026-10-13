@@ -603,6 +603,7 @@ Item {
         id: strip
 
         StripView {
+            awake: root.visible
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }
@@ -612,6 +613,7 @@ Item {
         id: slices
 
         SliceView {
+            awake: root.visible
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }
@@ -621,6 +623,7 @@ Item {
         id: mosaic
 
         MosaicView {
+            awake: root.visible
             model: root.walls
             onPicked: (i, close) => root.choose(close)
         }

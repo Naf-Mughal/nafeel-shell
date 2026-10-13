@@ -44,11 +44,18 @@ Item {
     implicitHeight: page.implicitHeight
 
     // Leaving the studio with unsaved changes walks the desktop back (not
-    // when it handed them to the edit mode on the bar).
-    Component.onDestruction: {
+    // when it handed them to the edit mode on the bar): Settings closing (it
+    // stays made, warm, so this hides rather than goes), or another page.
+    function leave(): void {
         if (!BarLayout.editing)
             BarLayout.revert();
     }
+
+    onVisibleChanged: {
+        if (!visible)
+            leave();
+    }
+    Component.onDestruction: leave()
 
     Connections {
         target: BarLayout

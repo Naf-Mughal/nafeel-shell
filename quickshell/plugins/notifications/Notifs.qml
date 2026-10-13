@@ -192,7 +192,27 @@ Singleton {
         }
 
         history = existing ? history.slice() : [entry, ...history].slice(0, root.maxHistory);
+        root.release();
         saveTimer.restart();
+    }
+
+    // Only the newest ten hold on to their notification (its actions, and
+    // an app's image, which lives as long as it's tracked: up to a screen's
+    // worth each); older ones stay as their text, their raw image let go.
+    readonly property int keepLive: 10
+
+    function release(): void {
+        for (let i = root.keepLive; i < history.length; i++) {
+            const n = history[i];
+            if (!n.notif)
+                continue;
+            if ((n.image ?? "").startsWith("image://"))
+                n.image = "";
+            const notif = n.notif;
+            n.notif = null;
+            n.actions = [];
+            notif.tracked = false;
+        }
     }
 
     // For keybinds:  qs -p <shell> ipc call notifs invokeLatest | dismissLatest | clear | toggleDnd

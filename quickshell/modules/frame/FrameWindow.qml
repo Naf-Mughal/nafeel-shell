@@ -722,11 +722,13 @@ PanelWindow {
 
             anchors.fill: parent
             anchors.margins: Tokens.spacing.large
-            // Heavy: let go when closed (every page's controls), and collected.
-            active: settings.active
+            // Warm: once opened, it stays made while closed (O4).
+            property bool opened: false
+
+            active: settings.active || opened
             onActiveChanged: {
-                if (!active)
-                    Qt.callLater(gc);
+                if (active)
+                    opened = true;
             }
             sourceComponent: SettingsPanel {}
         }

@@ -14,8 +14,7 @@
       "width": "content",
       "height": "content",
       "keyboard": true,
-      "hoverZone": false,
-      "warm": false
+      "hoverZone": false
     }
   ]
 }

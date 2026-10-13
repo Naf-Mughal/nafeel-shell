@@ -23,6 +23,10 @@ Item {
     readonly property bool favourite: Wallpapers.favourites[wall.path] ?? false
     readonly property bool hovered: hover.hovered
 
+    // Whether it holds its picture (the view's say: the studio open, or near
+    // the current wallpaper).
+    property bool keep: true
+
     signal tapped
     signal doubleTapped
 
@@ -42,7 +46,9 @@ Item {
 
         Image {
             anchors.fill: parent
-            source: Wallpapers.picture(root.wall)
+            // Let go while `keep` is off (the studio closed, far from the
+            // current one): warm, it holds ~10 pictures, not every card's.
+            source: root.keep ? Wallpapers.picture(root.wall) : ""
             sourceSize: Qt.size(Math.round(root.width * 1.2), Math.round(root.height * 1.2))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true

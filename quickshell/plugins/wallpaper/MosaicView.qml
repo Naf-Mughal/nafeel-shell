@@ -29,6 +29,10 @@ GridView {
     clip: true
     cellWidth: Math.floor(width / columns)
     cellHeight: Math.round(cellWidth * 9 / 16)
+    // The studio is open: every card holds its picture; closed (it stays
+    // made, warm), only the ten nearest the current one do.
+    property bool awake: true
+
     cacheBuffer: 400
     boundsBehavior: Flickable.StopAtBounds
     highlightFollowsCurrentItem: false
@@ -40,6 +44,7 @@ GridView {
         required property int index
 
         wall: modelData
+        keep: root.awake || Math.abs(index - root.currentIndex) <= 5
         width: root.cellWidth
         height: root.cellHeight
         details: true

@@ -763,7 +763,18 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   text; the SDDM greeter keeps the system's); MaterialIcon's FILL axis is whole (0 or 1): Qt
   made a font engine per distinct axis value, and the animated fill left dozens per size. Not
   done: folding text sizes into the tokens (the measure says it isn't needed yet).
-- [ ] **O3 Images** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
+- [x] **O3/O4 Images, warm panels, clipboard, notifications** (2026-10-13; idle after the soak
+  410 MB with everything warm, the video wallpaper out of process; every panel once keeps 85 MB):
+  panels stay made once opened (manifests' `warm`, default true; the user chose warm, with the
+  wallpaper studio holding only the ~10 pictures nearest the current one while closed, views'
+  `awake`/WallCard `keep`); Settings warm too (the Bar studio reverts unsaved changes when it
+  hides). The clipboard's image preview was the payload base64'd into a data: URL (twice over,
+  then decoded) and every entry looked at stayed loaded (+350 MB for the user): previews are a
+  private file in $XDG_RUNTIME_DIR (Clipboard.imageFile, removed with the popout), payloads let go
+  after use, text previews capped at 20 000 characters. Notifications: only the ten newest keep
+  their live notification (actions, an app's raw image); older ones stay as text. Decode sizes
+  on the remaining images.
+- [ ] **O3 Images (first plan, folded into the above)** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
   card, gone on close; a sourceSize on every Image; notification, clipboard, album and avatar
   images at their shown size, uncached; the wallpaper decoded at screen size.
 - [ ] **O4 Unload closed panels**: every drawer's content destroyed when closed (the studio,

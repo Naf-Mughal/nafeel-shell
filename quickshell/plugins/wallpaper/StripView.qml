@@ -25,6 +25,10 @@ Strip {
         positionViewAtIndex(i, ListView.Center);
     }
 
+    // The studio is open: every card holds its picture; closed (it stays
+    // made, warm), only the ten nearest the current one do.
+    property bool awake: true
+
     cacheBuffer: 600
     centred: true
 
@@ -33,6 +37,7 @@ Strip {
         required property int index
 
         wall: modelData
+        keep: root.awake || Math.abs(index - root.currentIndex) <= 5
         width: Math.round(root.height * 16 / 9)
         height: root.height
         selected: ListView.isCurrentItem

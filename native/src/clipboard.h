@@ -53,10 +53,19 @@ public:
     // Copy a PNG file as an image (a screenshot, say).
     Q_INVOKABLE void copyImageFile(const QString &path);
     Q_INVOKABLE void retry();
-    // The whole text of an entry (loads its payload), or "".
-    Q_INVOKABLE QString text(int index);
-    // An image entry as a data: URL for an Image, or "".
+    // An entry's text (up to `maxChars`, all of it at -1), or "". Its
+    // payload is let go again after, unless it was already in memory.
+    Q_INVOKABLE QString text(int index, int maxChars = -1);
+    // An image entry as a data: URL for an Image, or "". (Costly: the
+    // payload twice over, base64; previews use imageFile.)
     Q_INVOKABLE QString imageUrl(int index);
+    // An image entry written to a private file in $XDG_RUNTIME_DIR (RAM
+    // backed, gone at logout, never on disk decrypted) for an Image to
+    // decode at its size; the previous preview's file is removed and the
+    // payload let go. "" if it can't be.
+    Q_INVOKABLE QString imageFile(int index);
+    // Remove the preview file (the popout closed).
+    Q_INVOKABLE void clearPreview();
 
 signals:
     void entriesChanged();

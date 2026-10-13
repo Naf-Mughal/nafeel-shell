@@ -14,6 +14,9 @@ import qs.components
 Panel {
     id: root
 
+    // The preview's file goes with the popout.
+    Component.onDestruction: Clipboard.clearPreview()
+
     property string query: ""
     // Indices into Clipboard.entries that match the search.
     readonly property var shown: {
@@ -230,8 +233,10 @@ Panel {
                     id: body
 
                     width: textView.width
-                    // The whole text, loaded once per selection.
-                    text: root.entry && !root.entry.image ? Clipboard.text(root.index) : ""
+                    // The text, loaded once per selection (its first 20 000
+                    // characters: a huge paste would cost its size twice
+                    // over to lay out; the copy itself stays whole).
+                    text: root.entry && !root.entry.image ? Clipboard.text(root.index, 20000) : ""
                     wrapMode: Text.WrapAnywhere
                     font.family: Tokens.font.mono
                     font.pixelSize: Tokens.font.small
@@ -244,7 +249,9 @@ Panel {
                 anchors.fill: parent
                 anchors.margins: Tokens.spacing.normal
                 anchors.bottomMargin: actionsRow.height + Tokens.spacing.normal * 2
-                source: root.entry?.image ? Clipboard.imageUrl(root.index) : ""
+                // From a private file (Clipboard.imageFile), decoded at its
+                // size: no base64 copies of the payload.
+                source: root.entry?.image ? (f => f ? "file://" + f : "")(Clipboard.imageFile(root.index)) : ""
                 // At the size shown (a pasted screenshot is screen-sized).
                 sourceSize: Qt.size(Math.max(64, Math.ceil(width * 2)), Math.max(64, Math.ceil(height * 2)))
                 fillMode: Image.PreserveAspectFit
