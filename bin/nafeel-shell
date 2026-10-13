@@ -64,14 +64,11 @@ plugin_modules() {
     cmp -s "$out.tmp" "$out" && rm -f "$out.tmp" || mv -f "$out.tmp" "$out"
 }
 
-# The lock screen's live wallpaper is the one video the shell still decodes
-# (the desktop's plays in mpvpaper): on the GPU (VAAPI) where it can.
+# Live wallpapers (the desktop's and the lock screen's) are decoded on the
+# GPU (VAAPI) where it can.
 export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
 
 while :; do
-    # The live wallpaper's players (MpvPaper) outlive a shell that crashed
-    # or was killed: let them go, the new shell starts its own.
-    pkill -f '^/usr/bin/mpvpaper --layer bottom --mpv-options no-audio loop hwdec=auto-safe' 2>/dev/null
     plugin_modules
     start=$(date +%s)
     echo "starting quickshell"

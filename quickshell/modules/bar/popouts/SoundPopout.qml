@@ -196,20 +196,20 @@ Panel {
         Repeater {
             model: [
                 { key: "night", icon: "nightlight", label: "Night light" },
-                { key: "caffeine", icon: "coffee", label: "Caffeine" },
                 { key: "dark", icon: "dark_mode", label: "Dark" }
             ]
 
+            // (Caffeine is the battery panel's: it's about power.)
             Tile {
                 required property var modelData
 
-                width: (root.width - Tokens.spacing.small * 2) / 3
+                width: (root.width - Tokens.spacing.small) / 2
                 implicitHeight: 56
                 stacked: true
                 icon: modelData.icon
                 label: modelData.label
-                checked: modelData.key === "night" ? Display.nightLight : modelData.key === "caffeine" ? Display.caffeine : !Colours.light
-                onClicked: modelData.key === "night" ? Display.toggleNightLight() : modelData.key === "caffeine" ? Display.toggleCaffeine() : Display.toggleDarkMode()
+                checked: modelData.key === "night" ? Display.nightLight : !Colours.light
+                onClicked: modelData.key === "night" ? Display.toggleNightLight() : Display.toggleDarkMode()
             }
         }
     }

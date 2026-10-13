@@ -380,6 +380,13 @@ Scope {
 
     Instantiator {
         model: root.config.behaviors ?? []
+        // A behaviour remade (its timeout changed in Settings) or gone while
+        // it had fired is undone first: its monitor never says "back" (the
+        // screen stayed dimmed).
+        onObjectRemoved: (i, o) => {
+            if (root.phases[o.modelData.name] === "idled")
+                root._resume(o.modelData);
+        }
 
         delegate: IdleMonitor {
             required property var modelData

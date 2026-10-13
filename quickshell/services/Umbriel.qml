@@ -103,6 +103,24 @@ Singleton {
         return !!ws && !windows.some(w => w.workspace === ws.id);
     }
 
+    // How much of a screen its active workspace's windows cover (0..1; their
+    // areas inside it, summed: windows here tile, they rarely overlap).
+    function coverageOn(output: string, width: int, height: int): real {
+        const ws = activeWorkspace(output);
+        if (!ws || width <= 0 || height <= 0)
+            return 0;
+        let area = 0;
+        for (const w of windows) {
+            if (w.workspace !== ws.id)
+                continue;
+            const x0 = Math.max(0, w.x), y0 = Math.max(0, w.y);
+            const x1 = Math.min(width, w.x + w.w), y1 = Math.min(height, w.y + w.h);
+            if (x1 > x0 && y1 > y0)
+                area += (x1 - x0) * (y1 - y0);
+        }
+        return Math.min(1, area / (width * height));
+    }
+
     function fullscreenOn(output: string, width: int, height: int): bool {
         const ws = activeWorkspace(output);
         return !!ws && windows.some(w => w.workspace === ws.id && w.w >= width && w.h >= height);

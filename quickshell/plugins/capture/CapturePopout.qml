@@ -19,7 +19,16 @@ Column {
     // the plugin is off).
     readonly property var cap: Plugins.instance("capture")?.capture ?? null
 
-    readonly property var p: root.cap?.prefs ?? ({})
+    // The capture prefs; defaults until the service has them (built ahead,
+    // the popout can be made first).
+    readonly property var p: Object.assign({
+        mic: false,
+        system: false,
+        kind: "screenshot",
+        delay: 0,
+        shot: "",
+        area: ""
+    }, root.cap?.prefs ?? {})
     readonly property bool shot: p.kind !== "record"
 
     function take(): void {
@@ -182,7 +191,7 @@ Column {
                     required property var modelData
                     // ("" until the capture service has its settings: built ahead,
                     // the popout can be made before it.)
-                    readonly property string current: (root.shot ? root.p?.shot : root.p?.area) ?? ""
+                    readonly property string current: root.shot ? root.p.shot : root.p.area
 
                     width: (root.width - Tokens.spacing.small * (root.shot ? 2 : 1)) / (root.shot ? 3 : 2)
                     icon: modelData.icon

@@ -791,6 +791,15 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
 - [ ] **O5 Outside the heap** (~250 MB): measure, then try the basic render loop, windows made
   only when needed (overview keys, idle fade, picker), smaller thread pools, live window previews
   only while visible and at preview size.
+- [x] **O6 reverted the same day** (the user: mpvpaper grew to ~174 MB PSS / 228 MB RSS and 7.6%
+  CPU, so nothing was saved overall; its idle inhibitor (mpv's stop-screensaver) kept the session
+  from ever going idle; battery got worse; the built-in engine also renders on the lock screen).
+  The live wallpaper plays in the shell again (VideoLayer), decoded on the GPU (VAAPI:
+  QT_FFMPEG_DECODING_HW_DEVICE_TYPES in bin/nafeel-shell), and pauses when windows cover nine
+  tenths of the screen (Umbriel.coverageOn), as mpvpaper's auto-pause did under Noctalia. The user
+  accepts ~200 MB for a 4K video. Idle verified working again (dim fired on a test timeout); a
+  behaviour remade mid-idle (its timeout changed) now undoes its stage first (the screen stayed
+  dimmed).
 - [x] **O6 Live wallpaper out of process** (2026-10-13; done before O3-O5: with the user's 4K
   video wallpaper nothing else could reach the budget): modules/background/MpvPaper.qml, an
   mpvpaper per screen on the `bottom` layer (just above the shell's wallpaper window, which

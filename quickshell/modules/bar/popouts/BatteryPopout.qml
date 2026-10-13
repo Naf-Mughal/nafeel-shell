@@ -5,7 +5,8 @@ import qs.services
 import qs.components
 
 // Battery: a big charge hero (level bar, state, time left), the power
-// profile as a connected button group, and health facts from UPower.
+// profile as a connected button group, caffeine, and health facts from
+// UPower.
 Panel {
     id: root
 
@@ -101,6 +102,16 @@ Panel {
                 ] : [])
         ]
         onSelected: v => PowerProfiles.profile = v
+    }
+
+    // Keep the screen awake (no dim, lock, screen off or sleep while on).
+    Tile {
+        width: parent.width
+        icon: "coffee"
+        label: "Caffeine"
+        sublabel: Display.caffeine ? "On: the screen stays awake" : "Off: idle dims, locks and sleeps"
+        checked: Display.caffeine
+        onClicked: Display.toggleCaffeine()
     }
 
     SectionLabel {
