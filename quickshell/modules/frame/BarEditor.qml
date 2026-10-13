@@ -22,8 +22,43 @@ Item {
     required property real tBottom
 
     property var picked: null
-    readonly property real band: 52
     readonly property real gap: Tokens.spacing.normal
+    // Chips are 32 px, 4 apart, in zones with a 6 px margin.
+    readonly property int chip: 32
+    readonly property int pitch: chip + 4
+    readonly property int inset: 6
+
+    // Each edge's band of zones, as thick as its fullest zone needs (rows
+    // across the top and bottom, columns down the sides), and the corners
+    // as big as theirs: { left, top, right, bottom }.
+    readonly property var bands: {
+        const per = len => Math.max(1, Math.floor((len - inset * 2 + 4) / pitch));
+        const need = lines => Math.max(52, inset * 2 + lines * pitch - 4);
+        const count = (e, r) => BarLayout.chipsAt(e, r).length;
+        const corner = c => BarLayout.panelChips(at => at.corner === c).length;
+        const b = {
+            left: 52,
+            top: 52,
+            right: 52,
+            bottom: 52
+        };
+        for (let i = 0; i < 3; i++) {
+            const innerW = width - tLeft - tRight - gap * 2;
+            const innerH = height - tTop - tBottom - gap * 2;
+            for (const e of ["top", "bottom"]) {
+                const len = (innerW - b.left - b.right - gap * 4) / 3;
+                let lines = Math.max(...BarLayout.regionNames.map(r => Math.ceil(count(e, r) / per(len))));
+                for (const c of e === "top" ? ["topLeft", "topRight"] : ["bottomLeft", "bottomRight"])
+                    lines = Math.max(lines, Math.ceil(corner(c) / per(b[c.endsWith("Right") ? "right" : "left"])));
+                b[e] = need(lines);
+            }
+            for (const e of ["left", "right"]) {
+                const len = (innerH - b.top - b.bottom - gap * 4) / 3;
+                b[e] = need(Math.max(...BarLayout.regionNames.map(r => Math.ceil(count(e, r) / per(len)))));
+            }
+        }
+        return b;
+    }
 
     function isPicked(c: var): bool {
         return picked !== null && picked.kind === c.kind && picked.id === c.id;
@@ -43,10 +78,11 @@ Item {
     function zoneRect(edge: string, region: string): var {
         const l = tLeft + gap, t = tTop + gap, r = width - tRight - gap, b = height - tBottom - gap;
         const vertical = edge === "left" || edge === "right";
-        const from = vertical ? t + band + gap : l + band + gap;
-        const to = vertical ? b - band - gap : r - band - gap;
+        const from = vertical ? t + bands.top + gap : l + bands.left + gap;
+        const to = vertical ? b - bands.bottom - gap : r - bands.right - gap;
         const len = (to - from - gap * 2) / 3;
         const at = from + BarLayout.regionNames.indexOf(region) * (len + gap);
+        const band = bands[edge];
         switch (edge) {
         case "left":
             return [l, at, band, len];
@@ -59,9 +95,12 @@ Item {
         }
     }
 
+    // A corner: as wide as its side band, as tall as its top or bottom one.
     function cornerRect(corner: string): var {
         const l = tLeft + gap, t = tTop + gap, r = width - tRight - gap, b = height - tBottom - gap;
-        return [corner.endsWith("Right") ? r - band : l, corner.startsWith("bottom") ? b - band : t, band, band];
+        const w = bands[corner.endsWith("Right") ? "right" : "left"];
+        const h = bands[corner.startsWith("bottom") ? "bottom" : "top"];
+        return [corner.endsWith("Right") ? r - w : l, corner.startsWith("bottom") ? b - h : t, w, h];
     }
 
     focus: true
@@ -312,7 +351,7 @@ Item {
 
         Flow {
             anchors.fill: parent
-            anchors.margins: 6
+            anchors.margins: root.inset
             spacing: 4
 
             Repeater {
@@ -323,7 +362,7 @@ Item {
 
                     info: modelData
                     overlay: dragLayer
-                    size: 32
+                    size: root.chip
                     isPicked: root.isPicked(modelData)
                     onPick: root.picked = isPicked ? null : modelData
                     // Dropped on an icon: goes before it.
