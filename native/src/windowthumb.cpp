@@ -5,6 +5,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGTexture>
+#include <QtQuick/private/qsgplaintexture_p.h>
 
 #include <algorithm>
 #include <cmath>
@@ -81,8 +82,16 @@ QRectF WindowThumb::paintedRect() const {
     return QRectF((width() - w) / 2, (height() - h) / 2, w, h);
 }
 
+void WindowThumb::setHold(bool hold) {
+    if (hold == m_hold)
+        return;
+    m_hold = hold;
+    emit holdChanged();
+    sync();
+}
+
 bool WindowThumb::wanted() const {
-    return !m_windowId.isEmpty() && isVisible() && window() && window()->isVisible() && width() > 0 && height() > 0;
+    return !m_windowId.isEmpty() && !m_hold && isVisible() && window() && window()->isVisible() && width() > 0 && height() > 0;
 }
 
 void WindowThumb::sync() {
@@ -192,12 +201,18 @@ QSGNode *WindowThumb::updatePaintNode(QSGNode *old, UpdatePaintNodeData *) {
         node = window()->createImageNode();
         node->setOwnsTexture(true);
         node->setFiltering(QSGTexture::Linear);
+        node->setTexture(new QSGPlainTexture);
         m_textureDirty = true;
     }
     if (m_textureDirty) {
-        node->setTexture(window()->createTextureFromImage(m_image, m_image.hasAlphaChannel()
-                                                                       ? QQuickWindow::TextureHasAlphaChannel
-                                                                       : QQuickWindow::CreateTextureOptions()));
+        // One texture per thumbnail, its picture uploaded into it again
+        // (QSGPlainTexture keeps the GPU texture while the size holds): a new
+        // texture per captured frame was a GPU allocation each time, on the
+        // render thread, while the workspaces panel opened.
+        auto *tex = static_cast<QSGPlainTexture *>(node->texture());
+        tex->setImage(m_image);
+        tex->setHasAlphaChannel(m_image.hasAlphaChannel());
+        node->markDirty(QSGNode::DirtyMaterial);
         m_textureDirty = false;
     }
 

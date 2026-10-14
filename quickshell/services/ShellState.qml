@@ -31,6 +31,9 @@ Singleton {
     // shut): work that can wait (Umbriel's window list) waits for 0, so a
     // panel's animation never shares its frames with it.
     property int moving: 0
+    // For measuring (NAFEEL_PRESENT_LOG): where the motion ends.
+    onMovingChanged: if (moving === 0)
+        FramePacer.mark("still")
     // The dashboard's tab (kept between openings).
     property string dashTab: "dash"
     // The dock's preview: the app whose windows show above the dock (its

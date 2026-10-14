@@ -19,6 +19,27 @@ Column {
     readonly property string output: Umbriel.focusedOutput
     readonly property ShellScreen screen: Quickshell.screens.find(s => s.name === output) ?? Quickshell.screens[0] ?? null
     readonly property var spaces: Umbriel.workspacesOn(output)
+
+    // Still for a moment (nothing moving or about to): the live window
+    // captures run only then. Read straight off ShellState, a capture
+    // slipped in between the grab ending and the springs starting, and its
+    // first frame landed on the open's fourth refresh.
+    readonly property bool quiet: ShellState.moving === 0 && ShellState.grabbing === ""
+    property bool calm: false
+    onQuietChanged: {
+        if (quiet) {
+            calmTimer.restart();
+        } else {
+            calmTimer.stop();
+            calm = false;
+        }
+    }
+    Timer {
+        id: calmTimer
+
+        interval: 150
+        onTriggered: root.calm = root.quiet
+    }
     readonly property real aspect: screen ? screen.height / screen.width : 9 / 16
     readonly property int columns: 2
     readonly property real cardWidth: (width - Tokens.spacing.normal * (columns - 1)) / columns
@@ -91,13 +112,18 @@ Column {
 
                         anchors.fill: parent
                         visible: card.active && root.screen !== null
-                        captureSource: card.active && root.visible ? root.screen : null
+                        // Not tied to the popout showing: setting a source
+                        // takes a capture at once, and on every open its
+                        // import landed on the motion's fourth frame.
+                        captureSource: card.active ? root.screen : null
                         live: false
 
                         Timer {
-                            running: shot.open && card.active && shot.captureSource !== null
-                            // The first as it's about to open (before it
-                            // moves), the next once it's out.
+                            running: shot.open && card.active && shot.captureSource !== null && ShellState.moving === 0 && ShellState.grabbing === ""
+                            // Once it's out and still, then twice a second:
+                            // the full-screen capture's import (a GPU device
+                            // and texture) landed on the open's fourth frame,
+                            // every time. The motion shows the last capture.
                             interval: 700
                             repeat: true
                             triggeredOnStart: true
@@ -198,6 +224,9 @@ Column {
                                     windowId: tile.modelData.id
                                     crop: true
                                     fps: 4
+                                    // Captures wait while a panel moves (this
+                                    // one opening): the last frame shows.
+                                    hold: !root.calm
                                 }
 
                                 StateLayer {

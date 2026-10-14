@@ -181,12 +181,26 @@ public:
         if (m_window)
             return;
         m_window = window;
-        // At sync (render thread, GUI blocked): the frame's animation time.
+        // At sync (render thread, GUI blocked): the frame's animation time;
+        // a sync over 3 ms logged as "S <ns> <us>" (where opens lose frames).
+        QObject::connect(window, &QQuickWindow::beforeSynchronizing, window, [this]() {
+            m_syncStart.storeRelaxed(nowNs());
+        }, Qt::DirectConnection);
         QObject::connect(window, &QQuickWindow::afterSynchronizing, window, [this, animTime]() {
             m_frameTime.storeRelaxed(animTime());
+            const qint64 t = nowNs(), d = t - m_syncStart.loadRelaxed();
+            if (d > 3000000)
+                write(QStringLiteral("S %1 %2\n").arg(t).arg(d / 1000));
         }, Qt::DirectConnection);
-        // Just before this frame's swap: feedback for exactly this commit.
+        // Just before this frame's swap: feedback for exactly this commit;
+        // a render over 6 ms logged as "R <ns> <us>".
+        QObject::connect(window, &QQuickWindow::beforeRendering, window, [this]() {
+            m_renderStart.storeRelaxed(nowNs());
+        }, Qt::DirectConnection);
         QObject::connect(window, &QQuickWindow::afterRendering, window, [this]() {
+            const qint64 t = nowNs(), d = t - m_renderStart.loadRelaxed();
+            if (d > 6000000)
+                write(QStringLiteral("R %1 %2\n").arg(t).arg(d / 1000));
             requestFeedback(m_frameTime.loadRelaxed());
         }, Qt::DirectConnection);
     }
@@ -202,6 +216,13 @@ public:
 
     static const wp_presentation_feedback_listener frameListener;
     QAtomicInteger<qint64> m_frameTime{0};
+    QAtomicInteger<qint64> m_syncStart{0};
+    QAtomicInteger<qint64> m_renderStart{0};
+    static qint64 nowNs() {
+        timespec ts{};
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return qint64(ts.tv_sec) * 1000000000LL + ts.tv_nsec;
+    }
 
     void step(quint32 seq, qint64 vblankUs) {
         if (!m_presentation || !m_window)

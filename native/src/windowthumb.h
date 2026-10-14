@@ -21,6 +21,9 @@ class WindowThumb : public QQuickItem {
     Q_PROPERTY(QString windowId READ windowId WRITE setWindowId NOTIFY windowIdChanged)
     // Keep following the window (otherwise one frame per showing).
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged)
+    // Hold capturing (the last frame stays shown): while its panel moves,
+    // so a session's start and its first frames aren't on the motion.
+    Q_PROPERTY(bool hold READ hold WRITE setHold NOTIFY holdChanged)
     Q_PROPERTY(int fps READ fps WRITE setFps NOTIFY fpsChanged)
     // Fill the item and crop the overflow, rather than fit inside it.
     Q_PROPERTY(bool crop READ crop WRITE setCrop NOTIFY cropChanged)
@@ -39,6 +42,8 @@ public:
     void setWindowId(const QString &id);
     bool live() const { return m_live; }
     void setLive(bool live);
+    bool hold() const { return m_hold; }
+    void setHold(bool hold);
     int fps() const { return m_fps; }
     void setFps(int fps);
     bool crop() const { return m_crop; }
@@ -50,6 +55,7 @@ public:
 signals:
     void windowIdChanged();
     void liveChanged();
+    void holdChanged();
     void fpsChanged();
     void cropChanged();
     void readyChanged();
@@ -70,6 +76,7 @@ private:
 
     QString m_windowId;
     bool m_live = true;
+    bool m_hold = false;
     int m_fps = 30;
     bool m_crop = false;
 
