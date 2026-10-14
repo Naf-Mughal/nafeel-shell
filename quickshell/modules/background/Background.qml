@@ -153,9 +153,8 @@ Variants {
         InkStill {
             id: still
 
-            // Its video frames paced with the shell's animations (Nafeel's
-            // FramePacer: drawn just after a vblank tick while anything
-            // animates, so they don't collide with a panel's frames).
+            // Known to the shell's FramePacer as the wallpaper: its video
+            // paces itself to the refresh (MpvVideo), never held for a tick.
             readonly property var quickWindow: Window.window
             onQuickWindowChanged: {
                 if (quickWindow)

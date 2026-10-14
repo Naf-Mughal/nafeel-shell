@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Nafeel
 import qs.plugins.lock.themes.xianxia
 import qs.services as Services
 
@@ -96,6 +97,17 @@ Scope {
             // The desktop's frame, kept round the lock.
             LockFrame {
                 anchors.fill: parent
+            }
+
+            // Its frames at the vblank ticks like the shell's own windows
+            // (Nafeel's FramePacer): a third Qt Quick window, unpaced, drew
+            // whenever an update came, out of step with the animations.
+            Item {
+                readonly property var quickWindow: Window.window
+                onQuickWindowChanged: {
+                    if (quickWindow)
+                        FramePacer.attach(quickWindow);
+                }
             }
         }
     }

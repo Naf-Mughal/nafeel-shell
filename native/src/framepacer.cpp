@@ -316,6 +316,8 @@ public:
     // it. Delivered between refreshes they drew a frame out of step, and the
     // next paced one landed a refresh late.
     void watch(QQuickWindow *window, bool strict = false) {
+        // Windows that have gone (each lock's surfaces).
+        m_windows.removeIf([](const Watched &w) { return w.window.isNull(); });
         for (const auto &w : std::as_const(m_windows))
             if (w.window == window)
                 return;

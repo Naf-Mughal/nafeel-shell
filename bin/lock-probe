@@ -1,0 +1,23 @@
+#!/bin/bash
+# Lock screen smoothness probe: records the screen while the shell locks;
+# unlock as usual within the time. Then the frames where nothing moved
+# mid-motion (a frame shown twice) are counted, per second.
+#   lock-probe [secs=20] [out=$XDG_RUNTIME_DIR/lock-probe]
+secs=${1:-20}; out=${2:-$XDG_RUNTIME_DIR/lock-probe}
+qml=$HOME/.local/share/nafeel-shell/quickshell
+timeout -s INT $secs gpu-screen-recorder -w screen -f 60 -fm cfr -o $out.mp4 >/dev/null 2>&1 &
+rec=$!
+sleep 1
+qs -p $qml ipc call lock lock >/dev/null
+echo "locked: unlock as usual; recording ${secs}s"
+wait $rec
+ffmpeg -v error -i $out.mp4 -vf "crop=iw/2:ih/2:iw/4:ih/4,tblend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=$out.txt" -f null -
+python3 - "$out.txt" <<'PY'
+import re,sys
+a=[float(m) for m in re.findall(r'YAVG=([\d.]+)',open(sys.argv[1]).read())]
+mv=[x>0.1 for x in a]
+# a still frame between moving ones: shown twice
+rep=[i for i in range(1,len(mv)-1) if not mv[i] and mv[i-1] and mv[i+1]]
+print("frames",len(a),"moving",sum(mv),"repeated mid-motion",len(rep))
+print("per second:",[sum(1 for i in rep if s*60<=i<(s+1)*60) for s in range(len(a)//60+1)])
+PY
