@@ -52,6 +52,10 @@ Singleton {
     // so Esc closes. (Without this the frame took it first and the field
     // only worked after a click.)
     signal keyboardGranted(var req)
+    // The frame window on `screen` holds the keyboard; released: it just let
+    // go (the app under it has it again: auto-paste waits for this).
+    property bool keyboardHeld: false
+    signal keyboardReleased
     property string screen: ""
 
     // Where the bar popout points: the centre (in screen coordinates) of the

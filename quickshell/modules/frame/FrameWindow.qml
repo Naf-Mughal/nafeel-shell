@@ -170,7 +170,15 @@ PanelWindow {
     // preview never does, so typing in apps isn't interrupted.
     // A hover preview has the keyboard too (not the pointer outside it: the
     // input mask stays the frame's, so clicks still reach the windows).
-    WlrLayershell.keyboardFocus: kbWanted || kbHeld || focusHeld ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    readonly property bool kbOn: kbWanted || kbHeld || focusHeld
+    WlrLayershell.keyboardFocus: kbOn ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onKbOnChanged: {
+        if (screen?.name !== ShellState.screen && kbOn)
+            return;
+        ShellState.keyboardHeld = kbOn;
+        if (!kbOn)
+            ShellState.keyboardReleased();
+    }
     readonly property bool kbWanted: wantsFocus || openHere !== "" || grabbingHere
     // The keyboard (alone: not the input mask) held through a hover
     // preview's close, as focusHeld does for a pinned panel's.

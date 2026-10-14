@@ -45,6 +45,9 @@ public:
     // type the paste shortcut into the focused window `pasteDelay` ms later
     // (time for the panel to let go of the keyboard).
     Q_INVOKABLE void activate(int index, bool paste, int pasteDelay = 220);
+    // The paste shortcut alone (Ctrl+V for an image, Ctrl+Shift+V for text),
+    // to whatever has the keyboard now.
+    Q_INVOKABLE void pasteShortcut(bool image);
     Q_INVOKABLE void togglePin(int index);
     Q_INVOKABLE void remove(int index);
     Q_INVOKABLE void clearUnpinned();

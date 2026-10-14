@@ -40,13 +40,55 @@ Panel {
         armed = "";
     }
 
+    // Auto-paste: copied at once; the shortcut goes once the frame has let
+    // go of the keyboard (a fixed wait sent it while the closing panel still
+    // held it, ~0.5 s, so it pasted into the shell, not the app).
+    property bool pastePending: false
+    property bool pasteImage: false
+
     function paste(): void {
         if (index < 0)
             return;
-        const i = index;
-        // Close first so the window you came from has the keyboard again.
+        pasteImage = entry?.image ?? false;
+        Clipboard.activate(index, false);
+        pastePending = true;
         ShellState.close();
-        Clipboard.activate(i, true);
+        if (ShellState.keyboardHeld)
+            pasteFallback.restart();
+        else
+            pasteNow.restart();
+    }
+
+    function sendPaste(): void {
+        pasteFallback.stop();
+        if (!pastePending)
+            return;
+        pastePending = false;
+        Clipboard.pasteShortcut(pasteImage);
+    }
+
+    Connections {
+        target: ShellState
+
+        function onKeyboardReleased(): void {
+            if (root.pastePending)
+                pasteNow.restart();
+        }
+    }
+
+    // The app takes the keyboard back a moment after the release.
+    Timer {
+        id: pasteNow
+
+        interval: 60
+        onTriggered: root.sendPaste()
+    }
+
+    Timer {
+        id: pasteFallback
+
+        interval: 2000
+        onTriggered: root.sendPaste()
     }
 
     function removeSelected(): void {

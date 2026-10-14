@@ -306,6 +306,12 @@ void Clipboard::activate(int index, bool paste, int pasteDelay) {
     });
 }
 
+void Clipboard::pasteShortcut(bool image) {
+    post([image](Worker &w) {
+        (void)w.keyboard.sendPasteShortcut(image ? VirtualPasteShortcut::CtrlV : VirtualPasteShortcut::CtrlShiftV);
+    });
+}
+
 void Clipboard::togglePin(int index) {
     post([index](Worker &w) {
         const auto &h = w.clipboard.history();
