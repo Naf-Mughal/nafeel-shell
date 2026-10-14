@@ -1,0 +1,12 @@
+#!/bin/sh
+# Installs the charger-following power tuning (root: run with pkexec).
+set -eu
+cd "$(dirname "$0")"
+install -Dm755 nafeel-power-tune /usr/local/bin/nafeel-power-tune
+install -Dm644 90-nafeel-power-tune.rules /etc/udev/rules.d/90-nafeel-power-tune.rules
+install -Dm644 nafeel-power-tune.service /etc/systemd/system/nafeel-power-tune.service
+udevadm control --reload
+systemctl daemon-reload
+systemctl enable nafeel-power-tune.service
+/usr/local/bin/nafeel-power-tune
+echo "installed"

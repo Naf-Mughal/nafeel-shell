@@ -1,0 +1,10 @@
+[Unit]
+Description=Power tuning for the charger's state (nafeel-shell)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nafeel-power-tune
+
+[Install]
+WantedBy=multi-user.target

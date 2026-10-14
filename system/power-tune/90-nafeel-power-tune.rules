@@ -1,0 +1,2 @@
+# The charger plugged or unplugged: nafeel-power-tune follows it.
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", RUN+="/usr/local/bin/nafeel-power-tune"

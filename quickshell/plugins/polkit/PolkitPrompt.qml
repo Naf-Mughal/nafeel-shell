@@ -38,7 +38,29 @@ Panel {
     subtitle: "An action needs your password"
     focusTarget: password
 
-    Component.onCompleted: Qt.callLater(() => password.focusInput())
+    // Ready to type at every prompt: the panel is built ahead (prewarmed)
+    // and kept, so focus is taken each time it shows or a new request comes
+    // (once more a beat later, after the frame window's keyboard grab).
+    function takeFocus(): void {
+        if (!visible)
+            return;
+        password.focusInput();
+        refocus.restart();
+    }
+
+    onVisibleChanged: Qt.callLater(takeFocus)
+    onFlowChanged: Qt.callLater(takeFocus)
+    Component.onCompleted: Qt.callLater(takeFocus)
+
+    Timer {
+        id: refocus
+
+        interval: 120
+        onTriggered: {
+            if (root.visible && !password.activeFocus)
+                password.focusInput();
+        }
+    }
 
     // What's asking: its icon and its message.
     Surface {

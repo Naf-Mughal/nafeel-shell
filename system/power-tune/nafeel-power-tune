@@ -1,0 +1,43 @@
+#!/bin/sh
+# System power tuning that follows the charger (installed by ./install as
+# /usr/local/bin/nafeel-power-tune; run by udev on plug/unplug and at boot).
+# On battery: PCIe ASPM power saving, Wi-Fi power save, USB autosuspend
+# (input devices left alone: a sleeping mouse misses its first move), disk
+# writeback every 15 s. On AC: the defaults back. The CPU and platform
+# profile are power-profiles-daemon's (the shell picks the profile).
+#   nafeel-power-tune [battery|ac]   (default: from the charger's state)
+mode=$1
+if [ -z "$mode" ]; then
+    mode=battery
+    for s in /sys/class/power_supply/*; do
+        [ "$(cat "$s/type" 2>/dev/null)" = Mains ] && [ "$(cat "$s/online" 2>/dev/null)" = 1 ] && mode=ac
+    done
+fi
+
+set_() { [ -w "$1" ] && echo "$2" > "$1" 2>/dev/null; }
+
+if [ "$mode" = battery ]; then
+    set_ /sys/module/pcie_aspm/parameters/policy powersupersave || set_ /sys/module/pcie_aspm/parameters/policy powersave
+    set_ /proc/sys/vm/dirty_writeback_centisecs 1500
+    wifi=on usb=auto
+else
+    set_ /sys/module/pcie_aspm/parameters/policy default
+    set_ /proc/sys/vm/dirty_writeback_centisecs 500
+    wifi=off usb=on
+fi
+
+for w in /sys/class/net/*/wireless; do
+    dev=$(basename "$(dirname "$w")")
+    command -v iw >/dev/null && iw dev "$dev" set power_save "$wifi" 2>/dev/null
+done
+
+for d in /sys/bus/usb/devices/*; do
+    [ -f "$d/power/control" ] || continue
+    # Keep anything with a HID interface (keyboards, mice, touchpads) awake.
+    if grep -qs '^03$' "$d"/*/bInterfaceClass; then
+        set_ "$d/power/control" on
+    else
+        set_ "$d/power/control" "$usb"
+    fi
+done
+logger -t nafeel-power-tune "applied: $mode"
