@@ -115,6 +115,9 @@ PanelWindow {
         return edge === "left" ? tLeft : edge === "right" ? tRight : edge === "top" ? tTop : tBottom;
     }
     readonly property bool pinnedHere: ShellState.isPinned(screen?.name ?? "")
+    // The panel open here, however it opened (a hover, a click, a keybind):
+    // it has the keyboard, its own keys (a search field, arrows) at once.
+    readonly property string openHere: ShellState.current(screen?.name ?? "")
     // A modal plugin drawer (one that opens by itself, e.g. an
     // authentication prompt) is up here: it takes the keyboard, and the dock
     // makes way.
@@ -165,7 +168,9 @@ PanelWindow {
     // A pinned drawer (opened by a keybind or a click) takes the keyboard, so
     // Esc closes it and its fields can be typed in straight away; a hover
     // preview never does, so typing in apps isn't interrupted.
-    WlrLayershell.keyboardFocus: wantsFocus || focusHeld ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // A hover preview has the keyboard too (not the pointer outside it: the
+    // input mask stays the frame's, so clicks still reach the windows).
+    WlrLayershell.keyboardFocus: wantsFocus || focusHeld || openHere !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (ShellState.grabbing !== "" && ShellState.screen === (screen?.name ?? ""))
     // Let go of the keyboard once a closing panel has settled, not as it
     // starts: handing focus back makes the compositor re-arrange its layers
@@ -447,24 +452,41 @@ PanelWindow {
                 event.accepted = true;
         }
 
-        // When a drawer gets pinned, its search field (if it has one) takes
-        // the keyboard; otherwise this does, so Esc closes it. (A window here
-        // has no activeFocusItem to ask, so the drawer says so itself.)
+        // When a drawer opens, its own keys take the keyboard (a search
+        // field, a list's arrows); otherwise this does, so Esc closes it and
+        // Tab walks its controls. (A window here has no activeFocusItem to
+        // ask, so the drawer says so itself.)
         function claim(): void {
-            if (!win.pinnedHere)
+            if (win.openHere === "")
                 return;
-            const req = {
-                taken: false
-            };
-            ShellState.keyboardGranted(req);
-            if (!req.taken)
+            // A QtObject, not a JS object: a signal's `var` hands each
+            // handler a copy of a JS object, so `taken` never came back and
+            // this took the keyboard from every panel that had claimed it.
+            grant.taken = false;
+            ShellState.keyboardGranted(grant);
+            if (!grant.taken)
                 escCatcher.forceActiveFocus();
+            if (Quickshell.env("NAFEEL_FOCUS_LOG") === "1")
+                focusLog.restart();
+        }
+
+        Timer {
+            id: focusLog
+
+            interval: 400
+            onTriggered: console.info(`focus: ${win.openHere} -> ${escCatcher.Window.activeFocusItem} (window active ${escCatcher.Window.active})`)
+        }
+
+        QtObject {
+            id: grant
+
+            property bool taken: false
         }
 
         Connections {
             target: win
 
-            function onPinnedHereChanged(): void {
+            function onOpenHereChanged(): void {
                 Qt.callLater(escCatcher.claim);
             }
         }

@@ -4,6 +4,7 @@ import QtQuick
 import qs.config
 import qs.services
 import qs.components
+import "../../components/keynav.js" as KeyNav
 
 // The Settings panel (Mod+S): a page for every feature's declared settings
 // (Settings.pages), built from the declarations, so a new feature gets its
@@ -39,9 +40,50 @@ Panel {
     gloss: "设置"
     subtitle: page?.description ?? ""
 
+    // Its own keys, from the moment it opens: Up / Down go through the
+    // pages, Page Up / Down and Home / End scroll the page, Tab walks into
+    // its controls (and on through them), Esc closes (the frame).
+    Connections {
+        target: ShellState
+
+        function onKeyboardGranted(req: var): void {
+            if (ShellState.current(ShellState.screen) === "settings") {
+                keys.forceActiveFocus();
+                req.taken = true;
+            }
+        }
+    }
+
     Item {
         width: parent.width
         height: 480
+
+        Item {
+            id: keys
+
+            width: 0
+            height: 0
+            Keys.onPressed: event => {
+                const pages = Settings.pages;
+                const i = Math.max(0, pages.indexOf(root.page));
+                if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+                    const next = pages[Math.max(0, Math.min(pages.length - 1, i + (event.key === Qt.Key_Down ? 1 : -1)))];
+                    if (next)
+                        ShellState.settingsPage = next.name;
+                } else if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+                    flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * flick.height * 0.8));
+                } else if (event.key === Qt.Key_Home || event.key === Qt.Key_End) {
+                    flick.contentY = event.key === Qt.Key_Home ? 0 : Math.max(0, flick.contentHeight - flick.height);
+                } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                    if (!KeyNav.enter(KeyNav.scopeOf(keys), keys, event.key === Qt.Key_Tab))
+                        return;
+                } else {
+                    return;
+                }
+                event.accepted = true;
+            }
+        }
+
 
         // ── The pages (a Strip: it scrolls once they outgrow the panel) ──
         Strip {

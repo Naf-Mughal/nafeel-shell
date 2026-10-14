@@ -98,6 +98,15 @@ Item {
         function onCcFocusChanged(): void {
             Qt.callLater(() => search.focusInput());
         }
+
+        // Opened (a keybind, the dock, a hover): typing goes to the search
+        // and its arrows move through the results at once.
+        function onKeyboardGranted(req: var): void {
+            if (ShellState.current(ShellState.screen) === "command") {
+                search.focusInput();
+                req.taken = true;
+            }
+        }
     }
 
     // The command center, above the dock.

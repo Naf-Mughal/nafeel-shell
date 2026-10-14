@@ -146,7 +146,7 @@ Drawer {
     }
 
     function pinnedHere(): bool {
-        return kind !== "" && ShellState.pinned === `bar:${kind}`;
+        return kind !== "" && ShellState.current(ShellState.screen) === `bar:${kind}`;
     }
 
     Connections {

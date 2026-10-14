@@ -134,7 +134,7 @@ Item {
         target: ShellState
 
         function onKeyboardGranted(req: var): void {
-            if (ShellState.pinned === "notes") {
+            if (ShellState.current(ShellState.screen) === "notes") {
                 root.focusEditor();
                 req.taken = true;
             }

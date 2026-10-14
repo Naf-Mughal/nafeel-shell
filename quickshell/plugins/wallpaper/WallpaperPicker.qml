@@ -126,7 +126,7 @@ Item {
         target: ShellState
 
         function onKeyboardGranted(req: var): void {
-            if (ShellState.pinned === "wallpapers") {
+            if (ShellState.current(ShellState.screen) === "wallpapers") {
                 search.focusInput();
                 req.taken = true;
             }

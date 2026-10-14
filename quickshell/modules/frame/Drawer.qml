@@ -387,27 +387,8 @@ Item {
                     ShellState.unpreviewLater(root.key);
             }
             onPointChanged: {
-                if (hovered && root.open) {
+                if (hovered && root.open)
                     ShellState.keep(root.key);
-                    // Resting inside the panel (not on the bar strip it
-                    // grows from) makes it the one being used: pinned, so it
-                    // takes the keyboard (its fields and arrows work at once).
-                    if (root.pinOnPress && ShellState.previewed === root.key && !root.onStrip(point.position))
-                        hoverPin.restart();
-                    else
-                        hoverPin.stop();
-                }
-            }
-        }
-
-        Timer {
-            id: hoverPin
-
-            // A pass on the way somewhere else doesn't take the keyboard.
-            interval: 180
-            onTriggered: {
-                if (root.open && ShellState.previewed === root.key)
-                    ShellState.pin(root.key, root.screenName);
             }
         }
 
