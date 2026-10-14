@@ -1,6 +1,7 @@
 #!/bin/bash
-# Primitive frame probe (ROADMAP Stage P): restarts the shell with
-# NAFEEL_PRESENT_LOG, fires each primitive ROUNDS times (the OSD by a
+# Primitive frame probe (ROADMAP Stage P): with the running shell's present
+# log on (FRESH=1: a restarted shell, as bin/frame-cycle), fires each
+# primitive ROUNDS times (the OSD by a
 # volume nudge, a toast by notify-send, the switcher by IPC), logs when to
 # $XDG_RUNTIME_DIR/prim-marks, takes its toasts out of the history and
 # restarts the shell normally.
@@ -10,7 +11,7 @@ rounds=${1:-3}; shift
 prims=${*:-"osd toast switcher"}
 now() { python3 -c "import time;print(time.clock_gettime_ns(time.CLOCK_MONOTONIC))"; }
 ipc() { qs -p $qml ipc call "$@" >/dev/null 2>&1; }
-KEEP=1 SETTLE=${SETTLE:-40} $R/bin/frame-cycle 0 x >/dev/null 2>&1
+KEEP=1 $R/bin/frame-cycle 0 x >/dev/null 2>&1
 : > $MARKS
 for r in $(seq $rounds); do for p in $prims; do
   echo "$(now) $p" >> $MARKS
@@ -25,5 +26,9 @@ echo "$(now) END" >> $MARKS
 sleep 1.5
 n=$(python3 -c "import json,sys;h=json.load(open(sys.argv[1]))['history'];print(next((i for i,x in enumerate(h) if x.get('summary')!='Frame probe'),len(h)))" $HOME/.local/state/nafeel-shell/notifications.json 2>/dev/null || echo 0)
 for i in $(seq $n); do ipc notifs dismissLatest; done
+if [ -n "$FRESH" ]; then
 o=$(qs list --all | awk '/Process ID:/{print $3; exit}'); qs kill --pid $o >/dev/null; sleep 1
 setsid $R/bin/nafeel-shell >/dev/null 2>&1 < /dev/null &
+else
+ipc shell frameLog ""
+fi

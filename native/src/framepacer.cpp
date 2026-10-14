@@ -155,6 +155,24 @@ private:
 class PresentLog {
 public:
     bool open(const QString &path) {
+        if (!m_presentation && !bind())
+            return false;
+        QMutexLocker lock(&m_writeLock);
+        if (m_file.isOpen())
+            m_file.close();
+        m_file.setFileName(path);
+        m_on.storeRelaxed(m_file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text));
+        return m_on.loadRelaxed();
+    }
+
+    // Stops writing (the hooks stay, idle: no feedback asked for).
+    void close() {
+        QMutexLocker lock(&m_writeLock);
+        m_on.storeRelaxed(false);
+        m_file.close();
+    }
+
+    bool bind() {
         auto *app = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
         if (!app)
             return false;
@@ -173,8 +191,7 @@ public:
         };
         wl_registry_add_listener(registry, &listener, this);
         wl_display_roundtrip_queue(m_display, m_queue);
-        m_file.setFileName(path);
-        return m_presentation && m_file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text);
+        return m_presentation != nullptr;
     }
 
     void watch(QQuickWindow *window, const std::function<qint64()> &animTime) {
@@ -215,6 +232,8 @@ public:
     }
 
     void requestFeedback(qint64 tag, QQuickWindow *on = nullptr) {
+        if (!m_on.loadRelaxed())
+            return;
         auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", on ? on : m_window.data()));
         if (!surface || !m_presentation)
             return;
@@ -245,6 +264,8 @@ public:
 
     void write(const QString &line) {
         QMutexLocker lock(&m_writeLock);
+        if (!m_file.isOpen())
+            return;
         m_file.write(line.toUtf8());
         m_file.flush();
     }
@@ -256,6 +277,7 @@ private:
     QPointer<QQuickWindow> m_window;
     QFile m_file;
     QMutex m_writeLock;
+    QAtomicInteger<bool> m_on{false};
 };
 
 const wp_presentation_feedback_listener PresentLog::frameListener = {
@@ -334,6 +356,27 @@ public:
         else if (m_logging)
             m_log.watchVideo(window);
     }
+
+    // From IPC (shell frameLog): the same log on a running shell.
+    bool startLog(const QString &path) {
+        if (!m_log.open(path))
+            return false;
+        m_logChecked = true;
+        if (!m_logging) {
+            m_logging = true;
+            for (const auto &w : std::as_const(m_windows)) {
+                if (!w.window)
+                    continue;
+                if (w.strict)
+                    m_log.watchVideo(w.window);
+                else
+                    m_log.watch(w.window, [this]() { return (m_origin / 1000) + m_time; });
+            }
+        }
+        return true;
+    }
+
+    void stopLog() { m_log.close(); }
 
     void mark(const QString &what) {
         if (!m_logging)
@@ -585,6 +628,15 @@ bool FramePacer::lastVblank(qint64 *us) {
 
 double FramePacer::refreshPeriodUs() {
     return g_periodUs > 0 ? g_periodUs : nominalPeriodUs();
+}
+
+bool FramePacer::startLog(const QString &path) {
+    return install() && m_driver->startLog(path);
+}
+
+void FramePacer::stopLog() {
+    if (m_driver)
+        m_driver->stopLog();
 }
 
 void FramePacer::attachWallpaper(QQuickWindow *window) {

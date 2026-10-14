@@ -416,6 +416,15 @@ Singleton {
     IpcHandler {
         target: "shell"
 
+        // Measuring on the running shell (bin/frame-cycle, bin/prim-cycle):
+        // the present log to <path>, or "" to stop it.
+        function frameLog(path: string): void {
+            if (path)
+                FramePacer.startLog(path);
+            else
+                FramePacer.stopLog();
+        }
+
         function toggle(drawer: string): void {
             if (root.pinned === drawer) {
                 root.close();

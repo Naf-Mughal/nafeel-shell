@@ -47,6 +47,10 @@ public:
     // With NAFEEL_PRESENT_LOG: a line "M <ns> <what>" in the log (a close
     // starting, for measuring).
     Q_INVOKABLE void mark(const QString &what);
+    // NAFEEL_PRESENT_LOG's log, started (truncating <path>) or stopped on a
+    // running shell (IPC: shell frameLog <path|"">).
+    Q_INVOKABLE bool startLog(const QString &path);
+    Q_INVOKABLE void stopLog();
 
     // The display's refresh grid, for content with its own clock (the video
     // wallpaper): the last vblank's CLOCK_MONOTONIC time in us (false

@@ -1,7 +1,9 @@
 #!/bin/bash
-# Panel open/close frame probe (ROADMAP Stage P): restarts the shell with
-# NAFEEL_PRESENT_LOG, opens and closes each panel ROUNDS times, then restarts
-# it normally (KEEP=1 leaves the probe shell up). Report: bin/frame-cycle-report.
+# Panel open/close frame probe (ROADMAP Stage P): turns the running shell's
+# present log on (IPC shell frameLog), opens and closes each panel ROUNDS
+# times, turns it off. FRESH=1 restarts the shell with NAFEEL_PRESENT_LOG
+# instead (first opens, STALL/RT/NOCACHE), then restarts it normally (KEEP=1
+# leaves the probe shell up). Report: bin/frame-cycle-report.
 #   frame-cycle [rounds] [panels...]   (OPEN=peek for hover previews,
 #   STALL=<file> GUI stall stacks, RT=1 Qt render timing, ROOT=<copy> another tree)
 # fprobe.sh [rounds] [panels...]: shell with NAFEEL_PRESENT_LOG, cycle panels, log to $XDG_RUNTIME_DIR/present.log
@@ -10,14 +12,21 @@ rounds=${1:-2}; shift
 panels=${*:-"bar:workspaces bar:notifications bar:clipboard bar:capture bar:sound bar:connect bar:battery bar:session dashboard wallpapers notes actions command settings"}
 pid() { qs list --all | awk '/Process ID:/{print $3; exit}'; }
 ipc() { qs -p $qml ipc call "$@" >/dev/null 2>&1; }
+[ -n "$STALL$RT$NOCACHE$ROOT" ] && FRESH=1
+if [ -n "$FRESH" ]; then
 sup=$(pgrep -f "/bin/sh $REAL/bin/nafeel-shell" | head -1); [ -n "$sup" ] && kill $sup
 o=$(pid); [ -n "$o" ] && qs kill --pid $o >/dev/null; sleep 2
 . $R/bin/shell-env; : > $LOG
 env ${RT:+QSG_RENDER_TIMING=1} ${NOCACHE:+QML_DISABLE_DISK_CACHE=1} ${STALL:+NAFEEL_STALL_TRACE=$STALL} NAFEEL_PRESENT_LOG=$LOG QML_IMPORT_PATH=$R/native/build/qml setsid quickshell -p $qml > $XDG_RUNTIME_DIR/fprobe-shell.log 2>&1 < /dev/null &
 sleep ${SETTLE:-40}
+else
+ipc shell frameLog $LOG; sleep ${SETTLE:-2}
+fi
 for r in $(seq $rounds); do for p in $panels; do
-  echo "M $(python3 -c "import time;print(time.clock_gettime_ns(time.CLOCK_MONOTONIC))") TRIAL $p" >> $LOG
   ipc shell ${OPEN:-open} $p; sleep 1.3; ipc shell closeAfter 50; sleep 1.5
 done; done
-echo "M $(python3 -c "import time;print(time.clock_gettime_ns(time.CLOCK_MONOTONIC))") END" >> $LOG
+if [ -n "$FRESH" ]; then
 [ -n "$KEEP" ] || { qs kill --pid $(pid) >/dev/null; sleep 1; setsid $REAL/bin/nafeel-shell >/dev/null 2>&1 < /dev/null & }
+else
+[ -n "$KEEP" ] || ipc shell frameLog ""
+fi
