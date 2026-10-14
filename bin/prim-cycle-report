@@ -19,7 +19,7 @@ for i, (t, name) in enumerate(M):
     bad = []
     for a, b in zip(fr, fr[1:]):
         dm = b[1] - a[1]; da = b[2] - a[2]
-        if dm > 6 or da > 200 or (dm == 1 and da == 0):
+        if dm > 6 or da > 200 or da == 0:
             continue  # a pause between motions, or a still redraw: not a drop
         if dm != 1 or not (12 <= da <= 21):
             bad.append(f"{(b[0]-t)/1e6:.0f}ms:msc+{dm},anim+{da}")

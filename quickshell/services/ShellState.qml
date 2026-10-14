@@ -397,13 +397,18 @@ Singleton {
         onTriggered: root.close()
     }
 
+    // A full collection only once everything is shut and still: with a
+    // panel open it ran 0.7 s after the open settled, and a close started
+    // then (the dock's, after a quick look) lost a frame to it.
     Timer {
         id: idleCollect
 
-        interval: root.resting ? 1500 : 700
+        interval: 1500
         onTriggered: {
-            if (root.still)
+            if (root.still && root.resting)
                 gc();
+            else if (root.still)
+                restart();
         }
     }
 
