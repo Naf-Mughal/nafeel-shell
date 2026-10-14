@@ -21,7 +21,40 @@ Panel {
     // a list re-sorted every few seconds behind whatever was animating).
     property bool scanning: (visible && (ShellState.pinned === "bar:connect" || ShellState.previewed === "bar:connect")) || ShellState.grabbing === "bar:connect"
     onScanningChanged: Network.scanners += scanning ? 1 : -1
+
+    // The networks shown: what the scan found, taken in only while no panel
+    // moves (rows coming and going grew or shrank the popout in the middle
+    // of its open or close, the scan starting and stopping with them).
+    // New rows come one a frame (each is a few ms to make; several at
+    // once held a frame of the popout growing to fit them).
+    property var listed: []
+    readonly property var found: Network.networks.filter(n => !n.connected)
+    readonly property bool still: ShellState.moving === 0 && ShellState.grabbing === ""
+    function takeIn(): void {
+        if (!still)
+            return;
+        const have = new Set(listed);
+        const fresh = found.filter(n => !have.has(n));
+        // Gone ones leave and the order follows the scan at once; new ones
+        // join one at a time.
+        const next = found.filter(n => have.has(n));
+        if (fresh.length > 0) {
+            next.splice(found.indexOf(fresh[0]) <= next.length ? found.indexOf(fresh[0]) : next.length, 0, fresh[0]);
+            trickle.restart();
+        }
+        listed = next;
+    }
+    onFoundChanged: takeIn()
+    onStillChanged: takeIn()
+
+    Timer {
+        id: trickle
+
+        interval: 34
+        onTriggered: root.takeIn()
+    }
     Component.onCompleted: {
+        listed = found;
         if (scanning)
             Network.scanners++;
     }
@@ -141,7 +174,7 @@ Panel {
                 // coming or going) moves or adds rows; rebuilding every row held the GUI
                 // thread past a refresh, dropping a frame of whatever was animating.
                 model: ScriptModel {
-                    values: Network.networks.filter(n => !n.connected)
+                    values: root.listed
                 }
                 Column {
                     id: entry

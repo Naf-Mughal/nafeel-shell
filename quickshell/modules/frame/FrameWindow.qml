@@ -229,7 +229,7 @@ PanelWindow {
     // no panel, it's stopped and the shell sleeps.
     property real keepAwake: 0
     NumberAnimation on keepAwake {
-        running: ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.moving > 0 || win.focusHeld || win.kbHeld
+        running: ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== "" || ShellState.moving > 0 || win.focusHeld || win.kbHeld
         from: 0
         to: 1
         duration: 1000
@@ -246,7 +246,10 @@ PanelWindow {
     // power pass revisits it. At rest (no panel) it's stopped.
     property real pumpPhase: 0
     NumberAnimation on pumpPhase {
-        running: ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== ""
+        // From the grab before an open too: the window drawing in step at
+        // every vblank before the motion's first frame (started with it,
+        // the open's second or third refresh was skipped).
+        running: ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== ""
         from: 0
         to: 1
         duration: 100

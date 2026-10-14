@@ -263,7 +263,7 @@ Singleton {
     NumberAnimation {
         id: grabTick
 
-        duration: 34
+        duration: 50
         onFinished: {
             if (root.grabbing !== "")
                 root.commitPin(root.grabbing, root.screen);
