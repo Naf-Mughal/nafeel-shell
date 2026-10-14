@@ -41,12 +41,19 @@ public:
 
     // Paces animations by this window's presented frames.
     Q_INVOKABLE void attach(QQuickWindow *window);
-    // A window whose frames come on their own (the video wallpaper): while
-    // animations run, it draws only just after a vblank tick.
+    // A window whose frames come on their own (the video wallpaper, paced
+    // by MpvVideo against lastVblank): never held for a tick.
     Q_INVOKABLE void attachWallpaper(QQuickWindow *window);
     // With NAFEEL_PRESENT_LOG: a line "M <ns> <what>" in the log (a close
     // starting, for measuring).
     Q_INVOKABLE void mark(const QString &what);
+
+    // The display's refresh grid, for content with its own clock (the video
+    // wallpaper): the last vblank's CLOCK_MONOTONIC time in us (false
+    // without a DRM device), and the refresh period in us, measured from
+    // the vblank counter (the screen's nominal rate until then).
+    static bool lastVblank(qint64 *us);
+    static double refreshPeriodUs();
 
 signals:
     void activeChanged();

@@ -1,10 +1,22 @@
 #pragma once
 
+#include <QMutex>
 #include <QQuickFramebufferObject>
+#include <QTimer>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
 
 struct mpv_handle;
+struct mpv_render_context;
+
+// The render context, shared by the item (GUI thread: asks when the next
+// frame is due) and its renderer (render thread: draws, owns and frees it).
+// mpv's render calls mustn't overlap, so both take the lock; freed, ctx is
+// null.
+struct MpvShared {
+    QMutex lock;
+    mpv_render_context *ctx = nullptr;
+};
 
 // A video drawn by libmpv inside the scene (ROADMAP Stage P): mpv decodes on
 // the GPU (VAAPI) and its render API draws the frame straight into this
@@ -46,6 +58,7 @@ public:
 
     // For the renderer (render thread): the shared handle.
     std::shared_ptr<mpv_handle> handle() const { return m_mpv; }
+    std::shared_ptr<MpvShared> shared() const { return m_shared; }
 
 signals:
     void sourceChanged();
@@ -62,18 +75,25 @@ public slots:
     // From the renderer: its render context exists, so a file can load (mpv
     // needs its video output, the render context, before it opens one).
     void contextReady();
+    // From mpv (queued): a frame is ready, or something needs a redraw.
+    void frameQueued();
 
 private slots:
     void onEvents();
 
 private:
     void load();
+    void lockSpeed(double periodUs);
 
     std::shared_ptr<mpv_handle> m_mpv;
+    std::shared_ptr<MpvShared> m_shared = std::make_shared<MpvShared>();
+    QTimer m_due;
     QString m_source;
     bool m_playing = true;
     int m_startAt = 0;
     int m_position = 0;
     bool m_ready = false;
     bool m_context = false;
+    double m_fps = 0;
+    double m_speed = 1;
 };

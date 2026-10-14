@@ -1,4 +1,5 @@
 #include "mpvvideo.h"
+#include "framepacer.h"
 
 #include <QGuiApplication>
 #include <QOpenGLContext>
@@ -8,6 +9,8 @@
 #include <QtGui/qguiapplication_platform.h>
 
 #include <clocale>
+#include <cmath>
+#include <ctime>
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
@@ -22,12 +25,15 @@ void *getProcAddress(void *, const char *name) {
 // Draws mpv's frame into the item's framebuffer, on the render thread.
 class MpvRenderer : public QQuickFramebufferObject::Renderer {
 public:
-    explicit MpvRenderer(const MpvVideo *item) : m_item(const_cast<MpvVideo *>(item)), m_mpv(item->handle()) {}
+    explicit MpvRenderer(const MpvVideo *item)
+        : m_item(const_cast<MpvVideo *>(item)), m_mpv(item->handle()), m_shared(item->shared()) {}
 
     ~MpvRenderer() override {
         // Before the handle can go (the item may already have).
+        QMutexLocker lock(&m_shared->lock);
         if (m_ctx)
             mpv_render_context_free(m_ctx);
+        m_shared->ctx = nullptr;
     }
 
     QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
@@ -39,12 +45,14 @@ public:
     void render() override {
         if (!m_ctx)
             return;
+        QMutexLocker lock(&m_shared->lock);
         QOpenGLFramebufferObject *fbo = framebufferObject();
         mpv_opengl_fbo target{static_cast<int>(fbo->handle()), fbo->width(), fbo->height(), 0};
         int flip = 0;
         // Don't wait for the frame's display time: mpv's own pacing blocked
         // the render thread (~10 ms a frame), dragging everything sharing the
-        // window (the lock screen) to the video's 30 fps. Qt paces at vsync.
+        // window (the lock screen) to the video's 30 fps. The item asks for
+        // this frame just before it's due instead (frameQueued).
         int block = 0;
         mpv_render_param params[] = {
             {MPV_RENDER_PARAM_OPENGL_FBO, &target},
@@ -78,14 +86,18 @@ private:
             QMetaObject::invokeMethod(m_item, "broken", Qt::QueuedConnection);
             return;
         }
-        // mpv has a new frame: draw again (the item's update, on its thread).
+        {
+            QMutexLocker lock(&m_shared->lock);
+            m_shared->ctx = m_ctx;
+        }
+        // mpv has a new frame: the item schedules its draw (on its thread).
         QPointer<MpvVideo> item = m_item;
         mpv_render_context_set_update_callback(
             m_ctx,
             [](void *data) {
                 auto *p = static_cast<QPointer<MpvVideo> *>(data);
                 if (*p)
-                    QMetaObject::invokeMethod(p->data(), "update", Qt::QueuedConnection);
+                    QMetaObject::invokeMethod(p->data(), "frameQueued", Qt::QueuedConnection);
             },
             &m_itemRef);
         m_itemRef = item;
@@ -95,12 +107,23 @@ private:
     MpvVideo *m_item;
     QPointer<MpvVideo> m_itemRef;
     std::shared_ptr<mpv_handle> m_mpv;
+    std::shared_ptr<MpvShared> m_shared;
     mpv_render_context *m_ctx = nullptr;
 };
+
+// Where in the refresh before its own a frame is drawn (of the period):
+// umbriel (wlroots) showed a commit in the first ~third of a refresh, or
+// in the last ~tenth, a refresh late. Measured on 30 fps 4K, 35 s each:
+// 0.3 -> 168 late of 570, 0.54 -> 23, 0.6 -> 1-3, 0.78 -> 26, 0.87 -> 99.
+// NAFEEL_MPV_PHASE=<percent> overrides it (measuring).
+constexpr double kPhase = 0.6;
 
 } // namespace
 
 MpvVideo::MpvVideo(QQuickItem *parent) : QQuickFramebufferObject(parent) {
+    m_due.setSingleShot(true);
+    m_due.setTimerType(Qt::PreciseTimer);
+    connect(&m_due, &QTimer::timeout, this, [this]() { update(); });
     // libmpv refuses to start under a locale whose numbers aren't C's (it
     // parses its options with the C library). Qt and QML use their own
     // locale, so the C library's numeric one can be C.
@@ -144,6 +167,12 @@ MpvVideo::MpvVideo(QQuickItem *parent) : QQuickFramebufferObject(parent) {
              {"terminal", "no"},
          })
         mpv_set_option_string(h, k, v);
+    // NAFEEL_MPV_OPTS="key=value,key=value": extra mpv options (measuring).
+    for (const QByteArray &kv : qgetenv("NAFEEL_MPV_OPTS").split(',')) {
+        const int eq = kv.indexOf('=');
+        if (eq > 0)
+            mpv_set_option_string(h, kv.left(eq).constData(), kv.mid(eq + 1).constData());
+    }
     // NAFEEL_MPV_LOG=<file>: mpv's own log (decoder, hardware decoding, VO).
     if (const QByteArray log = qgetenv("NAFEEL_MPV_LOG"); !log.isEmpty()) {
         mpv_set_option_string(h, "log-file", log.constData());
@@ -154,6 +183,8 @@ MpvVideo::MpvVideo(QQuickItem *parent) : QQuickFramebufferObject(parent) {
         return;
     }
     m_mpv = std::shared_ptr<mpv_handle>(h, [](mpv_handle *p) { mpv_terminate_destroy(p); });
+    // The file's frame rate, for lockSpeed (once per load).
+    mpv_observe_property(h, 0, "container-fps", MPV_FORMAT_DOUBLE);
     mpv_set_wakeup_callback(
         h,
         [](void *data) {
@@ -229,6 +260,66 @@ int MpvVideo::position() const {
     return m_position;
 }
 
+// mpv queues each frame ~50 ms ahead of its time (video-timing-offset) and
+// the next one as soon as the last was drawn: drawn on arrival, frames came
+// 1, 2 or 3 refreshes apart (61 + 165 + 36 in 10 s of a 30 fps video, where
+// every gap should be 2). Each is drawn for the refresh nearest its time
+// instead, at a fixed point of the refresh before it (kPhase), well away
+// from where a ms of jitter flips it between two.
+void MpvVideo::frameQueued() {
+    mpv_render_frame_info info{};
+    bool known = false;
+    // A render is a few ms at most; rather than wait out a long one, draw.
+    if (m_shared->lock.tryLock(4)) {
+        if (m_shared->ctx) {
+            mpv_render_param param{MPV_RENDER_PARAM_NEXT_FRAME_INFO, &info};
+            known = mpv_render_context_get_info(m_shared->ctx, param) >= 0;
+        }
+        m_shared->lock.unlock();
+    }
+    const bool timed = known && (info.flags & MPV_RENDER_FRAME_INFO_PRESENT)
+        && !(info.flags & MPV_RENDER_FRAME_INFO_REDRAW) && info.target_time > 0 && m_mpv;
+    qint64 vblank = 0;
+    if (!timed || !FramePacer::lastVblank(&vblank)) {
+        m_due.stop();
+        update();
+        return;
+    }
+    timespec ts{};
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    const qint64 now = qint64(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
+    // In mpv's clock, in ns (its header still says us; the clock moved to ns).
+    const qint64 target = now + (info.target_time - mpv_get_time_ns(m_mpv.get())) / 1000;
+    const double period = FramePacer::refreshPeriodUs();
+    lockSpeed(period);
+    const double shown = vblank + std::round((target - vblank) / period) * period;
+    static const double phase = qEnvironmentVariableIsSet("NAFEEL_MPV_PHASE") ? qEnvironmentVariableIntValue("NAFEEL_MPV_PHASE") / 100.0 : kPhase;
+    const qint64 wait = qint64(shown - period + phase * period) - now;
+    if (wait < 1000) {
+        m_due.stop();
+        update();
+        return;
+    }
+    m_due.start(int(std::min<qint64>(wait / 1000, 1000)));
+}
+
+// A 30 fps video on a 60.06 Hz panel: a frame lasts 2.002 refreshes, so
+// every ~18 s one was shown for 3. Played 0.1% faster, a frame is exactly
+// two refreshes (mpv's display-resample, without its redraw every refresh).
+void MpvVideo::lockSpeed(double periodUs) {
+    if (m_fps <= 0 || periodUs <= 0)
+        return;
+    const double hz = 1e6 / periodUs;
+    const double k = std::round(hz / m_fps);
+    double speed = k >= 1 ? hz / (k * m_fps) : 1;
+    if (std::abs(speed - 1) > 0.02)
+        speed = 1;
+    if (std::abs(speed - m_speed) < 1e-6)
+        return;
+    m_speed = speed;
+    mpv_set_property_async(m_mpv.get(), 0, "speed", MPV_FORMAT_DOUBLE, &speed);
+}
+
 void MpvVideo::frameDrawn() {
     if (m_ready)
         return;
@@ -247,6 +338,12 @@ void MpvVideo::onEvents() {
         switch (ev->event_id) {
         case MPV_EVENT_PROPERTY_CHANGE: {
             auto *prop = static_cast<mpv_event_property *>(ev->data);
+            if (qstrcmp(prop->name, "container-fps") == 0) {
+                m_fps = prop->format == MPV_FORMAT_DOUBLE ? *static_cast<double *>(prop->data) : 0;
+                m_speed = 0;
+                lockSpeed(FramePacer::refreshPeriodUs());
+                break;
+            }
             if (prop->format == MPV_FORMAT_DOUBLE && qstrcmp(prop->name, "time-pos") == 0) {
                 const int ms = int(*static_cast<double *>(prop->data) * 1000);
                 // Coarse: a QML binding doesn't need 30 updates a second.

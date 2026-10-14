@@ -207,8 +207,10 @@ public:
 
     // The wallpaper's window: "V <ns> <msc>" per frame shown (its cadence).
     void watchVideo(QQuickWindow *window) {
+        // Also collects the feedback that came in: at rest no tick does.
         QObject::connect(window, &QQuickWindow::afterRendering, window, [this, window]() {
             requestFeedback(-1, window);
+            wl_display_dispatch_queue_pending(m_display, m_queue);
         }, Qt::DirectConnection);
     }
 
@@ -373,11 +375,15 @@ public:
         for (auto &w : m_windows) {
             if (w.window != obj)
                 continue;
-            // A strict window (the wallpaper: its video frames come when
-            // they're decoded) draws only just after a tick, so the two
-            // windows don't take turns across the refresh.
-            const bool early = !w.strict || (monotonicUs() - m_lastTickUs) < 4000;
-            if (!isRunning() || (w.allow && early)) {
+            // The wallpaper paces itself: MpvVideo asks for each frame at a
+            // fixed point of the refresh before it's shown. (Held for the
+            // next tick, as it was while frames came when decoded, a frame
+            // asked for mid-refresh went in just after a vblank, where
+            // umbriel shows it a refresh late: 103 uneven video frames in
+            // 3 rounds of panels, 12 without.)
+            if (w.strict)
+                return false;
+            if (!isRunning() || w.allow) {
                 w.allow = false;
                 return false;
             }
@@ -434,7 +440,6 @@ private:
         if (t <= m_time && seq)
             return;
         m_time = std::max(t, m_time);
-        m_lastTickUs = monotonicUs();
         if (seq)
             m_vblank.handled.storeRelaxed(seq);
         for (auto &w : m_windows)
@@ -460,7 +465,6 @@ private:
         bool shown = false;
         QSize size;
     };
-    qint64 m_lastTickUs = 0;
     QList<Watched> m_windows;
     PresentLog m_log;
     bool m_logChecked = false;
@@ -506,6 +510,79 @@ void FramePacer::attach(QQuickWindow *window) {
 void FramePacer::mark(const QString &what) {
     if (m_driver)
         m_driver->mark(what);
+}
+
+namespace {
+// Its own descriptor: the vblank thread's sleeps in a wait on its own.
+int vblankFd() {
+    static const int fd = []() {
+        QDir dri(QStringLiteral("/dev/dri"));
+        for (const QString &name : dri.entryList({QStringLiteral("card*")}, QDir::System)) {
+            const int f = ::open(dri.filePath(name).toLocal8Bit().constData(), O_RDWR | O_CLOEXEC);
+            if (f < 0)
+                continue;
+            drmVBlank v{};
+            v.request.type = DRM_VBLANK_RELATIVE;
+            if (drmWaitVBlank(f, &v) == 0)
+                return f;
+            ::close(f);
+        }
+        return -1;
+    }();
+    return fd;
+}
+
+double nominalPeriodUs() {
+    const QScreen *screen = QGuiApplication::primaryScreen();
+    const qreal hz = screen ? screen->refreshRate() : 0;
+    return hz > 20 ? 1e6 / hz : 1e6 / 60;
+}
+
+// Vblank samples a while apart give the period to ~1 ppm (the nominal rate
+// is rounded: 60 for this panel's 60.06 Hz).
+qint64 g_sampleUs = 0;
+quint32 g_sampleSeq = 0;
+double g_periodUs = 0;
+
+bool queryVblank(qint64 *us, quint32 *seq) {
+    const int fd = vblankFd();
+    if (fd < 0)
+        return false;
+    // Relative 0: the last vblank, at once (no wait).
+    drmVBlank v{};
+    v.request.type = DRM_VBLANK_RELATIVE;
+    if (drmWaitVBlank(fd, &v) != 0)
+        return false;
+    *us = qint64(v.reply.tval_sec) * 1000000 + v.reply.tval_usec;
+    *seq = v.reply.sequence;
+    return true;
+}
+} // namespace
+
+bool FramePacer::lastVblank(qint64 *us) {
+    quint32 seq = 0;
+    if (!queryVblank(us, &seq))
+        return false;
+    const double nominal = nominalPeriodUs();
+    if (!g_sampleUs || seq <= g_sampleSeq) {
+        g_sampleUs = *us;
+        g_sampleSeq = seq;
+    } else if (*us - g_sampleUs > 2000000) {
+        const double p = double(*us - g_sampleUs) / (seq - g_sampleSeq);
+        // The counter stops while the display is off: a gap then, not a
+        // period; start over from here.
+        if (std::abs(p - nominal) < nominal * 0.02 && (!g_periodUs || std::abs(p - g_periodUs) < 50))
+            g_periodUs = p;
+        if (std::abs(p - nominal) >= nominal * 0.02 || *us - g_sampleUs > 600000000) {
+            g_sampleUs = *us;
+            g_sampleSeq = seq;
+        }
+    }
+    return true;
+}
+
+double FramePacer::refreshPeriodUs() {
+    return g_periodUs > 0 ? g_periodUs : nominalPeriodUs();
 }
 
 void FramePacer::attachWallpaper(QQuickWindow *window) {
