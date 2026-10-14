@@ -205,8 +205,15 @@ public:
         }, Qt::DirectConnection);
     }
 
-    void requestFeedback(qint64 tag) {
-        auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", m_window));
+    // The wallpaper's window: "V <ns> <msc>" per frame shown (its cadence).
+    void watchVideo(QQuickWindow *window) {
+        QObject::connect(window, &QQuickWindow::afterRendering, window, [this, window]() {
+            requestFeedback(-1, window);
+        }, Qt::DirectConnection);
+    }
+
+    void requestFeedback(qint64 tag, QQuickWindow *on = nullptr) {
+        auto *surface = static_cast<wl_surface *>(QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", on ? on : m_window.data()));
         if (!surface || !m_presentation)
             return;
         struct wp_presentation_feedback *fb = wp_presentation_feedback(m_presentation, surface);
@@ -255,7 +262,10 @@ const wp_presentation_feedback_listener PresentLog::frameListener = {
         auto *ctx = static_cast<std::pair<PresentLog *, qint64> *>(data);
         const qint64 t = ((qint64(hi) << 32) | lo) * 1000000000LL + ns;
         const quint64 msc = (quint64(mhi) << 32) | mlo;
-        ctx->first->write(QStringLiteral("F %1 %2 %3\n").arg(t).arg(msc).arg(ctx->second));
+        if (ctx->second < 0)
+            ctx->first->write(QStringLiteral("V %1 %2\n").arg(t).arg(msc));
+        else
+            ctx->first->write(QStringLiteral("F %1 %2 %3\n").arg(t).arg(msc).arg(ctx->second));
         delete ctx;
         wp_presentation_feedback_destroy(fb);
     },
@@ -317,6 +327,8 @@ public:
         }
         if (m_logging && !strict)
             m_log.watch(window, [this]() { return (m_origin / 1000) + m_time; });
+        else if (m_logging)
+            m_log.watchVideo(window);
     }
 
     void mark(const QString &what) {
