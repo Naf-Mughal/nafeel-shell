@@ -170,8 +170,22 @@ PanelWindow {
     // preview never does, so typing in apps isn't interrupted.
     // A hover preview has the keyboard too (not the pointer outside it: the
     // input mask stays the frame's, so clicks still reach the windows).
-    WlrLayershell.keyboardFocus: wantsFocus || focusHeld || openHere !== "" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (ShellState.grabbing !== "" && ShellState.screen === (screen?.name ?? ""))
+    WlrLayershell.keyboardFocus: kbWanted || kbHeld || focusHeld ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    readonly property bool kbWanted: wantsFocus || openHere !== "" || grabbingHere
+    // The keyboard (alone: not the input mask) held through a hover
+    // preview's close, as focusHeld does for a pinned panel's.
+    property bool kbHeld: false
+    onKbWantedChanged: {
+        if (kbWanted) {
+            kbHeld = false;
+            kbRelease.stop();
+        } else {
+            kbHeld = true;
+            kbRelease.restart();
+        }
+    }
+    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (grabbingHere && !ShellState.grabPreview)
+    readonly property bool grabbingHere: ShellState.grabbing !== "" && ShellState.screen === (screen?.name ?? "")
     // Let go of the keyboard once a closing panel has settled, not as it
     // starts: handing focus back makes the compositor re-arrange its layers
     // (the wallpaper redraws), and on the close's first frames that cost one.
@@ -188,6 +202,10 @@ PanelWindow {
             if (ShellState.closing && win.wantsFocus) {
                 win.focusHeld = true;
                 focusRelease.stop();
+            }
+            if (ShellState.closing && win.kbWanted) {
+                win.kbHeld = true;
+                kbRelease.stop();
             }
         }
     }
@@ -211,7 +229,7 @@ PanelWindow {
     // no panel, it's stopped and the shell sleeps.
     property real keepAwake: 0
     NumberAnimation on keepAwake {
-        running: ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.moving > 0 || win.focusHeld
+        running: ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.moving > 0 || win.focusHeld || win.kbHeld
         from: 0
         to: 1
         duration: 1000
@@ -267,6 +285,23 @@ PanelWindow {
         }
     }
 
+
+    Timer {
+        id: kbRelease
+
+        interval: 50
+        repeat: true
+        property int ticks: 0
+        property int still: 0
+        onRunningChanged: ticks = still = 0
+        onTriggered: {
+            still = ShellState.moving === 0 ? still + 1 : 0;
+            if (still >= 5 || ++ticks > 24) {
+                stop();
+                win.kbHeld = false;
+            }
+        }
+    }
 
     mask: fullscreen ? noInput : wantsFocus || focusHeld ? everywhere : frameInput
 

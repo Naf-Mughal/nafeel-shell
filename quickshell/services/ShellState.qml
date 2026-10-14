@@ -164,6 +164,20 @@ Singleton {
         closeTimer.stop();
         inTick.stop();
         closeAll = false;
+        // From closed, a hover preview takes the keyboard first too (see
+        // pin): the compositor's re-arrangement and the clipboard offer that
+        // comes with the keyboard (Qt reads it at once) land before the
+        // motion, not on its first frames.
+        if (pinned === "" && previewed === "") {
+            if (grabbing === name)
+                return;
+            grabbing = name;
+            grabPreview = true;
+            screen = screenName;
+            if (!grabTick.running)
+                grabTick.start();
+            return;
+        }
         previewed = name;
         screen = screenName;
     }
@@ -171,6 +185,13 @@ Singleton {
     // Close a hover preview unless the pointer comes back (to the drawer or
     // its trigger) within closeDelay.
     function unpreviewLater(name: string): void {
+        if (grabbing === name && grabPreview) {
+            // Left before it opened: never mind.
+            grabTick.stop();
+            grabbing = "";
+            grabPreview = false;
+            return;
+        }
         if (previewed === name)
             closeTimer.restart();
     }
@@ -195,6 +216,7 @@ Singleton {
         // open panels, or one already grabbing, goes at once.
         if (pinned === "" && previewed === "") {
             grabbing = name;
+            grabPreview = false;
             screen = screenName;
             if (!grabTick.running)
                 grabTick.start();
@@ -204,10 +226,19 @@ Singleton {
     }
 
     function commitPin(name: string, screenName: string): void {
-        if (pinned !== name)
-            FramePacer.mark("open");
         grabTick.stop();
         settleTick.stop();
+        if (grabPreview) {
+            // A hover preview's grab done: it opens as a preview.
+            grabPreview = false;
+            grabbing = "";
+            FramePacer.mark("open");
+            previewed = name;
+            screen = screenName;
+            return;
+        }
+        if (pinned !== name)
+            FramePacer.mark("open");
         grabbing = "";
         pinned = name;
         previewed = "";
@@ -216,6 +247,8 @@ Singleton {
 
     // The panel about to open (keyboard taken, motion not started).
     property string grabbing: ""
+    // ...as a hover preview (not pinned) once it opens.
+    property bool grabPreview: false
 
     Connections {
         target: FramePacer
@@ -251,6 +284,7 @@ Singleton {
         if (grabbing !== "") {
             grabTick.stop();
             grabbing = "";
+            grabPreview = false;
         }
         if (pinned === "" && previewed === "")
             return;

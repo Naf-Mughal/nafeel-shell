@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import qs.config
 import qs.services
 import qs.components
@@ -25,7 +26,14 @@ Grid {
     spacing: Tokens.spacing.small
 
     Repeater {
-        model: root.items.slice(0, root.half)
+        // Diffed by app (ScriptModel): Dock.items is rebuilt at any focus
+        // change, the shell's own keyboard grab as a panel opens included;
+        // a new array rebuilt every icon (KIconLoader on the GUI thread) on
+        // the open's first frames.
+        model: ScriptModel {
+            values: root.items.slice(0, root.half)
+            objectProp: "appId"
+        }
 
         DockItem {
             expanded: root.expanded
@@ -85,7 +93,14 @@ Grid {
     }
 
     Repeater {
-        model: root.items.slice(root.half)
+        // Diffed by app (ScriptModel): Dock.items is rebuilt at any focus
+        // change, the shell's own keyboard grab as a panel opens included;
+        // a new array rebuilt every icon (KIconLoader on the GUI thread) on
+        // the open's first frames.
+        model: ScriptModel {
+            values: root.items.slice(root.half)
+            objectProp: "appId"
+        }
 
         DockItem {
             expanded: root.expanded

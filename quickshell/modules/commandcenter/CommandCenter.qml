@@ -25,6 +25,9 @@ Item {
 
     // The dock's depth out of its edge, and its length along it.
     readonly property int dockHeight: 72
+    // The open command center's size (the drawer's, FrameWindow).
+    property real bigWidth: 920
+    property real bigHeight: 640
     readonly property real dockWidth: vertical ? dock.implicitHeight : dock.implicitWidth
     // The app whose windows preview above the dock (not while expanded).
     readonly property var previewItem: !expanded && ShellState.dockPreview !== "" && ShellState.dockPreviewScreen === (shellScreen?.name ?? "") ? (Dock.items.find(i => i.appId === ShellState.dockPreview && i.windows.length > 0) ?? null) : null
@@ -113,10 +116,17 @@ Item {
     Item {
         id: cc
 
-        x: root.edge === "left" ? root.dockHeight : root.pad
-        y: root.edge === "top" ? root.dockHeight : root.pad
-        width: parent.width - (root.vertical ? root.dockHeight + root.pad : root.pad * 2)
-        height: parent.height - (root.vertical ? root.pad * 2 : root.dockHeight + root.pad)
+        // Laid out once at the open size; the drawer grows out of the dock
+        // over it and reveals it. (Filling the growing drawer resized it on
+        // every frame of the open: every tab's text, tiles and app rows laid
+        // out again each frame, the GUI thread past a refresh.)
+        readonly property real fullWidth: root.bigWidth - (root.vertical ? root.dockHeight + root.pad : root.pad * 2)
+        readonly property real fullHeight: root.bigHeight - (root.vertical ? root.pad * 2 : root.dockHeight + root.pad)
+
+        x: root.edge === "left" ? root.dockHeight : root.edge === "right" ? parent.width - root.dockHeight - width : (parent.width - width) / 2
+        y: root.edge === "top" ? root.dockHeight : root.edge === "bottom" ? parent.height - root.dockHeight - height : (parent.height - height) / 2
+        width: fullWidth
+        height: fullHeight
         opacity: 0
         visible: opacity > 0
 

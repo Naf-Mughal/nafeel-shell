@@ -189,7 +189,12 @@ Item {
         spacing: root.gap
 
         Repeater {
-            model: root.spaces
+            // Diffed by id (ScriptModel): umbriel resends the list at every
+            // focus change; a new array rebuilt every pill each time.
+            model: ScriptModel {
+                values: root.spaces
+                objectProp: "id"
+            }
 
             Item {
                 id: ws

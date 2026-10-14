@@ -49,7 +49,14 @@ Column {
         spacing: Tokens.spacing.normal
 
         Repeater {
-            model: root.spaces
+            // Diffed (ScriptModel, by id): umbriel sends every list again at
+            // any focus change (the shell's own keyboard grab as this opens
+            // included), and a new array rebuilt every card and restarted
+            // its live window captures on the open's first frames.
+            model: ScriptModel {
+                values: root.spaces
+                objectProp: "id"
+            }
 
             Column {
                 id: card
@@ -155,7 +162,10 @@ Column {
                         visible: !card.active
 
                         Repeater {
-                            model: card.windows
+                            model: ScriptModel {
+                                values: card.windows
+                                objectProp: "id"
+                            }
 
                             ClippingRectangle {
                                 id: tile
