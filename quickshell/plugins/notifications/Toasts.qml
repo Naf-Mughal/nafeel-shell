@@ -34,6 +34,12 @@ ListView {
     }
 
     implicitHeight: contentHeight
+    // Its height is its content, so a new toast lands outside the view,
+    // where a ListView builds delegates in the background: the card's
+    // incubation then ran in slices through the drawer's opening and cost
+    // it a frame. Inside the display margin it's built at once, before the
+    // motion starts.
+    displayMarginEnd: 2000
     interactive: false
     spacing: Tokens.spacing.small
     model: ListModel {
@@ -72,8 +78,13 @@ ListView {
 
         width: root.width
         toast: true
+        rev: {
+            Notifs.history;
+            return Notifs.byKey(key)?.rev ?? 0;
+        }
         entry: {
-            const found = Notifs.history.find(n => n.key === key);
+            Notifs.history;
+            const found = Notifs.byKey(key);
             if (found)
                 card.last = found;
             return found ?? card.last;

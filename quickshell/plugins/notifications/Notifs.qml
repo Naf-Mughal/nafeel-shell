@@ -12,7 +12,14 @@ pragma Singleton
 //   dnd      toasts off, except critical ones
 //
 // Entry: { key, app, summary, body, image, icon, time, urgency, seen,
-//          popup, notif (the live Notification, or null), actions }
+//          popup, notif (the live Notification, or null), actions, rev }
+//
+//   historyModel  history as a ListModel of { key, revision }, kept in step by
+//                 key (inserts, moves, removals; revision bumped when an
+//                 entry's shown fields change). Views use it with byKey(key):
+//                 bound to the history array itself, every change (a toast
+//                 arriving or leaving) rebuilt all their cards, on the GUI
+//                 thread, in the middle of the toast's motion.
 
 import QtQuick
 import Quickshell
@@ -83,6 +90,45 @@ Singleton {
     property int nextKey: 1
     // Toast countdowns pause while the pointer is on any toast.
     property bool hoveringPopups: false
+
+    readonly property ListModel historyModel: ListModel {}
+
+    onHistoryChanged: syncModel()
+
+    function byKey(key: int): var {
+        return history.find(n => n.key === key);
+    }
+
+    // Its shown fields changed in place: cards showing it redraw.
+    function touch(n: var): void {
+        n.rev = (n.rev ?? 0) + 1;
+    }
+
+    function syncModel(): void {
+        const m = historyModel;
+        const keys = new Set(history.map(n => n.key));
+        for (let i = m.count - 1; i >= 0; i--)
+            if (!keys.has(m.get(i).key))
+                m.remove(i);
+        history.forEach((n, at) => {
+            let found = at < m.count && m.get(at).key === n.key ? at : -1;
+            for (let i = at + 1; found < 0 && i < m.count; i++)
+                if (m.get(i).key === n.key)
+                    found = i;
+            const rev = n.rev ?? 0;
+            if (found < 0) {
+                m.insert(at, {
+                    key: n.key,
+                    revision: rev
+                });
+                return;
+            }
+            if (found !== at)
+                m.move(found, at, 1);
+            if (m.get(at).revision !== rev)
+                m.setProperty(at, "revision", rev);
+        });
+    }
 
     readonly property var popups: history.filter(n => n.popup)
     readonly property int unread: history.filter(n => !n.seen).length
@@ -181,12 +227,14 @@ Singleton {
         entry.popup = !root.dnd || notif.urgency === NotificationUrgency.Critical;
         // Critical ones stay until dismissed.
         entry.expiresAt = notif.urgency === NotificationUrgency.Critical ? 0 : Date.now() + timeout;
+        root.touch(entry);
 
         if (!existing) {
             notif.closed.connect(() => {
                 entry.notif = null;
                 entry.actions = [];
                 entry.popup = false;
+                root.touch(entry);
                 root.update();
             });
         }
@@ -211,6 +259,7 @@ Singleton {
             const notif = n.notif;
             n.notif = null;
             n.actions = [];
+            root.touch(n);
             notif.tracked = false;
         }
     }

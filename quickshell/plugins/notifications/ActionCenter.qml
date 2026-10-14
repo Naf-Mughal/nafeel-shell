@@ -84,13 +84,35 @@ Item {
         orientation: ListView.Vertical
         spacing: Tokens.spacing.small
         cacheBuffer: 400
-        model: Notifs.history
+        model: Notifs.historyModel
 
+        // By key (Notifs.historyModel): a change moves or adds a card, never
+        // rebuilds them all.
         delegate: NotificationCard {
-            required property var modelData
+            id: card
+
+            required property int key
+            required property int revision
+            // The last known entry, for a card on its way out.
+            property var last: ({
+                    app: "",
+                    summary: "",
+                    body: "",
+                    image: "",
+                    icon: "",
+                    time: 0,
+                    urgency: 1,
+                    actions: []
+                })
 
             width: list.width
-            entry: modelData
+            rev: revision
+            entry: {
+                const found = Notifs.byKey(key);
+                if (found)
+                    card.last = found;
+                return found ?? card.last;
+            }
         }
     }
 

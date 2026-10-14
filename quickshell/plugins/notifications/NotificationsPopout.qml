@@ -62,13 +62,35 @@ Panel {
         orientation: ListView.Vertical
         spacing: Tokens.spacing.small
         cacheBuffer: 400
-        model: root.notifs.history
+        model: root.notifs?.historyModel ?? null
 
+        // By key (historyModel): a change moves or adds a card, never
+        // rebuilds them all.
         delegate: NotificationCard {
-            required property var modelData
+            id: card
+
+            required property int key
+            required property int revision
+            // The last known entry, for a card on its way out.
+            property var last: ({
+                    app: "",
+                    summary: "",
+                    body: "",
+                    image: "",
+                    icon: "",
+                    time: 0,
+                    urgency: 1,
+                    actions: []
+                })
 
             width: cards.width
-            entry: modelData
+            rev: revision
+            entry: {
+                const found = root.notifs?.byKey(key);
+                if (found)
+                    card.last = found;
+                return found ?? card.last;
+            }
         }
     }
 }

@@ -16,6 +16,13 @@ StyledRect {
     required property var entry
     // Toasts close the popup; history removes the notification.
     property bool toast: false
+    // The entry's revision (Notifs.touch): it changes in place, so what's
+    // shown is a copy taken at each one. Actions get the entry itself.
+    property int rev: 0
+    readonly property var view: {
+        root.rev;
+        return Object.assign({}, root.entry);
+    }
 
     function ago(ms: real): string {
         const s = Math.max(0, (Date.now() - ms) / 1000);
@@ -28,7 +35,7 @@ StyledRect {
         return `${Math.floor(s / 86400)} d`;
     }
 
-    readonly property bool critical: entry.urgency === NotificationUrgency.Critical
+    readonly property bool critical: view.urgency === NotificationUrgency.Critical
 
     implicitHeight: content.implicitHeight + Tokens.spacing.normal * 2
     radius: Tokens.rounding.large
@@ -56,8 +63,8 @@ StyledRect {
 
                 Image {
                     anchors.fill: parent
-                    visible: root.entry.image !== ""
-                    source: root.entry.image
+                    visible: root.view.image !== ""
+                    source: root.view.image
                     sourceSize: Qt.size(88, 88)
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
@@ -65,14 +72,14 @@ StyledRect {
 
                 IconImage {
                     anchors.centerIn: parent
-                    visible: root.entry.image === "" && root.entry.icon !== ""
+                    visible: root.view.image === "" && root.view.icon !== ""
                     implicitSize: 28
-                    source: root.entry.icon ? (root.entry.icon.startsWith("/") ? "file://" + root.entry.icon : Quickshell.iconPath(root.entry.icon, "dialog-information")) : ""
+                    source: root.view.icon ? (root.view.icon.startsWith("/") ? "file://" + root.view.icon : Quickshell.iconPath(root.view.icon, "dialog-information")) : ""
                 }
 
                 MaterialIcon {
                     anchors.centerIn: parent
-                    visible: root.entry.image === "" && root.entry.icon === ""
+                    visible: root.view.image === "" && root.view.icon === ""
                     text: root.critical ? "priority_high" : "notifications"
                     fill: 1
                     color: Colours.palette.m3onSecondaryContainer
@@ -92,14 +99,14 @@ StyledRect {
                     spacing: Tokens.spacing.small
 
                     StyledText {
-                        text: root.entry.app
+                        text: root.view.app
                         color: root.critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3primary
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }
 
                     StyledText {
-                        text: "· " + root.ago(root.entry.time)
+                        text: "· " + root.ago(root.view.time)
                         color: Colours.palette.m3onSurfaceVariant
                         font.pixelSize: 11
                     }
@@ -107,7 +114,7 @@ StyledRect {
 
                 StyledText {
                     width: parent.width
-                    text: root.entry.summary
+                    text: root.view.summary
                     color: root.critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3onSurface
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
@@ -117,7 +124,7 @@ StyledRect {
                 StyledText {
                     width: parent.width
                     visible: text !== ""
-                    text: root.entry.body
+                    text: root.view.body
                     color: root.critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3onSurfaceVariant
                     font.pixelSize: 12
                     wrapMode: Text.Wrap
@@ -138,12 +145,12 @@ StyledRect {
         }
 
         Row {
-            visible: root.entry.actions.length > 0
+            visible: root.view.actions.length > 0
             x: picture.width + Tokens.spacing.normal
             spacing: Tokens.spacing.small
 
             Repeater {
-                model: root.entry.actions
+                model: root.view.actions
 
                 StyledRect {
                     id: button
