@@ -80,6 +80,25 @@ Singleton {
             def: true
         }
         SettingItem {
+            key: "liveEngine"
+            icon: "memory"
+            label: "Live wallpaper engine"
+            description: "Direct hands the decoded frames to the compositor as they are (a few % of a core, nothing drawn by the shell); the scene engine draws them in the shell (mpv; more CPU and GPU). Direct falls back to the scene engine by itself if it can't run."
+            def: "direct"
+            options: [
+                {
+                    value: "direct",
+                    icon: "bolt",
+                    label: "Direct"
+                },
+                {
+                    value: "scene",
+                    icon: "layers",
+                    label: "Scene"
+                }
+            ]
+        }
+        SettingItem {
             key: "liveCovered"
             icon: "layers"
             label: "While windows cover it"

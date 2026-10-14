@@ -16,8 +16,9 @@ python3 - "$out.txt" <<'PY'
 import re,sys
 a=[float(m) for m in re.findall(r'YAVG=([\d.]+)',open(sys.argv[1]).read())]
 mv=[x>0.1 for x in a]
-# a still frame between moving ones: shown twice
-rep=[i for i in range(1,len(mv)-1) if not mv[i] and mv[i-1] and mv[i+1]]
-print("frames",len(a),"moving",sum(mv),"repeated mid-motion",len(rep))
+# a still frame inside 60 fps motion (two moving each side): shown twice.
+# (A 30 fps video alone moves every other frame: not counted.)
+rep=[i for i in range(2,len(mv)-2) if not mv[i] and mv[i-1] and mv[i-2] and mv[i+1] and mv[i+2]]
+print("frames",len(a),"moving",sum(mv),"repeated mid-motion",len(rep),"at",[round(i/60,2) for i in rep])
 print("per second:",[sum(1 for i in rep if s*60<=i<(s+1)*60) for s in range(len(a)//60+1)])
 PY

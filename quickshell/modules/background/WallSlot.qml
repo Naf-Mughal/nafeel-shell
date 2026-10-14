@@ -19,6 +19,9 @@ Item {
     readonly property bool isVideo: Wallpapers.isVideo(path)
     property bool ready: false
     property bool failed: false
+    // Its video is on screen straight from the compositor, under the window:
+    // the window keeps clear over it.
+    readonly property bool clear: (video.item?.under ?? false) && visible
 
     signal settled
 
@@ -59,7 +62,7 @@ Item {
     // starts (no black flash) and while the player is let go.
     Image {
         anchors.fill: parent
-        visible: root.isVideo
+        visible: root.isVideo && !root.clear
         source: root.isVideo ? "file://" + Wallpapers.stillOf(root.path) : ""
         sourceSize: root.decode
         fillMode: Image.PreserveAspectCrop
@@ -70,10 +73,13 @@ Item {
     // A live wallpaper (one player at a time: two decoders at once stalled,
     // so it's let go while the lock screen plays it).
     Loader {
+        id: video
+
         anchors.fill: parent
         // (NAFEEL_NO_VIDEO=1: the still only, to measure what the player costs.)
         active: root.path !== "" && Wallpapers.isVideo(root.path) && !ShellState.locked && Quickshell.env("NAFEEL_NO_VIDEO") !== "1"
         sourceComponent: VideoLayer {
+            direct: (Wallpapers.settings.v.liveEngine ?? "direct") !== "scene"
             source: "file://" + Wallpapers.playOf(root.path)
             run: root.playing
             onFirstFrame: root._done(true)

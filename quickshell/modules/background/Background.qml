@@ -57,12 +57,20 @@ Variants {
             top: true
             bottom: true
         }
-        color: Colours.palette.m3surface
+        // Always with an alpha channel (a window made opaque stays opaque):
+        // clear over a video the compositor shows under it.
+        color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Background
         WlrLayershell.namespace: "nafeel-wallpaper"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+
+        Rectangle {
+            anchors.fill: parent
+            visible: !win.shown.clear
+            color: Colours.palette.m3surface
+        }
 
         WallSlot {
             id: a

@@ -12,6 +12,9 @@
 #                 Noctalia's annotator, MIT)
 #   M3Shapes      (its own module) Material 3 Expressive shapes with morphing:
 #                 soramanew/m3shapes, Apache-2.0, vendored in third_party/
+#   MpvVideo, DmabufVideo  live wallpapers (libmpv in the scene; ffmpeg VAAPI
+#                 frames handed to the compositor as dmabufs)
+#   FramePacer    animations advanced at the display's vblanks
 #   CavaProvider  the audio visualiser's bars (Caelestia's, GPL-3.0, src/caelestia:
 #                 PipeWire capture + cava's core, MIT, vendored in src/cava)
 #
@@ -54,7 +57,9 @@ foreach(xml IN ITEMS
         ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-data-control-unstable-v1.xml
         ${CMAKE_CURRENT_SOURCE_DIR}/protocols/virtual-keyboard-unstable-v1.xml
         ${WL_PROTOCOLS}/staging/ext-data-control/ext-data-control-v1.xml
-        ${WL_PROTOCOLS}/stable/presentation-time/presentation-time.xml)
+        ${WL_PROTOCOLS}/stable/presentation-time/presentation-time.xml
+        ${WL_PROTOCOLS}/stable/linux-dmabuf/linux-dmabuf-v1.xml
+        ${WL_PROTOCOLS}/stable/viewporter/viewporter.xml)
     get_filename_component(p ${xml} NAME_WE)
     add_custom_command(
         OUTPUT ${p}-client-protocol.h ${p}-protocol.c
@@ -102,6 +107,7 @@ qt_add_qml_module(nafeelnative
         src/nightlight.h src/nightlight.cpp
         src/clipboard.h src/clipboard.cpp
         src/mpvvideo.h src/mpvvideo.cpp
+        src/dmabufvideo.h src/dmabufvideo.cpp
         src/framepacer.h src/framepacer.cpp
         src/caelestia/service.hpp src/caelestia/service.cpp
         src/caelestia/serviceref.hpp src/caelestia/serviceref.cpp
@@ -121,8 +127,11 @@ pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
 # Live wallpapers: libmpv's render API (VAAPI decoding, drawn in the scene).
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+# ...or straight to the compositor (DmabufVideo): ffmpeg's VAAPI decode and
+# video processor, frames as dmabufs.
+pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET libavformat libavcodec libavfilter libavutil)
 target_include_directories(nafeelnative PRIVATE ${CMAKE_CURRENT_BINARY_DIR} src src/noctalia src/caelestia)
-target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::GuiPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBDRM Qt6::OpenGL)
+target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::GuiPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBAV PkgConfig::LIBDRM Qt6::OpenGL)
 
 qt_add_shaders(nafeelnative "blob_shaders"
     BATCHABLE

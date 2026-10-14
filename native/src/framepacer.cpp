@@ -5,6 +5,7 @@
 #include <QScreen>
 #include <QtQuick/private/qsgrenderloop_p.h>
 
+#include <atomic>
 #include <cmath>
 #include <ctime>
 #include <functional>
@@ -577,11 +578,23 @@ int vblankFd() {
     return fd;
 }
 
+// Read from the screen once, on the GUI thread (the first caller there);
+// 60 Hz for a caller on another thread before that.
+std::atomic<double> g_nominalUs{0};
 double nominalPeriodUs() {
+    if (const double n = g_nominalUs.load(std::memory_order_relaxed); n > 0)
+        return n;
+    if (QThread::currentThread() != qGuiApp->thread())
+        return 1e6 / 60;
     const QScreen *screen = QGuiApplication::primaryScreen();
     const qreal hz = screen ? screen->refreshRate() : 0;
-    return hz > 20 ? 1e6 / hz : 1e6 / 60;
+    const double n = hz > 20 ? 1e6 / hz : 1e6 / 60;
+    g_nominalUs.store(n, std::memory_order_relaxed);
+    return n;
 }
+
+// lastVblank and refreshPeriodUs are called from video threads too.
+QMutex g_vblankLock;
 
 // Vblank samples a while apart give the period to ~1 ppm (the nominal rate
 // is rounded: 60 for this panel's 60.06 Hz).
@@ -608,6 +621,7 @@ bool FramePacer::lastVblank(qint64 *us) {
     quint32 seq = 0;
     if (!queryVblank(us, &seq))
         return false;
+    QMutexLocker lock(&g_vblankLock);
     const double nominal = nominalPeriodUs();
     if (!g_sampleUs || seq <= g_sampleSeq) {
         g_sampleUs = *us;
@@ -627,6 +641,7 @@ bool FramePacer::lastVblank(qint64 *us) {
 }
 
 double FramePacer::refreshPeriodUs() {
+    QMutexLocker lock(&g_vblankLock);
     return g_periodUs > 0 ? g_periodUs : nominalPeriodUs();
 }
 
