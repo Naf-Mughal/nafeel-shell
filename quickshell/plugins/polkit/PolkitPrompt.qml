@@ -41,16 +41,16 @@ Panel {
     // Ready to type at every prompt: the panel is built ahead (prewarmed)
     // and kept, so focus is taken each time it shows or a new request comes
     // (once more a beat later, after the frame window's keyboard grab).
-    function takeFocus(): void {
+    function focusPrompt(): void {
         if (!visible)
             return;
         password.focusInput();
         refocus.restart();
     }
 
-    onVisibleChanged: Qt.callLater(takeFocus)
-    onFlowChanged: Qt.callLater(takeFocus)
-    Component.onCompleted: Qt.callLater(takeFocus)
+    onVisibleChanged: Qt.callLater(focusPrompt)
+    onFlowChanged: Qt.callLater(focusPrompt)
+    Component.onCompleted: Qt.callLater(focusPrompt)
 
     Timer {
         id: refocus
