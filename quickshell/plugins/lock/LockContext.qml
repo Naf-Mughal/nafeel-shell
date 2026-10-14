@@ -603,22 +603,29 @@ Scope {
 
     // ── Ambient clock ────────────────────────────────────────────────
     // Seconds of ambient animation (drifting mist, stars, rotating seals)
-    // for themes that want it. Ticks at ~30 fps, not the display rate, and
-    // only while awake, so an idle screen goes still.
+    // for themes that want it. Steps every second frame (30 fps on this
+    // display, the theme's work halved), on the frames themselves (the
+    // shell's vblank-paced animation driver), and only while awake, so an
+    // idle screen goes still. (A 33 ms timer drifted against the 16.65 ms
+    // refresh: steps landed 1 or 3 refreshes apart, a stutter in the mist.)
     property bool ambient: false
     property real ambientTime: 0
 
-    Timer {
-        property double last: 0
+    FrameAnimation {
+        property int frames: 0
+        property real pending: 0
 
-        interval: 33
-        repeat: true
         running: ctx.ambient && ctx.awake
-        onRunningChanged: last = Date.now()
+        onRunningChanged: {
+            frames = 0;
+            pending = 0;
+        }
         onTriggered: {
-            const t = Date.now();
-            ctx.ambientTime += Math.min(0.1, (t - last) / 1000);
-            last = t;
+            pending += frameTime;
+            if (++frames % 2 !== 0)
+                return;
+            ctx.ambientTime += Math.min(0.1, pending);
+            pending = 0;
         }
     }
 
