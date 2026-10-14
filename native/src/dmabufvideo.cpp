@@ -12,10 +12,12 @@
 #include <QtGui/qguiapplication_platform.h>
 #include <qpa/qplatformnativeinterface.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <ctime>
 #include <deque>
+#include <vector>
 #include <unordered_map>
 
 #include <wayland-client.h>
@@ -31,6 +33,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
+#include <libavutil/hwcontext_vaapi.h>
 }
 
 namespace {
@@ -41,10 +44,9 @@ qint64 nowUs() {
     return qint64(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
 }
 
-// Where in the refresh before its own a frame is committed (of the period):
-// umbriel shows a commit made early in a refresh, or in its last tenth, a
-// refresh late (measured for MpvVideo, the same compositor path).
-constexpr double kPhase = 0.6;
+// Where in the refresh before its own a frame is committed (of the period),
+// to start with; it follows umbriel's latch from there (see shown()).
+constexpr double kPhase = 0.65;
 
 // The parts of the GUI's state the worker follows.
 struct Wanted {
@@ -220,7 +222,7 @@ private:
                     self->m_compositor = static_cast<wl_compositor *>(wl_registry_bind(r, name, &wl_compositor_interface, std::min(version, 4u)));
                 else if (qstrcmp(iface, wl_subcompositor_interface.name) == 0)
                     self->m_subcompositor = static_cast<wl_subcompositor *>(wl_registry_bind(r, name, &wl_subcompositor_interface, 1));
-                else if (qstrcmp(iface, wp_presentation_interface.name) == 0 && !qEnvironmentVariableIsEmpty("NAFEEL_DMABUF_LOG"))
+                else if (qstrcmp(iface, wp_presentation_interface.name) == 0)
                     self->m_presentation = static_cast<wp_presentation *>(wl_registry_bind(r, name, &wp_presentation_interface, 1));
                 else if (qstrcmp(iface, wp_viewporter_interface.name) == 0)
                     self->m_viewporter = static_cast<wp_viewporter *>(wl_registry_bind(r, name, &wp_viewporter_interface, 1));
@@ -236,7 +238,7 @@ private:
             return false;
         // NAFEEL_DMABUF_LOG=<file>: "V <ns> <msc>" per frame shown (as the
         // present log's V lines), "D <ns>" per frame never shown.
-        if (m_presentation) {
+        if (m_presentation && !qEnvironmentVariableIsEmpty("NAFEEL_DMABUF_LOG")) {
             m_log = fopen(qgetenv("NAFEEL_DMABUF_LOG").constData(), "w");
             if (m_log)
                 setvbuf(m_log, nullptr, _IOLBF, 0);
@@ -411,30 +413,34 @@ private:
         }
         wl_surface_attach(m_surface, b->buffer, 0, 0);
         wl_surface_damage_buffer(m_surface, 0, 0, INT32_MAX, INT32_MAX);
-        if (m_log) {
+        // Where it was shown, for the phase (and the log).
+        if (m_presentation) {
             static const wp_presentation_feedback_listener feedback = {
                 [](void *, struct wp_presentation_feedback *, wl_output *) {},
                 [](void *data, struct wp_presentation_feedback *fb, uint32_t hi, uint32_t lo, uint32_t ns, uint32_t, uint32_t mhi, uint32_t mlo, uint32_t) {
                     auto *self = static_cast<DmabufVideoWorker *>(data);
-                    fprintf(self->m_log, "V %lld %llu\n", (long long)((((qint64(hi) << 32) | lo) * 1000000000LL) + ns), (unsigned long long)((quint64(mhi) << 32) | mlo));
-                    self->m_feedbacks.remove(fb);
+                    const qint64 t = (((qint64(hi) << 32) | lo) * 1000000000LL) + ns;
+                    if (self->m_log)
+                        fprintf(self->m_log, "V %lld %llu\n", (long long)t, (unsigned long long)((quint64(mhi) << 32) | mlo));
+                    self->shown(fb, t / 1000);
                     wp_presentation_feedback_destroy(fb);
                 },
                 [](void *data, struct wp_presentation_feedback *fb) {
                     auto *self = static_cast<DmabufVideoWorker *>(data);
-                    fprintf(self->m_log, "D %lld\n", (long long)nowUs() * 1000);
+                    if (self->m_log)
+                        fprintf(self->m_log, "D %lld\n", (long long)nowUs() * 1000);
                     self->m_feedbacks.remove(fb);
                     wp_presentation_feedback_destroy(fb);
                 },
             };
             struct wp_presentation_feedback *fb = wp_presentation_feedback(m_presentation, m_surface);
-            m_feedbacks.insert(fb);
+            m_feedbacks.insert(fb, m_lastShown);
             wp_presentation_feedback_add_listener(fb, &feedback, this);
         }
         wl_surface_commit(m_surface);
         wl_display_flush(m_display);
         if (m_log)
-            fprintf(m_log, "C %lld %lld\n", (long long)m_lastCommitAt * 1000, (long long)nowUs() * 1000);
+            fprintf(m_log, "C %lld %lld %.2f\n", (long long)m_lastCommitAt * 1000, (long long)nowUs() * 1000, m_phase);
         m_index++;
         positionMs.store(int(std::fmod(d.pts, std::max(m_duration, 0.001)) * 1000), std::memory_order_relaxed);
         if (!m_attached) {
@@ -444,6 +450,49 @@ private:
                 QMetaObject::invokeMethod(m_item, "onFirstFrame", Qt::QueuedConnection);
             }
         }
+    }
+
+    // ── Phase ──
+    // Where in the refresh before its own a frame is committed isn't fixed:
+    // umbriel's latch moves with what else it draws (one constant measured
+    // 20 late of 670 one day and 450 the next). Each frame's presentation
+    // feedback says where it landed against the refresh it was meant for
+    // (the vblank clock's offset to umbriel's timestamps tracked from the
+    // frames on time): over a window of 90, more late than early commits
+    // earlier, more early than late commits later (0.05 a step). Settled,
+    // it stays.
+    void shown(struct wp_presentation_feedback *fb, qint64 atUs) {
+        auto it = m_feedbacks.find(fb);
+        if (it == m_feedbacks.end())
+            return;
+        const double meant = it.value();
+        m_feedbacks.erase(it);
+        if (meant <= 0)
+            return;
+        // The offset first from the median of 30 (most frames are on time).
+        if (m_offsetSamples.size() < 30) {
+            m_offsetSamples.push_back(atUs - meant);
+            if (m_offsetSamples.size() == 30) {
+                std::vector<double> s = m_offsetSamples;
+                std::nth_element(s.begin(), s.begin() + 15, s.end());
+                m_offset = s[15];
+            }
+            return;
+        }
+        const double d = atUs - meant - m_offset;
+        if (std::abs(d) < m_period / 2)
+            m_offset += 0.05 * d;
+        else if (d > 0)
+            m_late++;
+        else
+            m_early++;
+        if (m_fixedPhase || ++m_seen < 90)
+            return;
+        if (m_late > m_early + 1)
+            m_phase = std::max(0.2, m_phase - 0.05);
+        else if (m_early > m_late + 1)
+            m_phase = std::min(0.95, m_phase + 0.05);
+        m_seen = m_late = m_early = 0;
     }
 
     // ── Timing ──
@@ -463,7 +512,7 @@ private:
         const bool locked = k >= 1 && std::abs(hz / (k * fps) - 1) < 0.02;
         if (!m_anchored) {
             // The first refresh it can make with a commit at kPhase.
-            const double lead = m_period * (1 - kPhase) + 1500;
+            const double lead = m_period * (1 - m_phase) + 1500;
             m_anchor = vblank + std::ceil((now + lead - vblank) / m_period) * m_period;
             m_anchorPts = d.pts;
             m_index = 0;
@@ -487,8 +536,8 @@ private:
             const double target = m_anchor + (d.pts - m_anchorPts) * 1e6;
             shown = vblank + std::round((target - vblank) / m_period) * m_period;
         }
-        static const double phase = qEnvironmentVariableIsSet("NAFEEL_DMABUF_PHASE") ? qEnvironmentVariableIntValue("NAFEEL_DMABUF_PHASE") / 100.0 : kPhase;
-        m_lastCommitAt = qint64(shown - m_period + phase * m_period);
+        m_lastShown = shown;
+        m_lastCommitAt = qint64(shown - m_period + m_phase * m_period);
         return m_lastCommitAt;
     }
 
@@ -625,6 +674,11 @@ private:
                 AVFrame *out = av_frame_alloc();
                 const int r = av_buffersink_get_frame(m_sink, out);
                 if (r >= 0) {
+                    // Finished on the GPU before it's queued (ahead of its
+                    // time): handed over still being drawn, the compositor
+                    // waited on it and missed the refresh under load.
+                    auto *dev = reinterpret_cast<AVHWDeviceContext *>(m_hw->data);
+                    vaSyncSurface(static_cast<AVVAAPIDeviceContext *>(dev->hwctx)->display, VASurfaceID(reinterpret_cast<uintptr_t>(out->data[3])));
                     const double pts = (out->best_effort_timestamp != AV_NOPTS_VALUE ? out->best_effort_timestamp : out->pts) * m_tb;
                     return {out, pts + m_loopOffset};
                 }
@@ -688,8 +742,8 @@ private:
         destroySurface();
         // Nothing of ours may be left on the queue when it goes: an event for
         // it would abort the process (libwayland).
-        for (auto *fb : std::as_const(m_feedbacks))
-            wp_presentation_feedback_destroy(fb);
+        for (auto it = m_feedbacks.cbegin(); it != m_feedbacks.cend(); ++it)
+            wp_presentation_feedback_destroy(it.key());
         m_feedbacks.clear();
         if (m_hw)
             av_buffer_unref(&m_hw);
@@ -728,7 +782,17 @@ private:
     wp_viewporter *m_viewporter = nullptr;
     zwp_linux_dmabuf_v1 *m_dmabuf = nullptr;
     wp_presentation *m_presentation = nullptr;
-    QSet<struct wp_presentation_feedback *> m_feedbacks;
+    // Feedbacks waiting, with the time each frame was meant for (us).
+    QHash<struct wp_presentation_feedback *, double> m_feedbacks;
+    double m_lastShown = 0;
+    // NAFEEL_DMABUF_PHASE=<percent>: a fixed phase (measuring).
+    bool m_fixedPhase = qEnvironmentVariableIsSet("NAFEEL_DMABUF_PHASE");
+    double m_phase = m_fixedPhase ? qEnvironmentVariableIntValue("NAFEEL_DMABUF_PHASE") / 100.0 : kPhase;
+    double m_offset = 0;
+    std::vector<double> m_offsetSamples;
+    int m_seen = 0;
+    int m_late = 0;
+    int m_early = 0;
     FILE *m_log = nullptr;
     QSet<QPair<uint32_t, quint64>> m_formats;
     QSet<uint32_t> m_formatOnly;
