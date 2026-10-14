@@ -7,6 +7,7 @@ import Nafeel
 import qs.config
 import qs.services
 import qs.components
+import "../../components/keynav.js" as KeyNav
 import qs.modules.bar
 import qs.modules.bar.popouts
 import qs.modules.commandcenter
@@ -434,6 +435,17 @@ PanelWindow {
         anchors.fill: parent
         focus: true
         Keys.onEscapePressed: ShellState.close()
+        // A panel without a field of its own: Tab or an arrow walks into it
+        // (its first control), then on through it (Surface, keynav.js).
+        Keys.onPressed: event => {
+            const fwd = event.key === Qt.Key_Tab || event.key === Qt.Key_Down || event.key === Qt.Key_Right;
+            const back = event.key === Qt.Key_Backtab || event.key === Qt.Key_Up || event.key === Qt.Key_Left;
+            if (!fwd && !back)
+                return;
+            const d = win.drawers.find(d => d.open && d.key === ShellState.pinned);
+            if (d && KeyNav.enter(d.navBody, escCatcher, fwd))
+                event.accepted = true;
+        }
 
         // When a drawer gets pinned, its search field (if it has one) takes
         // the keyboard; otherwise this does, so Esc closes it. (A window here

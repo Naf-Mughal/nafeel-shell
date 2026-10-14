@@ -55,6 +55,17 @@ Item {
     property bool managed: true
 
     default property alias content: body.data
+    // Where the keyboard walks from the frame into this panel.
+    readonly property Item navBody: body
+
+    // Whether a point in the drawer's shape is on the bar or frame strip it
+    // grows out of (presses and rests there belong to the bar's icons).
+    function onStrip(p: point): bool {
+        const w = shape.width, h = shape.height;
+        if (isCorner)
+            return (cornerRight ? p.x > w - thickness : p.x < thickness) || (cornerBottom ? p.y > h - thicknessY : p.y < thicknessY);
+        return edge === "left" ? p.x < thickness : edge === "right" ? p.x > w - thickness : edge === "top" ? p.y < thickness : p.y > h - thickness;
+    }
 
     readonly property string screenName: shellScreen?.name ?? ""
     property bool open: enabled && ShellState.isOpen(name, screenName)
@@ -376,8 +387,27 @@ Item {
                     ShellState.unpreviewLater(root.key);
             }
             onPointChanged: {
-                if (hovered && root.open)
+                if (hovered && root.open) {
                     ShellState.keep(root.key);
+                    // Resting inside the panel (not on the bar strip it
+                    // grows from) makes it the one being used: pinned, so it
+                    // takes the keyboard (its fields and arrows work at once).
+                    if (root.pinOnPress && ShellState.previewed === root.key && !root.onStrip(point.position))
+                        hoverPin.restart();
+                    else
+                        hoverPin.stop();
+                }
+            }
+        }
+
+        Timer {
+            id: hoverPin
+
+            // A pass on the way somewhere else doesn't take the keyboard.
+            interval: 180
+            onTriggered: {
+                if (root.open && ShellState.previewed === root.key)
+                    ShellState.pin(root.key, root.screenName);
             }
         }
 
@@ -392,9 +422,7 @@ Item {
             onActiveChanged: {
                 if (!active)
                     return;
-                const p = point.pressPosition;
-                const onStrip = root.isCorner ? (root.cornerRight ? p.x > shape.width - root.thickness : p.x < root.thickness) || (root.cornerBottom ? p.y > shape.height - root.thicknessY : p.y < root.thicknessY) : root.edge === "left" ? p.x < root.thickness : root.edge === "right" ? p.x > shape.width - root.thickness : root.edge === "top" ? p.y < root.thickness : p.y > shape.height - root.thickness;
-                if (!onStrip)
+                if (!root.onStrip(point.pressPosition))
                     ShellState.pin(root.key, root.screenName);
             }
         }
@@ -430,6 +458,9 @@ Item {
 
             Item {
                 id: body
+
+                // Keyboard navigation stays inside (components/keynav.js).
+                readonly property bool navScope: true
 
                 // On the moving edges: it rides out with them (a corner's with
                 // its free corner, both ways at once).

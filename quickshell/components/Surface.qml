@@ -1,6 +1,7 @@
 import QtQuick
 import qs.config
 import qs.services
+import "keynav.js" as KeyNav
 
 // The one container every panel and control is built from. It's made of a
 // role (Colours: "paper" at a level, or a colour role at an emphasis), so
@@ -54,8 +55,43 @@ StyledRect {
 
     color: fill
     radius: shapeRadius
-    border.width: outlined ? Tokens.hairline : 0
-    border.color: Qt.alpha(Colours.palette.m3onSurface, 0.13)
+    border.width: keyFocused ? 2 : outlined ? Tokens.hairline : 0
+    border.color: keyFocused ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3onSurface, 0.13)
+
+    // The keyboard: an interactive surface takes it from Tab and the arrows
+    // (within its panel, KeyNav), Enter or Space presses it; the ring shows
+    // only when the keyboard put it there, not after a click.
+    readonly property bool keyFocused: activeFocus && interactive && focusByKey
+    property bool focusByKey: false
+    activeFocusOnTab: interactive
+    onActiveFocusChanged: {
+        if (!activeFocus)
+            focusByKey = false;
+    }
+    Keys.onPressed: event => {
+        if (!interactive)
+            return;
+        switch (event.key) {
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            root.clicked();
+            break;
+        case Qt.Key_Down:
+        case Qt.Key_Right:
+        case Qt.Key_Tab:
+            KeyNav.move(root, true);
+            break;
+        case Qt.Key_Up:
+        case Qt.Key_Left:
+        case Qt.Key_Backtab:
+            KeyNav.move(root, false);
+            break;
+        default:
+            return;
+        }
+        event.accepted = true;
+    }
 
     Loader {
         id: interaction
@@ -135,7 +171,7 @@ StyledRect {
             }
 
             StateLayer {
-                hovered: ix.hovered
+                hovered: ix.hovered || root.keyFocused
                 pressed: ix.pressed
                 ink: root.ink
                 // The surface's shape (its parent here is this holder).

@@ -1,6 +1,7 @@
 import QtQuick
 import qs.config
 import qs.services
+import "keynav.js" as KeyNav
 
 // An M3 Expressive slider: a thick filled track, a gap, the rest of the track,
 // and a thin handle; an icon inside the filled part. Drag, click or scroll.
@@ -18,6 +19,43 @@ Item {
     signal moved(real value)
 
     implicitHeight: 40
+
+    // The keyboard: Left / Right step it by a twentieth (Page keys by a
+    // fifth, Home / End to the ends); Up / Down and Tab move on (keynav.js).
+    property bool focusByKey: false
+    activeFocusOnTab: true
+    onActiveFocusChanged: {
+        if (!activeFocus)
+            focusByKey = false;
+    }
+    Keys.onPressed: event => {
+        const k = event.key;
+        if (k === Qt.Key_Left || k === Qt.Key_Right || k === Qt.Key_PageUp || k === Qt.Key_PageDown) {
+            const step = (k === Qt.Key_PageUp || k === Qt.Key_PageDown ? 0.2 : 0.05) * to;
+            const up = k === Qt.Key_Right || k === Qt.Key_PageUp;
+            moved(Math.max(0, Math.min(to, value + (up ? step : -step))));
+        } else if (k === Qt.Key_Home || k === Qt.Key_End) {
+            moved(k === Qt.Key_End ? to : 0);
+        } else if (k === Qt.Key_Down || k === Qt.Key_Tab) {
+            KeyNav.move(root, true);
+        } else if (k === Qt.Key_Up || k === Qt.Key_Backtab) {
+            KeyNav.move(root, false);
+        } else {
+            return;
+        }
+        event.accepted = true;
+    }
+
+    // The ring while the keyboard is on it.
+    StyledRect {
+        anchors.fill: parent
+        anchors.margins: -3
+        visible: root.activeFocus && root.focusByKey
+        color: "transparent"
+        radius: Tokens.rounding.small + 3
+        border.width: 2
+        border.color: Colours.palette.m3primary
+    }
 
     function setFromX(x: real): void {
         moved(Math.max(0, Math.min(1, x / width)) * to);
