@@ -64,14 +64,31 @@ Singleton {
         interval: 2000
         repeat: true
         triggeredOnStart: true
-        onTriggered: {
-            stat.reload();
-            meminfo.reload();
-            netdev.reload();
-            thermal.running = true;
-            extra.running = true;
-            drives.running = true;
+        onTriggered: root.sample()
+    }
+
+    // Never while a panel moves (a sample is ~8 ms of parsing on the GUI
+    // thread: it took a frame of the dashboard's open, which starts the
+    // sampling): held, and taken once it's still. The last figures show
+    // meanwhile.
+    property bool due: false
+    readonly property bool calm: ShellState.moving === 0 && ShellState.grabbing === ""
+    onCalmChanged: {
+        if (calm && due)
+            sample();
+    }
+    function sample(): void {
+        if (!calm) {
+            due = true;
+            return;
         }
+        due = false;
+        stat.reload();
+        meminfo.reload();
+        netdev.reload();
+        thermal.running = true;
+        extra.running = true;
+        drives.running = true;
     }
 
     FileView {

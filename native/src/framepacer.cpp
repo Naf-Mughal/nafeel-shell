@@ -311,16 +311,18 @@ public:
     bool eventFilter(QObject *obj, QEvent *event) override {
         if (event->type() == QEvent::Expose) {
             for (auto &w : m_windows) {
-                if (w.window != obj || w.strict)
+                if (w.window != obj)
                     continue;
-                if (onExposed)
+                if (onExposed && !w.strict)
                     QMetaObject::invokeMethod(this, [this]() { if (onExposed) onExposed(); }, Qt::QueuedConnection);
                 // umbriel re-configures the surface (same size) when layers are
                 // re-arranged, e.g. as the frame window takes or lets go of the
                 // keyboard. Qt takes that as a new expose and renders a frame
                 // synchronously on the GUI thread, out of step: a dropped
                 // frame of whatever was animating. For a window already shown
-                // at that size, a normal (paced) frame does instead.
+                // at that size, a normal (paced) frame does instead. The
+                // wallpaper's too: its re-configure as the frame let go of the
+                // keyboard landed on the dock's last frames after a close.
                 QWindow *win = w.window;
                 const QSize size = win->size();
                 if (w.shown && size == w.size && win->isExposed()) {

@@ -185,7 +185,7 @@ PanelWindow {
         }
     }
     readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (grabbingHere && !ShellState.grabPreview)
-    readonly property bool grabbingHere: ShellState.grabbing !== "" && ShellState.screen === (screen?.name ?? "")
+    readonly property bool grabbingHere: ShellState.grabbing !== "" && !ShellState.rehearsal && ShellState.screen === (screen?.name ?? "")
     // Let go of the keyboard once a closing panel has settled, not as it
     // starts: handing focus back makes the compositor re-arrange its layers
     // (the wallpaper redraws), and on the close's first frames that cost one.
@@ -527,6 +527,43 @@ PanelWindow {
             function onOpenHereChanged(): void {
                 Qt.callLater(escCatcher.claim);
             }
+        }
+    }
+
+    // Once the warm-up is done, each panel drawn once out of sight (see
+    // ShellState.rehearse), one after another, on the focused screen.
+    property var rehearsalQueue: []
+    Connections {
+        target: Prewarm
+
+        function onDoneChanged(): void {
+            if (!Prewarm.done || !win.focusedHere)
+                return;
+            const names = ["command", "settings"];
+            for (const d of win.drawers) {
+                if (d.loaders)
+                    for (const l of d.loaders)
+                        names.push(`bar:${l.kind}`);
+            }
+            for (const d of win.edgePopouts.concat(win.pluginDrawers))
+                if (d.managed && !d.modal && d.name)
+                    names.push(d.name);
+            win.rehearsalQueue = [...new Set(names)];
+            rehearsalStep.start();
+        }
+    }
+    Timer {
+        id: rehearsalStep
+
+        interval: 200
+        repeat: true
+        onTriggered: {
+            if (win.rehearsalQueue.length === 0) {
+                stop();
+                return;
+            }
+            if (ShellState.rehearse(win.rehearsalQueue[0], win.screen?.name ?? ""))
+                win.rehearsalQueue = win.rehearsalQueue.slice(1);
         }
     }
 

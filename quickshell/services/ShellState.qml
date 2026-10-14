@@ -145,6 +145,11 @@ Singleton {
     }
 
     function preview(name: string, screenName: string): void {
+        if (rehearsal) {
+            rehearsalEnd.stop();
+            rehearsal = false;
+            grabbing = "";
+        }
         if (pinned !== "" && pinned !== name) {
             // Bar panels behave like a menu bar: once one is pinned, hovering
             // another bar icon switches to it and the pin moves along. So
@@ -205,6 +210,11 @@ Singleton {
     }
 
     function pin(name: string, screenName: string): void {
+        if (rehearsal) {
+            rehearsalEnd.stop();
+            rehearsal = false;
+            grabbing = "";
+        }
         closeTimer.stop();
         inTick.stop();
         closeAll = false;
@@ -247,6 +257,30 @@ Singleton {
 
     // The panel about to open (keyboard taken, motion not started).
     property string grabbing: ""
+    // ...or only rehearsing: once after the warm-up, each panel's content is
+    // drawn a few frames clipped to nothing (no keyboard, no motion), so its
+    // glyphs, textures and pipelines exist before its first real open.
+    property bool rehearsal: false
+    function rehearse(name: string, screenName: string): bool {
+        if (pinned !== "" || previewed !== "" || grabbing !== "")
+            return false;
+        rehearsal = true;
+        grabbing = name;
+        screen = screenName;
+        rehearsalEnd.restart();
+        return true;
+    }
+    Timer {
+        id: rehearsalEnd
+
+        interval: 120
+        onTriggered: {
+            if (root.rehearsal) {
+                root.rehearsal = false;
+                root.grabbing = "";
+            }
+        }
+    }
     // ...as a hover preview (not pinned) once it opens.
     property bool grabPreview: false
 
