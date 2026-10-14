@@ -523,13 +523,21 @@ private:
     qint64 m_time = 0;
 };
 
+// One driver for the process: it outlives the QML engine. A config reload
+// makes a new engine (and a new FramePacer) before the old one goes: the
+// new one's driver couldn't install over the old ("already installed"),
+// then the old one's uninstall left Qt's timer driving every animation,
+// out of step with the display, until the next restart.
+namespace {
+FramePacerDriver *g_driver = nullptr;
+FramePacer *g_current = nullptr;
+} // namespace
+
 FramePacer::FramePacer(QObject *parent) : QObject(parent) {}
 
 FramePacer::~FramePacer() {
-    if (m_driver) {
-        m_driver->uninstall();
-        delete m_driver;
-    }
+    if (g_current == this)
+        g_current = nullptr;
 }
 
 bool FramePacer::install() {
@@ -537,13 +545,20 @@ bool FramePacer::install() {
         return true;
     if (qEnvironmentVariable("NAFEEL_FRAME_PACER") == QLatin1String("0"))
         return false;
-    QSGRenderLoop *loop = QSGRenderLoop::instance();
-    QAnimationDriver *qtDriver = loop ? loop->animationDriver() : nullptr;
-    if (qtDriver)
-        qtDriver->uninstall();
-    m_driver = new FramePacerDriver();
-    m_driver->onExposed = [this]() { emit exposed(); };
-    m_driver->install();
+    if (!g_driver) {
+        QSGRenderLoop *loop = QSGRenderLoop::instance();
+        QAnimationDriver *qtDriver = loop ? loop->animationDriver() : nullptr;
+        if (qtDriver)
+            qtDriver->uninstall();
+        g_driver = new FramePacerDriver();
+        g_driver->onExposed = []() {
+            if (g_current)
+                emit g_current->exposed();
+        };
+        g_driver->install();
+    }
+    m_driver = g_driver;
+    g_current = this;
     emit activeChanged();
     return true;
 }

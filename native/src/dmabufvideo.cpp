@@ -33,7 +33,6 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
-#include <libavutil/hwcontext_vaapi.h>
 }
 
 namespace {
@@ -73,13 +72,19 @@ class DmabufVideoWorker : public QThread {
 public:
     DmabufVideoWorker(DmabufVideo *item, wl_display *display) : m_item(item), m_display(display) {}
 
-    ~DmabufVideoWorker() override {
+    ~DmabufVideoWorker() override { wait(); }
+
+    // Asks it to stop; true once it has. A driver call can block (a reload
+    // froze the shell: the GUI thread waited for a worker stuck in a VAAPI
+    // sync), so the item waits a while at most and hands a stuck worker to
+    // retire() instead.
+    bool stop(int ms) {
         {
             QMutexLocker lock(&m_lock);
             m_quit = true;
             m_cond.wakeAll();
         }
-        wait();
+        return wait(QDeadlineTimer(ms));
     }
 
     void set(const Wanted &w) {
@@ -205,7 +210,8 @@ private:
 
     void fail(const QString &why) {
         qWarning("DmabufVideo: %s", qPrintable(why));
-        QMetaObject::invokeMethod(m_item, "onBroken", Qt::QueuedConnection);
+        if (m_item)
+            QMetaObject::invokeMethod(m_item, "onBroken", Qt::QueuedConnection);
     }
 
     // ── Wayland ──
@@ -270,7 +276,8 @@ private:
         m_attached = false;
         wl_display_flush(m_display);
         // Its place and order take effect with the window's next commit.
-        QMetaObject::invokeMethod(m_item, "attachWindow", Qt::QueuedConnection);
+        if (m_item)
+            QMetaObject::invokeMethod(m_item, "attachWindow", Qt::QueuedConnection);
     }
 
     void destroySurface() {
@@ -447,7 +454,8 @@ private:
             m_attached = true;
             if (!m_announced) {
                 m_announced = true;
-                QMetaObject::invokeMethod(m_item, "onFirstFrame", Qt::QueuedConnection);
+                if (m_item)
+                    QMetaObject::invokeMethod(m_item, "onFirstFrame", Qt::QueuedConnection);
             }
         }
     }
@@ -674,11 +682,6 @@ private:
                 AVFrame *out = av_frame_alloc();
                 const int r = av_buffersink_get_frame(m_sink, out);
                 if (r >= 0) {
-                    // Finished on the GPU before it's queued (ahead of its
-                    // time): handed over still being drawn, the compositor
-                    // waited on it and missed the refresh under load.
-                    auto *dev = reinterpret_cast<AVHWDeviceContext *>(m_hw->data);
-                    vaSyncSurface(static_cast<AVVAAPIDeviceContext *>(dev->hwctx)->display, VASurfaceID(reinterpret_cast<uintptr_t>(out->data[3])));
                     const double pts = (out->best_effort_timestamp != AV_NOPTS_VALUE ? out->best_effort_timestamp : out->pts) * m_tb;
                     return {out, pts + m_loopOffset};
                 }
@@ -766,7 +769,7 @@ private:
             wl_event_queue_destroy(m_queue);
     }
 
-    DmabufVideo *m_item;
+    QPointer<DmabufVideo> m_item;
     wl_display *m_display;
 
     QMutex m_lock;
@@ -842,9 +845,17 @@ DmabufVideo::DmabufVideo(QQuickItem *parent) : QQuickItem(parent) {
 }
 
 DmabufVideo::~DmabufVideo() {
-    if (qEnvironmentVariableIsSet("NAFEEL_DMABUF_LOG"))
-        qWarning("DmabufVideo: item destroyed");
-    m_worker.reset();
+    if (!m_worker)
+        return;
+    if (m_worker->stop(1500)) {
+        m_worker.reset();
+        return;
+    }
+    // Stuck in the driver: never block the shell on it. It finishes (and is
+    // deleted) on its own; it no longer reaches this item.
+    qWarning("DmabufVideo: the decoder is stuck; letting it finish in the background");
+    DmabufVideoWorker *w = m_worker.release();
+    QObject::connect(w, &QThread::finished, w, [w]() { w->deleteLater(); });
 }
 
 void DmabufVideo::attachWindow() {
