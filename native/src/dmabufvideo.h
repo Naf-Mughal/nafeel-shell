@@ -40,6 +40,10 @@ class DmabufVideo : public QQuickItem {
     Q_PROPERTY(int position READ position NOTIFY positionChanged)
     // A frame is on screen.
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
+    // At most this many frames a second (0: the file's own): a 60 fps file
+    // shows every other frame at 30, the others dropped as they're decoded
+    // (never processed or handed over). On battery.
+    Q_PROPERTY(int maxFps READ maxFps WRITE setMaxFps NOTIFY maxFpsChanged)
 
 public:
     explicit DmabufVideo(QQuickItem *parent = nullptr);
@@ -53,6 +57,8 @@ public:
     void setStartAt(int ms);
     int position() const;
     bool ready() const { return m_ready; }
+    int maxFps() const { return m_maxFps; }
+    void setMaxFps(int fps);
 
 signals:
     void sourceChanged();
@@ -60,6 +66,7 @@ signals:
     void startAtChanged();
     void positionChanged();
     void readyChanged();
+    void maxFpsChanged();
     void firstFrame();
     void broken();
 
@@ -82,4 +89,5 @@ private:
     int m_startAt = 0;
     bool m_ready = false;
     bool m_haveParent = false;
+    int m_maxFps = 0;
 };

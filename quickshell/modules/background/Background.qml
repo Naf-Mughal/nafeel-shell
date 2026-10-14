@@ -77,6 +77,7 @@ Variants {
 
             anchors.fill: parent
             decode: win.decode
+            maxFps: win.onBattery ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
             visible: win.front === 0
             playing: visible && win.live
             onSettled: win.loaded(a)
@@ -87,6 +88,7 @@ Variants {
 
             anchors.fill: parent
             decode: win.decode
+            maxFps: win.onBattery ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
             visible: win.front === 1
             playing: visible && win.live
             onSettled: win.loaded(b)

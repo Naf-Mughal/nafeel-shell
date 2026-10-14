@@ -21,6 +21,8 @@ Item {
     property bool run: true
     property int startAt: 0
     property bool direct: false
+    // At most this many frames a second (0: the file's own; direct only).
+    property int maxFps: 0
     readonly property bool under: vl.direct && !vl.fellBack && (player.item?.ready ?? false)
     readonly property int position: player.item?.position ?? 0
     property bool started: false
@@ -50,6 +52,7 @@ Item {
             source: vl.source
             playing: vl.run
             startAt: vl.startAt
+            maxFps: vl.maxFps
             onFirstFrame: vl._first()
             onBroken: {
                 console.warn("live wallpaper: the direct engine can't run here; drawing it in the scene");

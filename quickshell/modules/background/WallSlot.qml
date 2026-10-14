@@ -16,6 +16,8 @@ Item {
     property string path: ""
     property size decode
     property bool playing: true
+    // A live wallpaper's frame-rate cap (0: none).
+    property int maxFps: 0
     readonly property bool isVideo: Wallpapers.isVideo(path)
     property bool ready: false
     property bool failed: false
@@ -80,6 +82,7 @@ Item {
         active: root.path !== "" && Wallpapers.isVideo(root.path) && !ShellState.locked && Quickshell.env("NAFEEL_NO_VIDEO") !== "1"
         sourceComponent: VideoLayer {
             direct: (Wallpapers.settings.v.liveEngine ?? "direct") !== "scene"
+            maxFps: root.maxFps
             source: "file://" + Wallpapers.playOf(root.path)
             run: root.playing
             onFirstFrame: root._done(true)

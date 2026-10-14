@@ -50,6 +50,7 @@ constexpr double kPhase = 0.6;
 struct Wanted {
     QString path;
     int startAt = 0;
+    int maxFps = 0;
     bool playing = true;
     bool shown = false;
     wl_surface *parent = nullptr;
@@ -123,6 +124,10 @@ protected:
             }
             if (w.pixels != have.pixels)
                 dropGraph();
+            if (w.maxFps != have.maxFps) {
+                m_maxFps = w.maxFps;
+                m_anchored = false;
+            }
             if (w.pos != have.pos || w.logical != have.logical || w.parent != have.parent)
                 m_geometryDirty = true;
             const bool resumed = w.playing && !have.playing;
@@ -453,8 +458,9 @@ private:
         // A frame lasts exactly k refreshes when the rate divides the
         // refresh (within 2%: played that much faster or slower).
         const double hz = 1e6 / m_period;
-        const double k = m_fps > 0 ? std::round(hz / m_fps) : 0;
-        const bool locked = k >= 1 && std::abs(hz / (k * m_fps) - 1) < 0.02;
+        const double fps = m_fps / step();
+        const double k = fps > 0 ? std::round(hz / fps) : 0;
+        const bool locked = k >= 1 && std::abs(hz / (k * fps) - 1) < 0.02;
         if (!m_anchored) {
             // The first refresh it can make with a commit at kPhase.
             const double lead = m_period * (1 - kPhase) + 1500;
@@ -600,6 +606,11 @@ private:
         return true;
     }
 
+    // Frames kept: 1 in step (a 60 fps file at maxFps 30: 2).
+    int step() const {
+        return m_maxFps > 0 && m_fps > m_maxFps * 1.25 ? int(std::round(m_fps / m_maxFps)) : 1;
+    }
+
     Decoded failed(const char *what, int err) {
         char msg[AV_ERROR_MAX_STRING_SIZE] = "";
         if (err)
@@ -630,6 +641,11 @@ private:
                     continue;
                 }
                 m_skipUntil = -1;
+                // Capped: only every step-th frame goes on.
+                if (step() > 1 && (m_decoded++ % step()) != 0) {
+                    av_frame_unref(m_raw);
+                    continue;
+                }
                 if (!m_graph && !buildGraph(m_raw)) {
                     av_frame_unref(m_raw);
                     return failed("building the video processor", 0);
@@ -741,6 +757,8 @@ private:
     double m_duration = 0;
     double m_loopOffset = 0;
     double m_skipUntil = -1;
+    int m_maxFps = 0;
+    qint64 m_decoded = 0;
     bool m_draining = false;
     std::deque<Decoded> m_queue_;
 
@@ -799,6 +817,7 @@ void DmabufVideo::push() {
     Wanted w;
     w.path = m_source.startsWith(QLatin1String("file://")) ? m_source.mid(7) : m_source;
     w.startAt = m_startAt;
+    w.maxFps = m_maxFps;
     w.playing = m_playing;
     w.shown = isVisible() && m_window && m_window->isVisible();
     if (m_window && m_window->handle() && w.shown) {
@@ -848,6 +867,14 @@ void DmabufVideo::setStartAt(int ms) {
         return;
     m_startAt = ms;
     emit startAtChanged();
+}
+
+void DmabufVideo::setMaxFps(int fps) {
+    if (fps == m_maxFps)
+        return;
+    m_maxFps = fps;
+    emit maxFpsChanged();
+    push();
 }
 
 int DmabufVideo::position() const {

@@ -99,6 +99,25 @@ Singleton {
             ]
         }
         SettingItem {
+            key: "liveBatteryFps"
+            icon: "battery_saver"
+            label: "Live wallpaper on battery"
+            description: "Full rate: the clip's own frame rate, always (each frame handed over once, none repeated). 30 fps: on battery a 60 fps clip shows every other frame, skipped before it's processed (about half the cost). Direct engine."
+            def: 0
+            options: [
+                {
+                    value: 0,
+                    icon: "speed",
+                    label: "Full rate"
+                },
+                {
+                    value: 30,
+                    icon: "battery_saver",
+                    label: "30 fps"
+                }
+            ]
+        }
+        SettingItem {
             key: "liveCovered"
             icon: "layers"
             label: "While windows cover it"
