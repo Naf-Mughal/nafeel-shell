@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Reads bin/frame-cycle's log: per open and close, from its start to where the
+motion ends (M still), the refreshes without a new frame (msc+N) and uneven
+animation steps; R/S are long renders and syncs.  frame-cycle-report [log] ["names"]"""
+import os, sys
+F=[];M=[];R=[];SY=[]
+for l in open(sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.environ.get('XDG_RUNTIME_DIR', '/tmp'), 'present.log')):
+    p=l.split()
+    if not p: continue
+    if p[0]=='F': F.append((int(p[1]),int(p[2]),int(p[3])))
+    elif p[0]=='M': M.append((int(p[1]),' '.join(p[2:])))
+    elif p[0]=='R': R.append((int(p[1]),int(p[2])))
+    elif p[0]=='S': SY.append((int(p[1]),int(p[2])))
+F.sort()
+still=[t for t,w in M if w=='still']
+def seg(t):
+    end=next((x for x in still if x>t+30e6), t+1200e6)
+    fr=[f for f in F if t<=f[0]<=end+20e6]
+    bad=[]
+    for a,b in zip(fr,fr[1:]):
+        dm=b[1]-a[1]; da=b[2]-a[2]
+        if da>200: continue  # clock restart
+        if dm!=1 or not (12<=da<=21): bad.append(f"{(b[0]-t)/1e6:.0f}ms:msc+{dm},anim+{da}")
+    rr=[f"R{(x-t)/1e6:.0f}:{d/1000:.0f}" for x,d in R if t<=x<=end]
+    ss=[f"S{(x-t)/1e6:.0f}:{d/1000:.0f}" for x,d in SY if t<=x<=end]
+    return (end-t)/1e6,len(fr),bad,rr+ss
+o=[t for t,w in M if w=='open']; c=[t for t,w in M if w=='close']
+names=sys.argv[2].split() if len(sys.argv)>2 else []
+nb=0
+for i,t in enumerate(o):
+    tc=next((x for x in c if x>t),None)
+    d1,n1,b1,x1=seg(t); d2,n2,b2,x2=(seg(tc) if tc else (0,0,[],[]))
+    nm=names[i%len(names)] if names else '?'
+    if b1 or b2: nb+=1
+    print(f"{i:2d} {nm:18s} open {d1:4.0f}ms {n1:3d}f {b1} {x1[:4]} | close {d2:4.0f}ms {n2:3d}f {b2} {x2[:4]}")
+print("motions with a dropped/irregular frame:",nb,"of",len(o))
