@@ -91,6 +91,7 @@ qt_add_qml_module(nafeelnative
         src/capture.h src/capture.cpp
         src/windowthumb.h src/windowthumb.cpp
         src/keyboard.h
+        src/fonts.h
         src/annotationcanvas.h src/annotationcanvas.cpp
         src/screensaver.h src/screensaver.cpp
         src/blobgroup.hpp src/blobgroup.cpp

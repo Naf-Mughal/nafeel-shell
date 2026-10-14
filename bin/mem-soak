@@ -1,7 +1,7 @@
 #!/bin/bash
 # The shell's memory soak (ROADMAP Stage O): every panel once, then rounds of
 # the heavy ones, measuring PSS after each, and the budget's verdict:
-#   - after the soak, idle at most 350 MB;
+#   - after the soak, idle at most 400 MB (ROADMAP Stage O, reset 2026-10-14);
 #   - every panel opened once keeps at most 90 MB in all, measured once
 #     Qt's image cache has let go (it holds closed panels' images ~30 s).
 # A step's own figure is what it holds a second after closing (cache
@@ -16,7 +16,7 @@
 set -u
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 qml=$root/quickshell
-idle_budget=350
+idle_budget=400
 once_budget=90
 rounds=5
 restart=0

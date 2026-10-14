@@ -155,13 +155,18 @@ Singleton {
             root.finishLoading();
         }
         // First run: what the Noctalia plugin wrote, carried over.
-        onLoadFailed: legacy.reload()
+        onLoadFailed: root.firstRun = true
     }
+
+    // Only read when there's no settings file yet: a FileView loads its
+    // path as soon as it's made, and this one used to, at every start,
+    // putting the old file's values over the current ones (and saving them).
+    property bool firstRun: false
 
     FileView {
         id: legacy
 
-        path: Quickshell.env("HOME") + "/.local/state/nafeel-shell/settings.json"
+        path: root.firstRun ? Quickshell.env("HOME") + "/.local/state/nafeel-shell/settings.json" : ""
         printErrors: false
         onLoaded: {
             try {

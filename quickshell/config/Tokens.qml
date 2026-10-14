@@ -10,9 +10,15 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Nafeel
 
 Singleton {
     id: root
+
+    // A gloss in the UI sans, the serif or mono takes its glyphs from the
+    // shell's cut CJK font, not the system's whole Noto CJK collections
+    // (Qt's fallback; ~8 MB of tables per family, kept for good).
+    Component.onCompleted: Fonts.substitute([font.serif, font.mono], font.cjk)
 
     // The look's settings (the Settings panel's Appearance page).
     readonly property SettingsPage settings: SettingsPage {

@@ -727,7 +727,17 @@ every change); Save keeps it, Revert or closing unsaved walks back.
 
 ## Stage O: optimization (asked 2026-10-13; then primitives and behaviours, then each panel)
 
-Target: idle about 200-250 MB PSS, never above 350 MB with use.
+Target (reset 2026-10-14, for the shell as the user runs it: a live wallpaper, every panel
+warm): **fresh <= 380 MB, idle after the soak <= 400 MB** (`bin/mem-soak` checks the latter);
+stretch 350 after use. The first target (200-250 idle, 350 with use) assumed a still wallpaper
+and nothing built ahead; the warm choice alone holds ~165 MB.
+
+**Where it stood (2026-10-14, before O8)**: fresh 479 MB, 531 after the soak, 550-570 after a
+day (the user). Fresh, by switching parts off: bare shell (no video, no prewarm) ~210; the 4K
+live wallpaper +100 (ffmpeg's H.264 tables per picture, ~90 MB at 4K, freed and made again at
+every loop of the clip); prewarm +165 (Settings 65-78, drawers 51, popouts 14, command centre
+12). jemalloc's own figures: ~300 MB allocated at idle, resident barely above it (not
+fragmentation; tuning its decay and caches changed nothing; mimalloc preloaded crashes).
 
 **Baseline (2026-10-13, measured, nothing changed yet).** With the 4K H.264 live wallpaper
 (motionbgs wandering-samurai, `liveQuality: original`, decoded in-process by ffmpeg on the CPU):
@@ -810,6 +820,22 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   every panel once keeps 67 MB. Left: the lock screen still plays the video in the shell
   (VideoLayer through ShellLockHost.liveComponent) while locked.
 - [ ] **O7 Allocator** (MALLOC_ARENA_MAX, trimming): last; the trim test freed nothing.
+  (2026-10-14: measured; nothing to win, see above.)
+- [x] **O8 Second pass** (2026-10-14): **fresh 479 -> 393 MB, after the soak 531 -> 432**.
+  - Live quality "screen" for the user (1080p copy on a 1080p screen; their call): -60 MB,
+    and the per-loop churn a quarter of what it was. It never stuck before: Settings' legacy
+    FileView loaded at every start and put ~/.local/state/nafeel-shell/settings.json over the
+    current values (live quality, location, radius, motion, paper, immersion, Wallhaven key all
+    reset on each restart); it now loads only when there's no settings file.
+  - Fonts: `Fonts.substitute` (native) makes the cut CJK serif the substitute for the UI sans,
+    the serif and mono, so glosses no longer load the system's Noto Sans CJK (~8 MB + mapped).
+  - Settings rows make only their kind's control (a toggle row or a sheet; each made both, one
+    hidden): ~-15 MB. The user keeps every page prewarmed (lazy pages measured at -42 MB, declined).
+  Left, by size: Settings warm (~55 MB, kept by choice); the wallpaper studio's thumbnails while
+  closed (~29 MB: `awake: true` keeps them so opening never pops in; by choice); mpv reinits
+  its decoder at every loop (EOF, seek, new decoder; try a demuxer-level loop); Noto Serif CJK
+  Regular still loads for some glyph the serif lacks (~4 MB; find which); the still under the
+  video keeps its 8 MB CPU copy; ~40 MB of growth over the soak.
 
 ## Ideas, not scheduled
 

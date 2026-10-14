@@ -187,57 +187,67 @@ Panel {
             topPadding: row.index > 0 ? Tokens.spacing.large : 0
         }
 
-        // On / off: the row is the control.
-        ListRow {
-            visible: row.item.kind === "toggle"
+        // Only the kind's own control is made: on / off is a row that is the
+        // control, the rest a sheet holding theirs (each row once made both,
+        // one hidden: Settings is built ahead, so that was paid in full).
+        Loader {
             width: row.width
-            icon: row.item.icon
-            iconFill: row.value === true ? 1 : 0
-            title: row.item.label
-            subtitle: row.item.description
-            onClicked: Settings.set(row.item.key, row.value !== true)
+            sourceComponent: row.item.kind === "toggle" ? toggleRow : sheetRow
+        }
 
-            StyledSwitch {
-                checked: row.value === true
-                onToggled: Settings.set(row.item.key, row.value !== true)
+        Component {
+            id: toggleRow
+
+            ListRow {
+                icon: row.item.icon
+                iconFill: row.value === true ? 1 : 0
+                title: row.item.label
+                subtitle: row.item.description
+                onClicked: Settings.set(row.item.key, row.value !== true)
+
+                StyledSwitch {
+                    checked: row.value === true
+                    onToggled: Settings.set(row.item.key, row.value !== true)
+                }
             }
         }
 
-        Sheet {
-            visible: row.item.kind !== "toggle"
-            width: row.width
-            title: row.item.label
-            trailing: [
+        Component {
+            id: sheetRow
+
+            Sheet {
+                title: row.item.label
+                trailing: [
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: row.item.kind === "number"
+                        text: root.readNumber(row.item, row.value)
+                        color: Colours.palette.m3onSurfaceVariant
+                        font.family: Tokens.font.mono
+                        font.pixelSize: Tokens.font.small
+                    },
+                    IconButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: row.modified
+                        size: 32
+                        icon: "restart_alt"
+                        onClicked: Settings.reset(row.item.key)
+                    }
+                ]
+
                 StyledText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: row.item.kind === "number"
-                    text: root.readNumber(row.item, row.value)
+                    width: parent.width
+                    visible: text !== ""
+                    text: row.item.description
                     color: Colours.palette.m3onSurfaceVariant
-                    font.family: Tokens.font.mono
                     font.pixelSize: Tokens.font.small
-                },
-                IconButton {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: row.modified
-                    size: 32
-                    icon: "restart_alt"
-                    onClicked: Settings.reset(row.item.key)
+                    wrapMode: Text.WordWrap
                 }
-            ]
 
-            StyledText {
-                width: parent.width
-                visible: text !== ""
-                text: row.item.description
-                color: Colours.palette.m3onSurfaceVariant
-                font.pixelSize: Tokens.font.small
-                wrapMode: Text.WordWrap
-            }
-
-            Loader {
-                width: parent.width
-                active: row.item.kind !== "toggle"
-                sourceComponent: row.item.kind === "text" ? textField : row.item.kind === "number" ? number : row.item.kind === "multi" ? multi : choice
+                Loader {
+                    width: parent.width
+                    sourceComponent: row.item.kind === "text" ? textField : row.item.kind === "number" ? number : row.item.kind === "multi" ? multi : choice
+                }
             }
         }
 
