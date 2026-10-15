@@ -62,7 +62,7 @@ Panel {
         orientation: ListView.Vertical
         spacing: Tokens.spacing.small
         cacheBuffer: 400
-        model: root.notifs?.historyModel ?? null
+        model: root.notifs?.groupedModel ?? null
 
         // By key (historyModel): a change moves or adds a card, never
         // rebuilds them all.
@@ -71,6 +71,9 @@ Panel {
 
             required property int key
             required property int revision
+            // Grouped by app (Notifs.groupedModel).
+            required property int groupCount
+            required property bool groupHead
             // The last known entry, for a card on its way out.
             property var last: ({
                     app: "",
@@ -85,6 +88,8 @@ Panel {
 
             width: cards.width
             rev: revision
+            count: groupCount
+            head: groupHead
             entry: {
                 const found = root.notifs?.byKey(key);
                 if (found)

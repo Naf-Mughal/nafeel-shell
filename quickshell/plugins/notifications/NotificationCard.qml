@@ -20,6 +20,21 @@ StyledRect {
     // The entry's revision (Notifs.touch): it changes in place, so what's
     // shown is a copy taken at each one. Actions get the entry itself.
     property int rev: 0
+    // In a grouped list: how many this app has, whether this one leads them
+    // (the newest), and whether the group is open.
+    property int count: 1
+    property bool head: true
+    readonly property bool grouped: !toast && count > 1
+    readonly property bool collapsed: grouped && head && !(Notifs.expanded[view.app] ?? false)
+    // A collapsed group goes as one (swiped or closed).
+    function dismiss(): void {
+        if (toast)
+            Notifs.hidePopup(root.entry);
+        else if (collapsed)
+            Notifs.removeApp(view.app);
+        else
+            Notifs.remove(root.entry);
+    }
     readonly property var view: {
         root.rev;
         return Object.assign({}, root.entry);
@@ -47,10 +62,22 @@ StyledRect {
         x: swipe.shift
     }
 
+    // A collapsed group: the next one's edge, peeking out under it.
+    StyledRect {
+        visible: root.collapsed
+        z: -1
+        x: Tokens.spacing.normal
+        y: root.height - radius
+        width: root.width - Tokens.spacing.normal * 2
+        height: radius + 6
+        radius: root.radius
+        color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.6 * swipe.fade)
+    }
+
     SwipeDismiss {
         id: swipe
 
-        onDismissed: root.toast ? Notifs.hidePopup(root.entry) : Notifs.remove(root.entry)
+        onDismissed: root.dismiss()
     }
 
     Column {
@@ -123,6 +150,47 @@ StyledRect {
                         color: Colours.palette.m3onSurfaceVariant
                         font.pixelSize: 11
                     }
+
+                    // The group's count; opens and closes it.
+                    Surface {
+                        visible: root.grouped && root.head
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: groupRow.implicitWidth + 12
+                        implicitHeight: 18
+                        role: "secondary"
+                        shape: "full"
+                        interactive: true
+                        pressDepth: 0.9
+                        onClicked: Notifs.toggleGroup(root.view.app)
+
+                        Row {
+                            id: groupRow
+
+                            anchors.centerIn: parent
+                            spacing: 1
+
+                            StyledText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: root.count
+                                color: parent.parent.ink
+                                font.pixelSize: 10
+                                font.weight: Font.DemiBold
+                            }
+                            MaterialIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "expand_more"
+                                size: 14
+                                color: parent.parent.ink
+                                rotation: root.collapsed ? 0 : 180
+
+                                Behavior on rotation {
+                                    Anim {
+                                        duration: Tokens.anim.fast
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 StyledText {
@@ -153,7 +221,7 @@ StyledRect {
 
                 icon: "close"
                 size: 28
-                onClicked: root.toast ? Notifs.hidePopup(root.entry) : Notifs.remove(root.entry)
+                onClicked: root.dismiss()
             }
         }
 

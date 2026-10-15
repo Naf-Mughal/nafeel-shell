@@ -93,7 +93,88 @@ Singleton {
 
     readonly property ListModel historyModel: ListModel {}
 
-    onHistoryChanged: syncModel()
+    // The history grouped by app (the panel and the action center): each
+    // app's newest leads with its count; the rest follow only while that app
+    // is expanded. Rows { key, revision, groupCount, groupHead }, kept in step the same
+    // way (moved and inserted, never rebuilt).
+    readonly property ListModel groupedModel: ListModel {}
+    property var expanded: ({})
+
+    function toggleGroup(app: string): void {
+        const e = Object.assign({}, expanded);
+        e[app] = !e[app];
+        expanded = e;
+    }
+
+    // Everything an app has (a collapsed group dismissed at once).
+    function removeApp(app: string): void {
+        for (const n of history.filter(n => n.app === app))
+            remove(n);
+    }
+
+    function groupedRows(): var {
+        const order = [], byApp = {};
+        for (const n of history) {
+            if (!byApp[n.app]) {
+                byApp[n.app] = [];
+                order.push(n.app);
+            }
+            byApp[n.app].push(n);
+        }
+        const rows = [];
+        for (const app of order) {
+            const all = byApp[app];
+            all.forEach((n, i) => {
+                if (i === 0 || expanded[app])
+                    rows.push({
+                        n,
+                        count: all.length,
+                        head: i === 0
+                    });
+            });
+        }
+        return rows;
+    }
+
+    function syncGrouped(): void {
+        const m = groupedModel, rows = groupedRows();
+        const keys = new Set(rows.map(r => r.n.key));
+        for (let i = m.count - 1; i >= 0; i--)
+            if (!keys.has(m.get(i).key))
+                m.remove(i);
+        rows.forEach((row, at) => {
+            const n = row.n;
+            let found = at < m.count && m.get(at).key === n.key ? at : -1;
+            for (let i = at + 1; found < 0 && i < m.count; i++)
+                if (m.get(i).key === n.key)
+                    found = i;
+            const rev = n.rev ?? 0;
+            if (found < 0) {
+                m.insert(at, {
+                    key: n.key,
+                    revision: rev,
+                    groupCount: row.count,
+                    groupHead: row.head
+                });
+                return;
+            }
+            if (found !== at)
+                m.move(found, at, 1);
+            const cur = m.get(at);
+            if (cur.revision !== rev)
+                m.setProperty(at, "revision", rev);
+            if (cur.groupCount !== row.count)
+                m.setProperty(at, "groupCount", row.count);
+            if (cur.groupHead !== row.head)
+                m.setProperty(at, "groupHead", row.head);
+        });
+    }
+
+    onHistoryChanged: {
+        syncModel();
+        syncGrouped();
+    }
+    onExpandedChanged: syncGrouped()
 
     function byKey(key: int): var {
         return history.find(n => n.key === key);
