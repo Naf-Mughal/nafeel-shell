@@ -172,6 +172,85 @@ Singleton {
                 }
             ]
         }
+        SettingItem {
+            key: "motion.panels"
+            label: "Panels' spring"
+            description: "How panels open and close: calm settles softly, lively bounces past and back, snappy is quick with a little give, crisp lands dead on."
+            def: "calm"
+            options: [
+                {
+                    value: "calm",
+                    icon: "waves",
+                    label: "Calm"
+                },
+                {
+                    value: "lively",
+                    icon: "sports_volleyball",
+                    label: "Lively"
+                },
+                {
+                    value: "snappy",
+                    icon: "bolt",
+                    label: "Snappy"
+                },
+                {
+                    value: "crisp",
+                    icon: "straighten",
+                    label: "Crisp"
+                }
+            ]
+        }
+        SettingItem {
+            key: "motion.controls"
+            label: "Controls' spring"
+            description: "The same, for the goo, switches, lists and the bar's pill: mix it with the panels' as you like."
+            def: "calm"
+            options: [
+                {
+                    value: "calm",
+                    icon: "waves",
+                    label: "Calm"
+                },
+                {
+                    value: "lively",
+                    icon: "sports_volleyball",
+                    label: "Lively"
+                },
+                {
+                    value: "snappy",
+                    icon: "bolt",
+                    label: "Snappy"
+                },
+                {
+                    value: "crisp",
+                    icon: "straighten",
+                    label: "Crisp"
+                }
+            ]
+        }
+        SettingItem {
+            key: "motion.contents"
+            label: "Contents"
+            description: "How a panel's sections arrive as it opens: together, rising one after another, or sweeping in from the left."
+            def: "together"
+            options: [
+                {
+                    value: "together",
+                    icon: "select_all",
+                    label: "Together"
+                },
+                {
+                    value: "stagger",
+                    icon: "format_line_spacing",
+                    label: "Stagger"
+                },
+                {
+                    value: "ink",
+                    icon: "brush",
+                    label: "Ink"
+                }
+            ]
+        }
     }
 
     // ── Frame ─────────────────────────────────────────────────────────────
@@ -308,10 +387,30 @@ Singleton {
     // Spring presets for SpringAnimation (M3 Expressive physics): `spatial`
     // for things that travel or grow (drawers, pills), `bouncy` for small
     // playful ones (toggles, presses), `gentle` for large surfaces.
+    // Spring characters (stiffness, damping at the designed tempo): calm is
+    // the shell's own, lively bounces past and back, snappy is quick with a
+    // little give (between the two), crisp lands dead on.
+    readonly property var springPresets: ({
+            calm: [3.4, 0.3],
+            lively: [4.5, 0.15],
+            snappy: [6.2, 0.3],
+            crisp: [9, 0.85]
+        })
+    readonly property var panelPreset: springPresets[settings.v["motion.panels"]] ?? springPresets.calm
+    readonly property var controlPreset: springPresets[settings.v["motion.controls"]] ?? springPresets.calm
+    // How a panel's sections arrive (Panel): together | stagger | ink.
+    readonly property string contents: settings.v["motion.contents"] ?? "together"
+
     readonly property QtObject spring: QtObject {
+        // Panels (Appearance → Panels' spring).
         readonly property QtObject spatial: QtObject {
-            readonly property real spring: root.springK(3.4)
-            readonly property real damping: root.dampK(0.3)
+            readonly property real spring: root.springK(root.panelPreset[0])
+            readonly property real damping: root.dampK(root.panelPreset[1])
+        }
+        // Controls (Appearance → Controls' spring): goo, switches, lists.
+        readonly property QtObject control: QtObject {
+            readonly property real spring: root.springK(root.controlPreset[0] * 1.18)
+            readonly property real damping: root.dampK(root.controlPreset[1] * 1.07)
         }
         readonly property QtObject bouncy: QtObject {
             readonly property real spring: root.springK(4.5)

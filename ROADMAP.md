@@ -899,8 +899,10 @@ every control and state on, then the controls, then moving panels onto them, mot
   it's open.
 - [x] **K6 Panels onto the primitives** (2026-10-15; the cards and buttons that were hand-made are
   Surfaces, the lists and tabs on the goo, text motion where it fits; drawing left as drawing)
-- [ ] **K7 Motion feel**: spring presets, open/close choreography (staggered contents),
-  press and hover ink, blobs: variants shown in the gallery for the user to choose.
+- [x] **K7 Motion feel** (2026-10-15, the user: options, mixable): Appearance → Panels' spring
+  and Controls' spring (calm, lively, snappy, crisp; Tokens.springPresets, calm = the shell's
+  old feel), Contents (together, stagger, ink: Panel's sections enter as it opens). Kit 21 plays
+  them side by side.
 
 ## Ideas, not scheduled
 

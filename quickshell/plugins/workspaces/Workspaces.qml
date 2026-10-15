@@ -171,8 +171,8 @@ Item {
             Behavior on along {
                 enabled: plate.placed
                 SpringAnimation {
-                    spring: Tokens.spring.bouncy.spring
-                    damping: Tokens.spring.spatial.damping
+                    spring: Tokens.spring.control.spring
+                    damping: Tokens.spring.control.damping
                     epsilon: 0.25
                 }
             }
@@ -216,8 +216,8 @@ Item {
 
                     Behavior on scale {
                         SpringAnimation {
-                            spring: Tokens.spring.bouncy.spring
-                            damping: Tokens.spring.bouncy.damping
+                            spring: Tokens.spring.control.spring
+                            damping: Tokens.spring.control.damping
                             epsilon: 0.002
                         }
                     }

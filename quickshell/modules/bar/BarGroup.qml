@@ -197,16 +197,16 @@ Item {
             Behavior on along {
                 enabled: pill.glide
                 SpringAnimation {
-                    spring: Tokens.springK(4)
-                    damping: Tokens.dampK(0.32)
+                    spring: Tokens.spring.control.spring
+                    damping: Tokens.spring.control.damping
                     epsilon: 0.25
                 }
             }
             Behavior on length {
                 enabled: pill.glide
                 SpringAnimation {
-                    spring: Tokens.springK(4)
-                    damping: Tokens.dampK(0.32)
+                    spring: Tokens.spring.control.spring
+                    damping: Tokens.spring.control.damping
                     epsilon: 0.25
                 }
             }

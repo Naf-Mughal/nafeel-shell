@@ -572,7 +572,7 @@ Item {
 
                 // ── Springs: one move, three characters ──
                 Spec {
-                    caption: "spring · calm (now) / lively / crisp"
+                    caption: "spring · calm / lively / snappy / crisp (Settings → Appearance)"
                     Column {
                         id: springs
 
@@ -586,7 +586,8 @@ Item {
                         }
 
                         Repeater {
-                            model: [["calm", 3.4, 0.3], ["lively", 4.5, 0.17], ["crisp", 6.5, 0.62]]
+                            // The shell's presets (Appearance → Panels' / Controls' spring).
+                            model: ["calm", "lively", "snappy", "crisp"].map(k => [k, Tokens.springPresets[k][0], Tokens.springPresets[k][1]])
 
                             Item {
                                 id: lane
@@ -635,7 +636,7 @@ Item {
 
                 // ── A panel's contents arriving: together, staggered, inked ──
                 Spec {
-                    caption: "contents · together (now) / stagger / ink"
+                    caption: "contents · together / stagger / ink (Settings → Appearance → Contents)"
                     Row {
                         id: arrive
 

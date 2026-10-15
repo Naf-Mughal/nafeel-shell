@@ -19,8 +19,8 @@ Item {
     Behavior on pos {
         enabled: !Tokens.reduceMotion
         SpringAnimation {
-            spring: Tokens.springK(4.5)
-            damping: Tokens.dampK(0.38)
+            spring: Tokens.spring.control.spring
+            damping: Tokens.spring.control.damping
             epsilon: 0.002
         }
     }

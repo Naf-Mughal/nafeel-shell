@@ -37,6 +37,86 @@ Column {
 
     spacing: density === "compact" ? Tokens.spacing.small : Tokens.spacing.normal
 
+    // The sections' entrance as the panel opens (Appearance → Contents):
+    // "together" leaves it to the frame's soak; "stagger" raises them one
+    // after another; "ink" sweeps them in from the left. Each section gets a
+    // Translate the first time (kept), and its animation lives only while
+    // it plays.
+    onVisibleChanged: if (visible)
+        enter()
+
+    // Each section's Translate (an item takes no new properties from JS).
+    property var _shifts: new Map()
+
+    function enter(): void {
+        const mode = Tokens.contents;
+        if (mode === "together" || Tokens.reduceMotion)
+            return;
+        let i = 0;
+        for (const c of children) {
+            if (!c.visible || c.height <= 0)
+                continue;
+            let t = _shifts.get(c);
+            if (!t) {
+                if (c.transform.length > 0)
+                    continue;
+                t = shift.createObject(c);
+                c.transform = [t];
+                _shifts.set(c, t);
+            }
+            c.opacity = 0;
+            t.x = mode === "ink" ? -14 : 0;
+            t.y = mode === "stagger" ? 10 : 0;
+            entrance.createObject(root, {
+                target: c,
+                shift: t,
+                delay: Tokens.dur(45) * i++
+            });
+        }
+    }
+
+    Component {
+        id: shift
+
+        Translate {}
+    }
+
+    Component {
+        id: entrance
+
+        SequentialAnimation {
+            id: anim
+
+            property Item target
+            property Translate shift
+            property int delay
+
+            running: true
+            onFinished: anim.destroy()
+
+            PauseAnimation {
+                duration: anim.delay
+            }
+            ParallelAnimation {
+                NumberAnimation {
+                    target: anim.target
+                    property: "opacity"
+                    to: 1
+                    duration: Tokens.anim.normal
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: anim.shift
+                    properties: "x,y"
+                    to: 0
+                    duration: Tokens.anim.normal
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Tokens.anim.emphasizedDecel
+                }
+            }
+        }
+    }
+
     PanelHeader {
         id: header
 

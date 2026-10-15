@@ -22,16 +22,16 @@ Item {
     Behavior on sx {
         enabled: !Tokens.reduceMotion
         SpringAnimation {
-            spring: Tokens.springK(5)
-            damping: Tokens.dampK(0.42)
+            spring: Tokens.spring.control.spring
+            damping: Tokens.spring.control.damping
             epsilon: 0.2
         }
     }
     Behavior on sy {
         enabled: !Tokens.reduceMotion
         SpringAnimation {
-            spring: Tokens.springK(5)
-            damping: Tokens.dampK(0.42)
+            spring: Tokens.spring.control.spring
+            damping: Tokens.spring.control.damping
             epsilon: 0.2
         }
     }

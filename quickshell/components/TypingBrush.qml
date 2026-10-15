@@ -23,16 +23,16 @@ Shape {
     Behavior on tip {
         enabled: !Tokens.reduceMotion
         SpringAnimation {
-            spring: Tokens.springK(4)
-            damping: Tokens.dampK(0.4)
+            spring: Tokens.spring.control.spring
+            damping: Tokens.spring.control.damping
             epsilon: 0.3
         }
     }
     Behavior on foot {
         enabled: !Tokens.reduceMotion
         SpringAnimation {
-            spring: Tokens.springK(4)
-            damping: Tokens.dampK(0.4)
+            spring: Tokens.spring.control.spring
+            damping: Tokens.spring.control.damping
             epsilon: 0.3
         }
     }

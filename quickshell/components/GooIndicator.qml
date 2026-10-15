@@ -163,32 +163,32 @@ Item {
         Behavior on bx {
             enabled: mover.glide
             SpringAnimation {
-                spring: Tokens.springK(4)
-                damping: Tokens.dampK(0.32)
+                spring: Tokens.spring.control.spring
+                damping: Tokens.spring.control.damping
                 epsilon: 0.25
             }
         }
         Behavior on by {
             enabled: mover.glide
             SpringAnimation {
-                spring: Tokens.springK(4)
-                damping: Tokens.dampK(0.32)
+                spring: Tokens.spring.control.spring
+                damping: Tokens.spring.control.damping
                 epsilon: 0.25
             }
         }
         Behavior on bw {
             enabled: mover.glide
             SpringAnimation {
-                spring: Tokens.springK(4)
-                damping: Tokens.dampK(0.32)
+                spring: Tokens.spring.control.spring
+                damping: Tokens.spring.control.damping
                 epsilon: 0.25
             }
         }
         Behavior on bh {
             enabled: mover.glide
             SpringAnimation {
-                spring: Tokens.springK(4)
-                damping: Tokens.dampK(0.32)
+                spring: Tokens.spring.control.spring
+                damping: Tokens.spring.control.damping
                 epsilon: 0.25
             }
         }
