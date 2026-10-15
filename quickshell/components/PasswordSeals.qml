@@ -4,9 +4,9 @@ import QtQuick
 import qs.config
 import qs.services
 
-// A password as seals: each key presses in a seal's character in cinnabar
-// (no ground), which then melts into a plain dot (the character shrinking
-// and fading as the dot rounds out of it, cinnabar to ink), as the Pixel's
+// A password as seals: each key presses in a seal's character in the theme's
+// colour (no ground), which then melts into a plain dot (the character shrinking
+// and fading as the dot rounds out of it), as the Pixel's
 // PIN shapes melt into dots. Stays inside its field: the row slides so the newest is in view.
 //   PasswordSeals { anchors.fill: parent; count: input.text.length }
 Item {
@@ -14,6 +14,8 @@ Item {
 
     property int count: 0
     property color dot: Colours.palette.m3onSurface
+    // The characters' colour: the theme's, not cinnabar.
+    property color ink: Colours.palette.m3primary
     readonly property bool animate: !Tokens.reduceMotion
     // The stamps' characters, taken in turn.
     readonly property string glyphs: "印道心气灵玄天剑云月风山"
@@ -76,8 +78,8 @@ Item {
                     StyledText {
                         anchors.centerIn: parent
                         text: root.glyphs.charAt(slot.index % root.glyphs.length)
-                        // Cinnabar never themes (components/Seal).
-                        color: "#c8372d"
+                        // The theme's ink (the primary: white on this palette).
+                        color: root.ink
                         font.family: Tokens.font.cjk
                         font.pixelSize: 15
                         font.weight: Font.Bold
@@ -90,7 +92,7 @@ Item {
                         width: 8
                         height: 8
                         radius: 4
-                        color: Qt.tint("#c8372d", Qt.alpha(root.dot, slot.melt))
+                        color: Qt.tint(root.ink, Qt.alpha(root.dot, slot.melt))
                         opacity: slot.melt
                         scale: 0.3 + 0.7 * slot.melt
                     }
