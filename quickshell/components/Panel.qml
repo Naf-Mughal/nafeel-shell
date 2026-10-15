@@ -65,12 +65,15 @@ Column {
                 _shifts.set(c, t);
             }
             c.opacity = 0;
-            t.x = mode === "ink" ? -14 : 0;
-            t.y = mode === "stagger" ? 10 : 0;
+            t.x = mode === "ink" ? -24 : 0;
+            t.y = mode === "stagger" ? 16 : 0;
+            // After the panel's own opening has mostly played (its growth
+            // and soak hid an entrance that started with it), one after
+            // another.
             entrance.createObject(root, {
                 target: c,
                 shift: t,
-                delay: Tokens.dur(45) * i++
+                delay: Tokens.dur(230) + Tokens.dur(60) * i++
             });
         }
     }
@@ -102,14 +105,14 @@ Column {
                     target: anim.target
                     property: "opacity"
                     to: 1
-                    duration: Tokens.anim.normal
+                    duration: Tokens.dur(420)
                     easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
                     target: anim.shift
                     properties: "x,y"
                     to: 0
-                    duration: Tokens.anim.normal
+                    duration: Tokens.dur(420)
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Tokens.anim.emphasizedDecel
                 }
