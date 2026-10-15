@@ -15,7 +15,7 @@ Row {
     spacing: 14 * sc
 
     Repeater {
-        model: Math.min(sticks.ctx.maxLives, 5)
+        model: Math.min(sticks.ctx.maxLives, 10)
 
         Item {
             id: stick

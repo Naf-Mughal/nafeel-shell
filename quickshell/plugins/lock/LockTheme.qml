@@ -15,13 +15,22 @@ QtObject {
         return 1 - Math.pow(1 - x, 3);
     }
 
-    // ── Seclusion: wrong incantations in rounds of three ──
-    // Each full round seals the formation a while, longer each time; the
-    // tenth is a day (pam_faillock holds that one itself: deny = 30,
-    // unlock_time = fail_interval = 86400). The lock and the polkit prompt
-    // both read it from faillock's tally, so they share one count.
-    readonly property int roundOf: 3
+    // ── Seclusion: wrong incantations in rounds of ten ──
+    // Every round of ten wrong ones seals the formation a while; three rounds
+    // (a set of thirty) at each length, then the next: 10 s, 30 s, 5 min,
+    // 15 min, 30 min, 1 h, 3 h, 6 h, 12 h, then a day for every round after.
+    // The lock and the polkit prompt both read it from faillock's tally
+    // (kept a week: fail_interval = 604800; pam_faillock's own lock is only a
+    // backstop after ten sets, deny = 300, unlock_time = 86400), so they
+    // share one count; a success clears it.
+    readonly property int roundOf: 10
+    readonly property int roundsPerSet: 3
+    readonly property int window: 604800
     readonly property var seclusions: [10, 30, 300, 900, 1800, 3600, 10800, 21600, 43200, 86400]
+
+    function _sealFor(round) {
+        return seclusions[Math.min(Math.floor((round - 1) / roundsPerSet), seclusions.length - 1)];
+    }
 
     // `faillock --user` output: the valid failures' times (epoch ms).
     function failureTimes(text) {
@@ -44,7 +53,7 @@ QtObject {
         const latest = n > 0 ? Math.max.apply(null, times) : 0;
         let until = 0;
         if (rounds > 0 && n % roundOf === 0) {
-            const t = latest + seclusions[Math.min(rounds, seclusions.length) - 1] * 1000;
+            const t = latest + _sealFor(rounds) * 1000;
             if (t > now)
                 until = t;
         }
@@ -52,7 +61,7 @@ QtObject {
             failures: n,
             lives: until > 0 ? 0 : roundOf - n % roundOf,
             until: until,
-            next: seclusions[Math.min(rounds, seclusions.length - 1)]
+            next: _sealFor(rounds + 1)
         };
     }
 

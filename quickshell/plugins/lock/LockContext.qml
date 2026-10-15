@@ -480,8 +480,8 @@ Scope {
     // it locks the account; the countdown shows when that lockout ends. Read
     // from `faillock --user` (the tally file is user-readable) and the
     // deny/unlock_time/fail_interval settings in faillock.conf.
-    property int maxLives: 3
-    property int lives: 3
+    readonly property int maxLives: LockTheme.roundOf
+    property int lives: LockTheme.roundOf
     property int failures: 0
     property double lockoutUntil: 0  // epoch ms; -1 = until an admin resets it
     property int lockoutLeft: 0      // seconds
@@ -493,7 +493,7 @@ Scope {
     // The seclusion the next full round brings (s); rounds of three, longer
     // each time (LockTheme.seclusion).
     property int unlockTime: 10
-    property int failInterval: 86400  // s, from faillock.conf
+    property int failInterval: LockTheme.window  // s, from faillock.conf
 
     readonly property string userName: CaveAbode.user
 
@@ -518,7 +518,6 @@ Scope {
             if (m[1] === "fail_interval")
                 failInterval = v;
         }
-        lives = Math.min(lives, maxLives);
         refreshFaillock();
     }
 
