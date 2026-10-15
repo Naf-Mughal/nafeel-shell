@@ -95,6 +95,12 @@ Scope {
                 previewLoader.active = !previewLoader.active;
         }
 
+        // The capture panel in the preview, as the capture keys open it
+        // while locked (tests).
+        function previewCapture(): void {
+            previewLoader.item?.panels?.openCapture("screenshot-region");
+        }
+
         // Offer `text` to the preview (tests).
         function previewSubmit(text: string): void {
             previewLoader.item?.submit(text);

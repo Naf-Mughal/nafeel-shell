@@ -187,8 +187,20 @@ Scope {
 
     // An action, as the plugin's IPC took them: "screenshot region", "stop",
     // "set kind record", …
+    // Locked, the capture keys open the lock's own capture panel (nothing
+    // else can draw over the lock): `preset` is what's picked first
+    // ("screenshot-region" | "record-region").
+    signal lockPanelRequested(string preset)
+
     function request(action: string, arg: string): void {
         arg = (arg ?? "").trim();
+        if (ShellState.locked && ["screenshot", "snip", "capture", "annotate", "record"].includes(action)) {
+            if (action === "record" && recording)
+                stop();
+            else
+                lockPanelRequested(action === "record" ? "record-region" : "screenshot-region");
+            return;
+        }
         switch (action) {
         case "screenshot":
             shot(arg || "region", 0);

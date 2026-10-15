@@ -96,7 +96,16 @@ Scope {
 
             // The desktop's frame, kept round the lock.
             LockFrame {
+                id: lockFrame
+
                 anchors.fill: parent
+            }
+
+            // Grown out of it: the OSD, notifications, capture.
+            LockPanels {
+                anchors.fill: parent
+                frame: lockFrame
+                ctx: lockCtx
             }
 
             // Its frames at the vblank ticks like the shell's own windows

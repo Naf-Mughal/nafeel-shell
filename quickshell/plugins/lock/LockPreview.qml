@@ -17,18 +17,19 @@ Scope {
 
     readonly property string screenName: Umbriel.focusedOutput || (Quickshell.screens[0]?.name ?? "")
     property bool shown: false
+    property var panels: null
 
     function show(): void {
         if (shown)
             return;
-        ctx.configure(CaveAbode.timing);
-        ctx.begin();
+        previewCtx.configure(CaveAbode.timing);
+        previewCtx.begin();
         shown = true;
     }
 
     function submit(text: string): void {
-        ctx.buffer = text;
-        ctx.submit();
+        previewCtx.buffer = text;
+        previewCtx.submit();
     }
 
     ShellLockHost {
@@ -36,7 +37,7 @@ Scope {
     }
 
     LockContext {
-        id: ctx
+        id: previewCtx
 
         preview: true
         onReleased: root.finished()
@@ -78,9 +79,24 @@ Scope {
 
             XianxiaSurface {
                 anchors.fill: parent
-                ctx: ctx
+                ctx: previewCtx
                 host: lockHost
                 shot: capture.urlFor(win.modelData)
+            }
+
+            LockFrame {
+                id: previewFrame
+
+                anchors.fill: parent
+            }
+
+            LockPanels {
+                id: panels
+
+                anchors.fill: parent
+                frame: previewFrame
+                Component.onCompleted: root.panels = panels
+                ctx: previewCtx
             }
         }
     }
