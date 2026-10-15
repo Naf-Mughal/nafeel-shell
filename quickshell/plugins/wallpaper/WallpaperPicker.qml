@@ -35,7 +35,9 @@ Item {
     property real availableWidth: (Quickshell.screens[0]?.width ?? 1920) - Tokens.barWidth - Tokens.border
     readonly property real screenWidth: availableWidth + 2 * Tokens.barWidth
     implicitWidth: (Wallpapers.view === "slice" ? availableWidth - 120 : Math.min(1280, screenWidth - 260)) - 2 * Tokens.spacing.large
-    implicitHeight: (Wallpapers.view === "mosaic" ? 560 : Wallpapers.view === "slice" ? 600 : 330) + (Quickshell.screens.length > 1 ? 36 : 0) - 2 * Tokens.spacing.large
+    implicitHeight: (Wallpapers.view === "mosaic" ? 560 : Wallpapers.view === "slice" ? 600 : 330) + (forRow ? 36 : 0) - 2 * Tokens.spacing.large
+    // The "for" row: more than one screen, or a battery.
+    readonly property bool forRow: Quickshell.screens.length > 1 || Power.hasBattery
 
     readonly property bool store: Wallpapers.source === "store"
     // The store's active provider (Wallhaven or motionbgs).
@@ -425,9 +427,12 @@ Item {
         id: screensRow
 
         anchors.top: head.bottom
-        anchors.topMargin: visible ? Tokens.spacing.small : 0
-        height: visible ? 30 : 0
-        visible: Quickshell.screens.length > 1 || Power.hasBattery
+        // Sized by `root.forRow`, not `visible`: that turns false while the
+        // picker is hidden, and the view under it changed height at every
+        // open and close, the slice ring rebuilt (2-3 frames dropped).
+        anchors.topMargin: root.forRow ? Tokens.spacing.small : 0
+        height: root.forRow ? 30 : 0
+        visible: root.forRow
         spacing: Tokens.spacing.small
 
         MicroLabel {
