@@ -49,9 +49,9 @@ Item {
             property real t: 1
 
             x: Tokens.spacing.large
-            y: Tokens.spacing.normal + (1 - t) * 18 * root.dir
-            width: parent.width - Tokens.spacing.large * 2 - 14
-            height: parent.height - Tokens.spacing.normal * 2
+            y: Tokens.spacing.large + (1 - t) * 18 * root.dir
+            width: parent.width - Tokens.spacing.large * 2 - 12
+            height: parent.height - Tokens.spacing.large * 2
             opacity: t
             sourceComponent: root.cards[root.index] === "focus" ? focusCard : root.cards[root.index] === "system" ? systemCard : root.cards[root.index] === "network" ? networkCard : agendaCard
             onSourceComponentChanged: if (!Tokens.reduceMotion)
@@ -117,163 +117,82 @@ Item {
         }
     }
 
-    // Each card's head: an icon on a badge, the name and its gloss, and a
-    // word on the right (its state).
-    component CardHead: Item {
-        id: head
+    // A card's caption: small, tracked, under or beside its one big value.
+    component Caption: MicroLabel {}
 
-        property string icon
-        property string title
-        property string gloss
-        property string note
-
-        width: parent?.width ?? 0
-        height: 24
-
-        Row {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.spacing.small
-
-            Surface {
-                width: 22
-                height: 22
-                role: "secondary"
-                shape: "small"
-
-                MaterialIcon {
-                    anchors.centerIn: parent
-                    text: head.icon
-                    fill: 1
-                    size: 14
-                    color: parent.ink
-                }
-            }
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: head.title
-                color: Colours.palette.m3onSurface
-                font.family: Tokens.font.serif
-                font.pixelSize: Tokens.font.row
-            }
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: head.gloss
-                color: Colours.palette.m3primary
-                opacity: 0.8
-                font.family: Tokens.font.cjk
-                font.pixelSize: Tokens.font.small
-            }
-        }
-        MicroLabel {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text: head.note
-        }
-    }
-
-    // ── Focus: a timer, do not disturb while it runs ──
+    // ── Focus: the time large, play and reset, the elapsed as a line ──
     Component {
         id: focusCard
 
         Item {
-            CardHead {
-                id: fh
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
 
-                icon: "timer"
-                title: "Focus"
-                gloss: "专注"
-                note: root.timer?.running ? "quiet" : `${root.timer?.minutes ?? 25} min`
+                StyledText {
+                    text: root.timer?.clock ?? "25:00"
+                    color: Colours.palette.m3onSurface
+                    font.family: Tokens.font.serif
+                    font.pixelSize: 40
+                }
+                Caption {
+                    text: root.timer?.running ? "focusing · quiet" : `focus · ${root.timer?.minutes ?? 25} min`
+                }
             }
 
             Row {
-                anchors.top: fh.bottom
-                anchors.topMargin: 6
-                spacing: Tokens.spacing.large
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Tokens.spacing.small
 
-                CircularProgress {
-                    implicitSize: 52
-                    strokeWidth: 4
-                    gap: 4
-                    value: root.timer?.progress ?? 0
+                IconButton {
+                    icon: root.timer?.running ? "pause" : "play_arrow"
+                    size: 38
+                    filled: true
+                    fillColour: Colours.palette.m3primary
+                    inkColour: Colours.palette.m3onPrimary
+                    onClicked: root.timer?.running ? root.timer.pause() : root.timer?.start()
 
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: root.timer?.clock ?? "25:00"
-                        color: Colours.palette.m3onSurface
-                        font.family: Tokens.font.mono
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
+                    Tooltip {
+                        text: root.timer?.running ? "Pause" : "Start focus"
                     }
                 }
+                IconButton {
+                    icon: "restart_alt"
+                    size: 38
+                    onClicked: root.timer?.reset()
 
-                Row {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: Tokens.spacing.small
-
-                    // Start / pause: a pill that says it.
-                    Surface {
-                        implicitWidth: startRow.implicitWidth + Tokens.spacing.large * 2
-                        implicitHeight: 34
-                        role: "primary"
-                        emphasis: "strong"
-                        shape: "full"
-                        interactive: true
-                        onClicked: root.timer?.running ? root.timer.pause() : root.timer?.start()
-
-                        Row {
-                            id: startRow
-
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            MaterialIcon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: root.timer?.running ? "pause" : "play_arrow"
-                                fill: 1
-                                size: 18
-                                color: parent.parent.ink
-                            }
-                            StyledText {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: root.timer?.running ? "Pause" : (root.timer?.progress ?? 0) > 0 ? "Resume" : "Start"
-                                color: parent.parent.ink
-                                font.pixelSize: Tokens.font.body
-                                font.weight: Font.DemiBold
-                            }
-                        }
-                    }
-                    IconButton {
-                        icon: "restart_alt"
-                        size: 34
-                        onClicked: root.timer?.reset()
-
-                        Tooltip {
-                            text: "Reset"
-                        }
+                    Tooltip {
+                        text: "Reset"
                     }
                 }
+            }
+
+            // The elapsed, along the bottom.
+            LinearProgress {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                value: root.timer?.progress ?? 0
+                visible: (root.timer?.progress ?? 0) > 0
             }
         }
     }
 
-    // ── System: the load, and what's busiest (read only while shown) ──
+    // ── System: CPU and RAM, large, side by side ──
     Component {
         id: systemCard
 
         Item {
             id: sys
 
-            property var busiest: []
+            property string busiest: ""
 
             Process {
                 id: ps
 
-                command: ["ps", "-eo", "comm,%cpu", "--sort=-%cpu", "--no-headers"]
+                command: ["ps", "-eo", "comm", "--sort=-%cpu", "--no-headers"]
                 stdout: StdioCollector {
-                    onStreamFinished: sys.busiest = text.trim().split("\n").slice(0, 1).map(l => {
-                        const m = l.trim().match(/^(.*?)\s+([\d.]+)$/);
-                        return m ? [m[1], parseFloat(m[2])] : [l, 0];
-                    })
+                    onStreamFinished: sys.busiest = text.trim().split("\n")[0] ?? ""
                 }
             }
             Timer {
@@ -284,48 +203,35 @@ Item {
                 onTriggered: ps.running = true
             }
 
-            CardHead {
-                id: sh
-
-                icon: "memory"
-                title: "System"
-                gloss: "系统"
-                note: sys.busiest.length ? `${sys.busiest[0][0]} ${Math.round(sys.busiest[0][1])}%` : ""
-            }
-
-            Column {
-                anchors.top: sh.bottom
-                anchors.topMargin: 10
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
-                spacing: 8
+                spacing: Tokens.spacing.large
 
                 Repeater {
                     model: [["cpu", SystemStats.cpu], ["ram", SystemStats.mem]]
 
-                    Row {
+                    Column {
                         required property var modelData
+                        required property int index
 
-                        width: parent.width
-                        spacing: Tokens.spacing.normal
+                        width: (parent.width - Tokens.spacing.large) / 2
+                        spacing: 4
 
-                        MicroLabel {
-                            width: 26
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: parent.modelData[0]
-                        }
-                        LinearProgress {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - 26 - 40 - Tokens.spacing.normal * 2
-                            value: parent.modelData[1]
-                        }
                         StyledText {
-                            width: 40
-                            anchors.verticalCenter: parent.verticalCenter
-                            horizontalAlignment: Text.AlignRight
                             text: Math.round(parent.modelData[1] * 100) + "%"
                             color: Colours.palette.m3onSurface
-                            font.family: Tokens.font.mono
-                            font.pixelSize: Tokens.font.small
+                            font.family: Tokens.font.serif
+                            font.pixelSize: 34
+                        }
+                        LinearProgress {
+                            width: parent.width
+                            value: parent.modelData[1]
+                        }
+                        Caption {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            text: parent.index === 0 && sys.busiest ? `cpu · ${sys.busiest}` : parent.modelData[0]
                         }
                     }
                 }
@@ -333,7 +239,7 @@ Item {
         }
     }
 
-    // ── Network: the connection, its rates, its last minute ──
+    // ── Network: down large, over the last minute ──
     Component {
         id: networkCard
 
@@ -344,58 +250,44 @@ Item {
                 return b > 1048576 ? (b / 1048576).toFixed(1) + " MB/s" : b > 1024 ? Math.round(b / 1024) + " KB/s" : Math.round(b) + " B/s";
             }
 
-            CardHead {
-                id: nh
-
-                icon: Network.wired ? "lan" : "wifi"
-                title: "Network"
-                gloss: "网络"
-                note: Network.wired ? (Network.wired.name ?? "wired") : Network.active?.name ?? "offline"
-            }
-
-            // The last minute, under the rates.
+            // The last minute, faint, across the card.
             Sparkline {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: 30
+                height: parent.height * 0.55
                 values: SystemStats.rxHistory
-                opacity: 0.8
+                opacity: 0.45
             }
 
-            Row {
-                anchors.top: nh.bottom
-                anchors.topMargin: 6
-                spacing: Tokens.spacing.huge
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
 
-                Repeater {
-                    model: [["arrow_downward", SystemStats.rx], ["arrow_upward", SystemStats.tx]]
+                Row {
+                    spacing: 2
 
-                    Row {
-                        required property var modelData
-
-                        spacing: 2
-
-                        MaterialIcon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: parent.modelData[0]
-                            size: 16
-                            color: Colours.palette.m3primary
-                        }
-                        StyledText {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: net.rate(parent.modelData[1])
-                            color: Colours.palette.m3onSurface
-                            font.family: Tokens.font.serif
-                            font.pixelSize: Tokens.font.value
-                        }
+                    MaterialIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "arrow_downward"
+                        size: 22
+                        color: Colours.palette.m3primary
                     }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: net.rate(SystemStats.rx)
+                        color: Colours.palette.m3onSurface
+                        font.family: Tokens.font.serif
+                        font.pixelSize: 32
+                    }
+                }
+                Caption {
+                    text: `${Network.wired ? (Network.wired.name ?? "wired") : Network.active?.name ?? "offline"} · up ${net.rate(SystemStats.tx)}`
                 }
             }
         }
     }
 
-    // ── Agenda: today, the week around it ──
+    // ── Agenda: today, large ──
     Component {
         id: agendaCard
 
@@ -408,91 +300,34 @@ Item {
                 precision: SystemClock.Minutes
             }
 
-            // A calendar's page: the month over the day.
-            Surface {
+            StyledText {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 62
-                height: 72
-                role: "primary"
-                shape: "normal"
-
-                Column {
-                    anchors.centerIn: parent
-
-                    MicroLabel {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: Qt.formatDate(day.date, "MMM")
-                        color: Colours.roleInk("primary", "soft")
-                    }
-                    StyledText {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: Qt.formatDate(day.date, "d")
-                        color: Colours.roleInk("primary", "soft")
-                        font.family: Tokens.font.serif
-                        font.pixelSize: 32
-                    }
-                }
+                text: Qt.formatDate(day.date, "d")
+                color: Colours.palette.m3primary
+                font.family: Tokens.font.serif
+                font.pixelSize: 52
             }
 
             Column {
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+                spacing: 2
 
-                Row {
-                    spacing: Tokens.spacing.small
-
-                    StyledText {
-                        anchors.baseline: cjk.baseline
-                        text: Qt.formatDate(day.date, "dddd")
-                        color: Colours.palette.m3onSurface
-                        font.family: Tokens.font.serif
-                        font.pixelSize: Tokens.font.row
-                    }
-                    StyledText {
-                        id: cjk
-
-                        text: Xian.chineseDate(day.date)
-                        color: Colours.palette.m3primary
-                        font.family: Tokens.font.cjk
-                        font.pixelSize: Tokens.font.small
-                    }
+                StyledText {
+                    text: Qt.formatDate(day.date, "dddd")
+                    color: Colours.palette.m3onSurface
+                    font.family: Tokens.font.serif
+                    font.pixelSize: Tokens.font.value
                 }
-
-                // The week, Monday on: today lit.
-                Row {
-                    spacing: 4
-
-                    Repeater {
-                        model: 7
-
-                        Column {
-                            required property int index
-                            readonly property bool today: ((day.date.getDay() + 6) % 7) === index
-
-                            spacing: 2
-
-                            MicroLabel {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: "MTWTFSS"[parent.index]
-                                color: parent.today ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
-                            }
-                            Rectangle {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                width: parent.today ? 14 : 6
-                                height: 6
-                                radius: 3
-                                color: parent.today ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3onSurface, 0.2)
-                            }
-                        }
-                    }
+                StyledText {
+                    text: `${Qt.formatDate(day.date, "MMMM")} · ${Xian.chineseDate(day.date)}`
+                    color: Colours.palette.m3onSurfaceVariant
+                    font.pixelSize: Tokens.font.small
                 }
-
-                MicroLabel {
+                Caption {
                     text: {
                         const d = day.date, start = new Date(d.getFullYear(), 0, 1);
                         const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
-                        const end = new Date(d.getFullYear(), 11, 31);
-                        return `week ${week} · ${Math.ceil((end - d) / 86400000)} days left`;
+                        return `week ${week} · ${Math.ceil((new Date(d.getFullYear(), 11, 31) - d) / 86400000)} days left`;
                     }
                 }
             }
