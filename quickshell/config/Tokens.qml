@@ -186,7 +186,7 @@ Singleton {
     // ── Shape ─────────────────────────────────────────────────────────────
     // Five presets; `morph` is how far a pressed/active control rounds.
     readonly property var shapes: ({
-            tight: { frame: 8, panel: 4, card: 4, control: 4, morph: 6 },
+            tight: { frame: 8, panel: 2, card: 2, control: 2, morph: 4 },
             compact: { frame: 12, panel: 6, card: 6, control: 6, morph: 12 },
             restrained: { frame: 16, panel: 12, card: 10, control: 8, morph: 14 },
             relaxed: { frame: 20, panel: 16, card: 14, control: 12, morph: 18 },
