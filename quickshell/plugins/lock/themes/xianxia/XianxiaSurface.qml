@@ -469,6 +469,16 @@ Item {
                     font.pixelSize: 22 * xian.sc
                     font.letterSpacing: 8 * xian.sc
                     color: c.lockedOut && c.cells === 0 ? Xian.cinnabar : Xian.gold
+
+                    // The other lines' glyphs, drawn (all but invisible)
+                    // from the start, so the first keystroke doesn't
+                    // rasterise them.
+                    Text {
+                        text: "运转周天破阵中闭关"
+                        font: parent.font
+                        color: parent.color
+                        opacity: 0.004
+                    }
                 }
 
                 Text {

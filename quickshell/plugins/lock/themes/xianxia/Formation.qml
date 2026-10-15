@@ -277,15 +277,18 @@ Item {
                     border.color: Xian.alpha(f.line, slot.lit ? 0.9 : 0.35)
                 }
 
+                // Drawn from the start, all but invisible until lit: its
+                // weight is a font file of its own, and its glyphs new, so
+                // showing it on the first keystroke loaded and rasterised
+                // them then, a frame or two lost per key while typing.
                 Text {
                     anchors.centerIn: parent
-                    visible: slot.lit
                     text: f.runes.charAt(slot.index)
                     font.family: Xian.cjk
                     font.weight: Font.Black
                     font.pixelSize: 17 * f.sc
                     color: f.ctx.denying ? Xian.cinnabar : Xian.goldHi
-                    opacity: slot.pulse
+                    opacity: slot.lit ? slot.pulse : 0.004
                 }
             }
         }
