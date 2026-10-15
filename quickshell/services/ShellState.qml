@@ -123,6 +123,28 @@ Singleton {
             step: 20
             unit: " ms"
         }
+    
+        // (Out of the desktop's menu: here for when they're wanted.)
+        SettingItem {
+            key: "shell.kit"
+            kind: "action"
+            section: "Shell"
+            icon: "widgets"
+            label: "Open the kit"
+            description: "Every primitive, numbered (also Mod+K)."
+            run: () => {
+                root.anchorTo("kit");
+                root.pin("kit", Umbriel.focusedOutput);
+            }
+        }
+        SettingItem {
+            key: "shell.reload"
+            kind: "action"
+            icon: "refresh"
+            label: "Reload the shell"
+            description: "Starts the shell's QML over (panels close; nothing is lost)."
+            run: () => Quickshell.reload(true)
+        }
     }
     readonly property int closeDelay: settings.v["panels.closeDelay"]
 

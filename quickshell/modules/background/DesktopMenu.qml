@@ -7,10 +7,11 @@ import qs.services
 import qs.components
 
 // The desktop's menu (a right-click on an empty workspace, after Ryoku's):
-// quick settings as chips that stay open while toggled (keep awake, night
-// light, do not disturb, dark), then the desktop's actions (the wallpaper,
-// the bar's edit mode, Settings, the kit, reloading the shell). It floats
-// on the wallpaper's own surface, where the click landed.
+// its name, quick settings as an even grid of tiles that stay open while
+// toggled (keep awake, night light, do not disturb, dark), then the
+// everyday actions (the wallpaper, a new note, a screenshot, the bar's edit
+// mode, Settings; the kit and reloading the shell are in Settings → Panels).
+// It floats on the wallpaper's own surface, where the click landed.
 Floating {
     id: root
 
@@ -24,6 +25,14 @@ Floating {
         ShellState.pin(name, screenName);
     }
 
+    // The screenshot waits for the menu to go (it isn't in the picture).
+    Timer {
+        id: snipLater
+
+        interval: 250
+        onTriggered: Plugins.instance("capture")?.capture?.request("snip", "")
+    }
+
     card.implicitWidth: 300
     card.implicitHeight: body.implicitHeight + 8
 
@@ -35,35 +44,65 @@ Floating {
         width: root.card.width - 8
         spacing: 4
 
-        // Quick settings: toggled here, the menu stays.
-        Flow {
-            width: parent.width
+        Row {
+            spacing: Tokens.spacing.small
+            leftPadding: Tokens.spacing.normal
+            topPadding: Tokens.spacing.small
+
+            StyledText {
+                id: menuTitle
+
+                text: "Desktop"
+                font.family: Tokens.font.serif
+                font.pixelSize: Tokens.font.body + 2
+            }
+
+            StyledText {
+                anchors.baseline: menuTitle.baseline
+                text: "桌面"
+                color: Colours.palette.m3primary
+                font.family: Tokens.font.cjk
+                font.pixelSize: Tokens.font.small
+            }
+        }
+
+        // Quick settings, an even grid: toggled here, the menu stays.
+        Grid {
+            id: quick
+
+            columns: 2
             spacing: Tokens.spacing.small
             padding: Tokens.spacing.small
 
-            Chip {
-                text: "Awake"
+            readonly property real tileWidth: (body.width - padding * 2 - spacing) / 2
+
+            Tile {
+                width: quick.tileWidth
                 icon: "coffee"
-                selected: Display.caffeine
+                label: "Awake"
+                checked: Display.caffeine
                 onClicked: Display.toggleCaffeine()
             }
-            Chip {
-                text: "Night light"
+            Tile {
+                width: quick.tileWidth
                 icon: "nightlight"
-                selected: Display.nightLight
+                label: "Night light"
+                checked: Display.nightLight
                 onClicked: Display.toggleNightLight()
             }
-            Chip {
+            Tile {
+                width: quick.tileWidth
                 visible: root.notifs !== null
-                text: "Quiet"
                 icon: "do_not_disturb_on"
-                selected: root.notifs?.dnd ?? false
+                label: "Quiet"
+                checked: root.notifs?.dnd ?? false
                 onClicked: root.notifs.dnd = !root.notifs.dnd
             }
-            Chip {
-                text: "Dark"
+            Tile {
+                width: quick.tileWidth
                 icon: "dark_mode"
-                selected: !Colours.light
+                label: "Dark"
+                checked: !Colours.light
                 onClicked: Display.toggleDarkMode()
             }
         }
@@ -106,6 +145,20 @@ Floating {
                         }
                     },
                     {
+                        icon: "edit_note",
+                        text: "New note",
+                        act: () => root.openPanel("notes")
+                    },
+                    {
+                        icon: "screenshot_region",
+                        text: "Screenshot",
+                        act: () => {
+                            root.open = false;
+                            // Once the menu is off the screen.
+                            snipLater.restart();
+                        }
+                    },
+                    {
                         icon: "dashboard_customize",
                         text: "Edit bar",
                         act: () => {
@@ -118,16 +171,6 @@ Floating {
                         icon: "settings",
                         text: "Settings",
                         act: () => root.openPanel("settings")
-                    },
-                    {
-                        icon: "widgets",
-                        text: "Kit",
-                        act: () => root.openPanel("kit")
-                    },
-                    {
-                        icon: "refresh",
-                        text: "Reload shell",
-                        act: () => Quickshell.reload(true)
                     }
                 ]
 

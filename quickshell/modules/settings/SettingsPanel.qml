@@ -416,7 +416,28 @@ Panel {
         // one hidden: Settings is built ahead, so that was paid in full).
         Loader {
             width: row.width
-            sourceComponent: row.item.kind === "toggle" ? toggleRow : sheetRow
+            sourceComponent: row.item.kind === "toggle" ? toggleRow : row.item.kind === "action" ? actionRow : sheetRow
+        }
+
+        // An action: the row does it.
+        Component {
+            id: actionRow
+
+            ListRow {
+                icon: row.item.icon
+                title: row.item.label
+                subtitle: row.item.description
+                onClicked: {
+                    if (row.item.run)
+                        row.item.run();
+                }
+
+                MaterialIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "chevron_right"
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+            }
         }
 
         Component {

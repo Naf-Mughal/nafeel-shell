@@ -8,10 +8,13 @@ import QtQuick
 //   text     free text (`placeholder`); `secret` hides it: a TextField
 //   number   `min`..`max` by `step`, shown with `unit` or `format`: a
 //            StyledSlider
+//   action   not a value: a row that does `run()` when clicked
 // `section` starts a new group on the page; `shown` hides it while it
 // doesn't apply (a binding on other values).
 QtObject {
     property string key
+    // An action's deed.
+    property var run: null
     property string icon: "tune"
     property string kind: "choice"
     property string label
