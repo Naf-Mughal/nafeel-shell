@@ -498,7 +498,7 @@ Item {
             anchors.rightMargin: xian.edge
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 44 * xian.sc
-            spacing: 14 * xian.sc
+            spacing: 10 * xian.sc
             opacity: xian.uiIn
 
             Repeater {

@@ -6,6 +6,7 @@ import Quickshell.Widgets
 import qs.config
 import qs.services
 import qs.components
+import "themes/xianxia"
 
 // What the lock shows of the running session, on the shell's primitives
 // (the lock's host hands it to the surface; the login screen has none):
@@ -184,14 +185,14 @@ Item {
         }
     }
 
-    // ── Capture, left of the session's buttons ──
+    // ── Capture, left of the session's buttons: the same cards ──
     Row {
         anchors.right: parent.right
-        // The session's three (50 each, 14 apart) and a gap.
-        anchors.rightMargin: root.edge + (3 * 50 + 2 * 14 + 28) * root.sc
+        // The session's three (78 each, 10 apart) and a gap.
+        anchors.rightMargin: root.edge + (3 * 78 + 2 * 10 + 20) * root.sc
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44 * root.sc
-        spacing: 14 * root.sc
+        spacing: 10 * root.sc
         visible: CaveAbode.captureAvailable
 
         Repeater {
@@ -208,42 +209,22 @@ Item {
                 }
             ]
 
-            Column {
+            Token {
                 id: cap
 
                 required property var modelData
-                readonly property bool live: modelData.event === "record" && CaveAbode.recording
-                spacing: 6 * root.sc
+                readonly property int secs: CaveAbode.recordedSeconds(root.ctx?.now ?? new Date())
 
-                Surface {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 50 * root.sc
-                    height: width
-                    level: 2
-                    role: cap.live ? "error" : "paper"
-                    interactive: true
-                    onClicked: {
-                        root.ctx?.poke();
-                        if (cap.live)
-                            CaveAbode.captureCommand("record");
-                        else
-                            root.pick(cap.modelData.event);
-                    }
-
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: cap.live ? "停" : cap.modelData.zh
-                        color: parent.ink
-                        font.family: Tokens.font.cjk
-                        font.weight: Font.Black
-                        font.pixelSize: 20 * root.sc
-                    }
-                }
-
-                MicroLabel {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    readonly property int secs: CaveAbode.recordedSeconds(root.ctx?.now ?? new Date())
-                    text: cap.live ? Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0") : cap.modelData.en
+                live: modelData.event === "record" && CaveAbode.recording
+                glyph: live ? "停" : modelData.zh
+                label: live ? Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0") : modelData.en
+                sc: root.sc
+                onActivated: {
+                    root.ctx?.poke();
+                    if (cap.live)
+                        CaveAbode.captureCommand("record");
+                    else
+                        root.pick(cap.modelData.event);
                 }
             }
         }

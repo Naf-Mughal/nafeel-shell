@@ -10,6 +10,8 @@ Item {
 
     property real sc: 1
     property bool hovered: false
+    // Its corners (the card rounding; rounder while a button's pressed).
+    property real radius: Xian.radiusNormal
     default property alias content: body.data
     property alias underlay: under.data
 
@@ -57,7 +59,7 @@ Item {
         id: corners
 
         anchors.fill: parent
-        radius: Xian.radiusNormal
+        radius: card.radius
         visible: false
         layer.enabled: true
     }
@@ -73,7 +75,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: Xian.radiusNormal
+        radius: card.radius
         color: "transparent"
         border.width: 1
         border.color: card.hovered ? Xian.alpha(Xian.gold, 0.4) : Xian.alpha(Xian.paper, 0.08)

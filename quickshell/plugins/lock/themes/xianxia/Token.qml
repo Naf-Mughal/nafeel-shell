@@ -1,12 +1,12 @@
 import QtQuick
 import "../.."
 
-// A lock button on the shell's primitives' look: a square of paper at a
-// control's rounding (rounder while pressed), its glyph, a caption under it,
-// and the theme's ink spreading from the centre: while held (`hold`, the
-// session actions: it confirms once full) or as a quick press. `live`
-// tints it cinnabar (recording).
-Column {
+// A lock button made as the cards beside it (CoverCard): the cover, the
+// glyph large and its name inside, at the card rounding (rounder while
+// pressed); qi gathers over it from the left as it's held (`hold`, the
+// session's: it confirms once full) or in a quick sweep when pressed.
+// `live` (recording) fills it cinnabar and `label` can say the time.
+Item {
     id: token
 
     property string glyph
@@ -18,89 +18,91 @@ Column {
     property color tone: Xian.gold
     signal activated
 
-    readonly property real progress: hold ? area.progress : tap
+    readonly property real progress: live ? 1 : hold ? area.progress : tap
     property real tap: 0
 
-    spacing: 6 * sc
+    width: 78 * sc
+    height: 100 * sc
 
-    Item {
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: 50 * token.sc
-        height: width
+    CoverCard {
+        anchors.fill: parent
+        sc: token.sc
+        hovered: area.containsMouse
+        radius: area.pressed ? Xian.radiusMorph : Xian.radiusNormal
 
-        Rectangle {
-            id: face
+        underlay: Rectangle {
+            readonly property color qi: token.live ? Xian.cinnabar : token.tone
 
-            anchors.fill: parent
-            radius: area.pressed ? Xian.radiusMorph : Xian.radiusSmall
-            color: token.live ? Xian.alpha(Xian.cinnabar, 0.5) : Xian.paperFill
-            border.width: 1
-            border.color: area.containsMouse ? Xian.alpha(token.tone, 0.5) : Xian.alpha(Xian.paper, 0.1)
-            clip: true
-
-            Behavior on radius {
-                NumberAnimation {
-                    duration: Xian.d(160)
-                    easing.type: Easing.OutCubic
-                }
+            width: parent.width * token.progress
+            height: parent.height
+            visible: token.progress > 0.001
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: Xian.alpha(qi, 0.04) }
+                GradientStop { position: 0.8; color: Xian.alpha(qi, 0.22) }
+                GradientStop { position: 1; color: Xian.alpha(qi, 0.4) }
             }
 
-            // The ink, from the centre.
+            // Its edge.
             Rectangle {
-                anchors.centerIn: parent
-                width: Math.hypot(parent.width, parent.height) * token.progress
-                height: width
-                radius: width / 2
-                color: Xian.alpha(token.tone, 0.32)
-                visible: token.progress > 0.001
+                anchors.right: parent.right
+                width: 2 * token.sc
+                height: parent.height
+                color: parent.qi
+                opacity: 0.8
             }
         }
+    }
+
+    Column {
+        anchors.centerIn: parent
+        spacing: 6 * token.sc
 
         Text {
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
             text: token.glyph
             font.family: Xian.cjk
             font.weight: Font.Black
-            font.pixelSize: 20 * token.sc
+            font.pixelSize: 28 * token.sc
             color: token.live ? Xian.paper : area.containsMouse ? Xian.goldHi : token.tone
         }
 
-        HoldArea {
-            id: area
-
-            anchors.fill: parent
-            enabled: token.enabled
-            holdMs: token.hold ? 750 : 1
-            onConfirmed: token.activated()
-            onPressed: if (!token.hold) tapInk.restart()
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: token.label.toUpperCase()
+            font.family: Xian.serif
+            font.pixelSize: 10 * token.sc
+            font.letterSpacing: 1.5 * token.sc
+            color: token.live ? Xian.paper : Xian.paperDim
         }
     }
 
-    Text {
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: token.label
-        font.family: Xian.serif
-        font.italic: !token.live
-        font.pixelSize: 12 * token.sc
-        color: token.live ? Xian.cinnabar : Xian.paperDim
+    HoldArea {
+        id: area
+
+        anchors.fill: parent
+        enabled: token.enabled
+        holdMs: token.hold ? 750 : 1
+        onConfirmed: token.activated()
+        onPressed: if (!token.hold) sweep.restart()
     }
 
     SequentialAnimation {
-        id: tapInk
+        id: sweep
 
         NumberAnimation {
             target: token
             property: "tap"
             from: 0
             to: 1
-            duration: Xian.d(260)
+            duration: Xian.d(280)
             easing.type: Easing.OutCubic
         }
         NumberAnimation {
             target: token
             property: "tap"
             to: 0
-            duration: Xian.d(260)
+            duration: Xian.d(320)
         }
     }
 }
