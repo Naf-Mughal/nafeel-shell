@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import qs.config
 import qs.services
 import qs.components
@@ -18,86 +19,166 @@ Item {
     property real edge: 60
     property var ctx: null
 
-    // ── What's playing ──
+    // ── What's playing: a card as the cultivator's beside it ──
+    // The cover as the card's cover under an ink fade, the art itself, title
+    // and artist, the controls, and how far in along the bottom.
     Surface {
         id: player
+
+        readonly property var mp: Media.active
+        readonly property real length: mp?.length ?? 0
 
         x: root.edge
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44 * root.sc
-        visible: Media.active !== null
+        visible: mp !== null
         level: 2
-        width: 340 * root.sc
+        width: 420 * root.sc
         height: 100 * root.sc
         // The panels' paper (fibre and wash), not a flat fill.
         fill: "transparent"
+
+        // MPRIS only updates the position when asked.
+        Timer {
+            running: player.visible && Media.playing
+            interval: 1000
+            repeat: true
+            triggeredOnStart: true
+            onTriggered: player.mp?.positionChanged()
+        }
 
         PaperSheet {
             anchors.fill: parent
             radius: player.restRadius
         }
 
-        Row {
+        ClippingRectangle {
             anchors.fill: parent
-            anchors.margins: Tokens.spacing.normal
-            spacing: Tokens.spacing.normal
+            radius: player.restRadius
+            color: "transparent"
 
-            ShapeImage {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.height
-                height: parent.height
+            Image {
+                anchors.fill: parent
                 source: Media.art
-                icon: "music_note"
+                sourceSize: Qt.size(Math.max(64, Math.ceil(width)), Math.max(64, Math.ceil(height)))
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                opacity: 0.4
             }
 
-            Column {
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop {
+                        position: 0
+                        color: Qt.alpha(Colours.palette.m3surface, 0.92)
+                    }
+                    GradientStop {
+                        position: 1
+                        color: Qt.alpha(Colours.palette.m3surface, 0.3)
+                    }
+                }
+            }
+
+            // How far in.
+            Rectangle {
+                anchors.bottom: parent.bottom
+                height: 2
+                width: parent.width * (player.length > 0 ? Math.min(1, (player.mp?.position ?? 0) / player.length) : 0)
+                color: Colours.palette.m3primary
+                opacity: 0.8
+            }
+        }
+
+        // The art, a square at a card's rounding.
+        ClippingRectangle {
+            id: art
+
+            anchors.left: parent.left
+            anchors.leftMargin: 18 * root.sc
+            anchors.verticalCenter: parent.verticalCenter
+            width: 62 * root.sc
+            height: width
+            radius: Tokens.rounding.normal
+            color: Colours.roleFill("paper", "soft", 4)
+
+            MaterialIcon {
+                anchors.centerIn: parent
+                visible: artImg.status !== Image.Ready
+                text: "music_note"
+                size: 26
+                color: Colours.palette.m3onSurfaceVariant
+            }
+
+            Image {
+                id: artImg
+
+                anchors.fill: parent
+                source: Media.art
+                sourceSize: Qt.size(128, 128)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+            }
+        }
+
+        Column {
+            anchors.left: art.right
+            anchors.leftMargin: 16 * root.sc
+            anchors.right: controls.left
+            anchors.rightMargin: 12 * root.sc
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+
+            StyledText {
+                width: parent.width
+                elide: Text.ElideRight
+                text: Media.title || player.mp?.identity || ""
+                font.family: Tokens.font.serif
+                font.pixelSize: 18 * root.sc
+            }
+
+            MicroLabel {
+                width: parent.width
+                elide: Text.ElideRight
+                text: Media.artist || (Media.playing ? "Playing" : "Paused")
+            }
+        }
+
+        Row {
+            id: controls
+
+            anchors.right: parent.right
+            anchors.rightMargin: 16 * root.sc
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Tokens.spacing.small
+
+            IconButton {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - parent.height - Tokens.spacing.normal
-                spacing: 2
-
-                StyledText {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    text: Media.title || Media.active?.identity || ""
-                    font.family: Tokens.font.serif
-                    font.pixelSize: Tokens.font.body
+                icon: "skip_previous"
+                size: 34
+                onClicked: {
+                    root.ctx?.poke();
+                    Media.previous();
                 }
-
-                MicroLabel {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    text: Media.artist || (Media.playing ? "Playing" : "Paused")
+            }
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: Media.playing ? "pause" : "play_arrow"
+                size: 42
+                filled: true
+                onClicked: {
+                    root.ctx?.poke();
+                    Media.playPause();
                 }
-
-                Row {
-                    spacing: Tokens.spacing.small
-                    topPadding: 4
-
-                    IconButton {
-                        icon: "skip_previous"
-                        size: 32
-                        onClicked: {
-                            root.ctx?.poke();
-                            Media.previous();
-                        }
-                    }
-                    IconButton {
-                        icon: Media.playing ? "pause" : "play_arrow"
-                        size: 32
-                        filled: true
-                        onClicked: {
-                            root.ctx?.poke();
-                            Media.playPause();
-                        }
-                    }
-                    IconButton {
-                        icon: "skip_next"
-                        size: 32
-                        onClicked: {
-                            root.ctx?.poke();
-                            Media.next();
-                        }
-                    }
+            }
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "skip_next"
+                size: 34
+                onClicked: {
+                    root.ctx?.poke();
+                    Media.next();
                 }
             }
         }
