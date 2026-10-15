@@ -399,12 +399,12 @@ Singleton {
     // playful ones (toggles, presses), `gentle` for large surfaces.
     // Spring characters (stiffness, damping at the designed tempo), measured
     // on a 200 px move: calm ~550 ms, no overshoot; natural (the shell's own)
-    // ~250 ms, a slight settle; snappy ~250 ms, a 15% kick; lively ~500 ms,
+    // ~250 ms, a slight settle; snappy ~300 ms, a 26% kick that stops at once; lively ~500 ms,
     // 33% over and back; crisp ~120 ms, dead on.
     readonly property var springPresets: ({
             calm: [1.3, 0.3],
             natural: [3.4, 0.3],
-            snappy: [9, 0.35],
+            snappy: [9, 0.28],
             lively: [4.5, 0.15],
             crisp: [16, 0.9]
         })
