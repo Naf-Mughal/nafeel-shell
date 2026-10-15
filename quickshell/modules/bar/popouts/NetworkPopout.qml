@@ -99,7 +99,7 @@ Panel {
         Column {
             anchors.left: heroIcon.right
             anchors.leftMargin: Tokens.spacing.normal
-            anchors.right: disconnect.left
+            anchors.right: forgetActive.visible ? forgetActive.left : disconnect.left
             anchors.rightMargin: Tokens.spacing.small
             anchors.verticalCenter: parent.verticalCenter
 
@@ -130,6 +130,37 @@ Panel {
             icon: "link_off"
             size: 36
             onClicked: Network.active?.disconnect()
+
+            Tooltip {
+                text: "Disconnect"
+            }
+        }
+
+        // The one in use can be forgotten too (asked first).
+        IconButton {
+            id: forgetActive
+
+            anchors.right: disconnect.left
+            anchors.rightMargin: Tokens.spacing.small
+            anchors.verticalCenter: parent.verticalCenter
+            visible: disconnect.visible
+            icon: "delete"
+            size: 36
+            onClicked: forgetDialog.show()
+
+            Tooltip {
+                text: "Forget"
+            }
+            Dialog {
+                id: forgetDialog
+
+                from: forgetActive
+                title: `Forget ${Network.active?.name ?? "this network"}?`
+                text: "It disconnects, and its saved password goes with it."
+                confirmText: "Forget"
+                danger: true
+                onAccepted: Network.active?.forget()
+            }
         }
     }
 
