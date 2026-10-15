@@ -188,8 +188,8 @@ Item {
     // ── Capture, left of the session's buttons: the same cards ──
     Row {
         anchors.right: parent.right
-        // The session's three (78 each, 10 apart) and a gap.
-        anchors.rightMargin: root.edge + (3 * 78 + 2 * 10 + 20) * root.sc
+        // The session's three (100 each, 10 apart) and a gap.
+        anchors.rightMargin: root.edge + (3 * 100 + 2 * 10 + 20) * root.sc
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44 * root.sc
         spacing: 10 * root.sc

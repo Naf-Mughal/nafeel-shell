@@ -2,9 +2,10 @@ import QtQuick
 import "../.."
 
 // A lock button made as the cards beside it (CoverCard): the cover, the
-// glyph large and its name inside, at the card rounding (rounder while
-// pressed); qi gathers over it from the left as it's held (`hold`, the
-// session's: it confirms once full) or in a quick sweep when pressed.
+// glyph large and its name inside, square at the cards' height, at the card
+// rounding (rounder while pressed); qi gathers out from its centre as it's
+// held (`hold`, the session's: it confirms once full) or in a quick swell
+// when pressed.
 // `live` (recording) fills it cinnabar and `label` can say the time.
 Item {
     id: token
@@ -21,7 +22,7 @@ Item {
     readonly property real progress: live ? 1 : hold ? area.progress : tap
     property real tap: 0
 
-    width: 78 * sc
+    width: 100 * sc
     height: 100 * sc
 
     CoverCard {
@@ -30,26 +31,25 @@ Item {
         hovered: area.containsMouse
         radius: area.pressed ? Xian.radiusMorph : Xian.radiusNormal
 
+        // Qi, gathering out from the centre: a faint pool, its rim bright.
         underlay: Rectangle {
             readonly property color qi: token.live ? Xian.cinnabar : token.tone
 
-            width: parent.width * token.progress
-            height: parent.height
+            anchors.centerIn: parent
+            width: Math.hypot(parent.width, parent.height) * token.progress
+            height: width
+            radius: width / 2
             visible: token.progress > 0.001
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0; color: Xian.alpha(qi, 0.04) }
-                GradientStop { position: 0.8; color: Xian.alpha(qi, 0.22) }
-                GradientStop { position: 1; color: Xian.alpha(qi, 0.4) }
-            }
+            color: Xian.alpha(qi, 0.2)
+            border.width: 2 * token.sc
+            border.color: Xian.alpha(qi, 0.75)
 
-            // Its edge.
             Rectangle {
-                anchors.right: parent.right
-                width: 2 * token.sc
-                height: parent.height
-                color: parent.qi
-                opacity: 0.8
+                anchors.centerIn: parent
+                width: parent.width * 0.7
+                height: width
+                radius: width / 2
+                color: Xian.alpha(parent.qi, 0.08)
             }
         }
     }
