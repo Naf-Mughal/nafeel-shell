@@ -566,6 +566,181 @@ Item {
             }
 
             Entry {
+                num: "19"
+                name: "New controls"
+                note: "checkbox, radio, stepper, swatch, select, menu, tooltip, dialog"
+
+                Spec {
+                    caption: "checkbox"
+                    Column {
+                        spacing: Tokens.spacing.small
+
+                        Checkbox {
+                            text: "Show seconds"
+                            checked: true
+                            onToggled: checked = !checked
+                        }
+                        Checkbox {
+                            text: "Pause on battery"
+                            onToggled: checked = !checked
+                        }
+                    }
+                }
+                Spec {
+                    caption: "radio · the dot flows"
+                    RadioGroup {
+                        current: "week"
+                        model: [{
+                                value: "day",
+                                label: "Every day"
+                            }, {
+                                value: "week",
+                                label: "Every week",
+                                sublabel: "Mondays, 9:00"
+                            }, {
+                                value: "never",
+                                label: "Never"
+                            }]
+                        onSelected: v => current = v
+                    }
+                }
+                Spec {
+                    caption: "stepper · hold to run"
+                    Stepper {
+                        value: 15
+                        from: 1
+                        to: 120
+                        unit: " min"
+                        onMoved: v => value = v
+                    }
+                }
+                Spec {
+                    caption: "swatches"
+                    Row {
+                        id: swatches
+
+                        property int picked: 2
+
+                        spacing: Tokens.spacing.small
+
+                        Repeater {
+                            model: ["#e680a1", "#df8f48", "#9ab04b", "#06bfa8", "#4baeed", "#b191ea"]
+
+                            Swatch {
+                                required property string modelData
+                                required property int index
+
+                                colour: modelData
+                                picked: swatches.picked === index
+                                onClicked: swatches.picked = index
+                            }
+                        }
+                    }
+                }
+                Spec {
+                    caption: "select"
+                    Select {
+                        current: "screen"
+                        model: [{
+                                value: "screen",
+                                text: "Screen quality",
+                                icon: "monitor"
+                            }, {
+                                value: "original",
+                                text: "Original",
+                                icon: "high_quality"
+                            }, {
+                                value: "battery",
+                                text: "Battery saver",
+                                icon: "battery_saver"
+                            }]
+                        onSelected: v => current = v
+                    }
+                }
+                Spec {
+                    caption: "menu · click, or right-click the box"
+                    Row {
+                        spacing: Tokens.spacing.normal
+
+                        IconButton {
+                            id: more
+
+                            icon: "more_vert"
+                            onClicked: moreMenu.show()
+
+                            Tooltip {
+                                text: "More"
+                            }
+                        }
+                        Surface {
+                            id: rightBox
+
+                            width: 120
+                            height: 40
+                            level: 2
+                            outlined: true
+
+                            StyledText {
+                                anchors.centerIn: parent
+                                text: "right-click"
+                                color: Colours.palette.m3onSurfaceVariant
+                                font.pixelSize: Tokens.font.small
+                            }
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+                                onTapped: p => moreMenu.popup(rightBox, p.position)
+                            }
+                        }
+                        Menu {
+                            id: moreMenu
+
+                            from: more
+                            model: [{
+                                    value: "pin",
+                                    text: "Pin",
+                                    icon: "push_pin"
+                                }, {
+                                    value: "copy",
+                                    text: "Copy",
+                                    icon: "content_copy"
+                                }, {
+                                    value: "forget",
+                                    text: "Forget",
+                                    icon: "delete",
+                                    danger: true
+                                }]
+                            onPicked: v => {
+                                if (v === "forget")
+                                    confirm.show();
+                            }
+                        }
+                    }
+                }
+                Spec {
+                    caption: "dialog · tooltip on hover"
+                    IconButton {
+                        id: askBtn
+
+                        icon: "delete"
+                        onClicked: confirm.show()
+
+                        Tooltip {
+                            text: "Forget this device"
+                        }
+                        Dialog {
+                            id: confirm
+
+                            from: askBtn
+                            title: "Forget Pixel Buds?"
+                            text: "You'll need to pair them again to use them."
+                            confirmText: "Forget"
+                            danger: true
+                        }
+                    }
+                }
+            }
+
+            Entry {
                 num: "18"
                 name: "Text motion"
                 note: "only for text that changes now and then"

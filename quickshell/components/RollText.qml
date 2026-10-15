@@ -43,9 +43,11 @@ Row {
         while (chars.count > text.length)
             chars.remove(chars.count - 1);
     }
+    // The first text may already have come through onTextChanged (a binding
+    // set while it's made): fill only what isn't there.
     Component.onCompleted: {
         _was = text;
-        for (let i = 0; i < text.length; i++)
+        for (let i = chars.count; i < text.length; i++)
             chars.append({
                 ch: text[i]
             });
