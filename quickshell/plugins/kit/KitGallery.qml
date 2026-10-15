@@ -310,6 +310,83 @@ Item {
             }
 
             Entry {
+                num: "15"
+                name: "Goo groups"
+                note: "the bar's goo: hover follows, the selection flows and splits"
+
+                Spec {
+                    caption: "chip group · pick one"
+                    ChipGroup {
+                        current: "nature"
+                        model: [{
+                                value: "all",
+                                label: "All"
+                            }, {
+                                value: "nature",
+                                label: "Nature"
+                            }, {
+                                value: "city",
+                                label: "City"
+                            }, {
+                                value: "anime",
+                                label: "Anime",
+                                icon: "auto_awesome"
+                            }, {
+                                value: "live",
+                                label: "Live",
+                                icon: "play_circle"
+                            }]
+                        onSelected: v => current = v
+                    }
+                }
+                Spec {
+                    caption: "tile grid · hover goo over toggles"
+                    Item {
+                        width: tiles.width
+                        height: tiles.height
+
+                        Grid {
+                            id: tiles
+
+                            columns: 3
+                            spacing: Tokens.spacing.small
+
+                            Repeater {
+                                model: [["wifi", "Wi-Fi"], ["bluetooth", "Bluetooth"], ["dark_mode", "Dark"], ["do_not_disturb_on", "Quiet"], ["nightlight", "Night light"], ["coffee", "Awake"]]
+
+                                Tile {
+                                    required property var modelData
+                                    required property int index
+
+                                    width: 160
+                                    icon: modelData[0]
+                                    label: modelData[1]
+                                    sublabel: checked ? "On" : "Off"
+                                    checked: index % 2 === 0
+                                    hoverLayer: false
+                                    onClicked: checked = !checked
+                                }
+                            }
+                        }
+
+                        GooIndicator {
+                            anchors.fill: tiles
+                            hovered: {
+                                for (let i = 0; i < tiles.children.length; i++) {
+                                    const t = tiles.children[i];
+                                    if (t.hovered)
+                                        return t;
+                                }
+                                return null;
+                            }
+                            hoverFill: Qt.alpha(Colours.palette.m3onSurface, 0.08)
+                            radius: Tokens.rounding.normal
+                        }
+                    }
+                }
+            }
+
+            Entry {
                 num: "7"
                 name: "ListRow"
 

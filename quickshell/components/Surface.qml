@@ -32,6 +32,8 @@ StyledRect {
     property real pressDepth: 0.96
     // Rounds tighter while pressed (Expressive shape morph).
     property bool morph: interactive
+    // The state layer's hover tint (off where a group's goo shows the hover).
+    property bool hoverLayer: true
 
     // The ink for its role (a control with its own sets `baseInk`); children
     // read `ink` / `subInk`, which on an interactive one fade with the fill.
@@ -171,7 +173,7 @@ StyledRect {
             }
 
             StateLayer {
-                hovered: ix.hovered || root.keyFocused
+                hovered: (ix.hovered && root.hoverLayer) || root.keyFocused
                 pressed: ix.pressed
                 ink: root.ink
                 // The surface's shape (its parent here is this holder).

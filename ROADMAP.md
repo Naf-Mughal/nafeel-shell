@@ -865,6 +865,16 @@ every control and state on, then the controls, then moving panels onto them, mot
 - [~] **K3 Gallery** (2026-10-15, first cut: plugins/kit, `shell open kit`, not warm): the
   existing primitives numbered 1-14 in their states, working on local state. Grows with K4-K7.
   The user guides every primitive, existing and new: review in the gallery, by number, first.
+- [ ] **K3b The user's direction (2026-10-15)**, each shown in the kit before it spreads:
+  - Groups (ButtonGroup, chip rows, tiles, toggles) get the bar's goo: a blob follows the
+    pointer across the items, and the selected fill flows to a new choice with the splitting tail.
+  - Text areas (Notes) get Kitty's `cursor_trail` (Ryoku ships it in apps/kitty/kitty.conf; the
+    user's "sword cut"): a tapered streak from the caret's old place to its new one, snapping shut.
+  - Inputs: typing styles as options to choose from in the kit: ink-in characters, a goo caret, a
+    brush underline that follows the caret, password seals pressed in per key.
+  - Text motion where it fits the use: numbers that change now and then roll (volume, brightness,
+    battery, counts), labels that switch ink-swap, panel headings write on (first open); never
+    clocks' seconds, live stats or anything changing many times a second.
 - [ ] **K4 Controls upgraded** into the ink-and-paper language (roles, not raw M3 colours):
   Switch, Slider, TextField (label, leading/trailing icon, clear, helper/error, focus ring),
   Chip, ButtonGroup; a shared focus ring.

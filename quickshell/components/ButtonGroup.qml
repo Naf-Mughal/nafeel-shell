@@ -4,22 +4,65 @@ import QtQuick
 import qs.config
 import qs.services
 
-// An M3 Expressive connected button group (Surfaces): segments with small inner and
-// round outer corners; the selected one fills and rounds fully.
+// An M3 Expressive connected button group: segments with small inner and
+// round outer corners. The selected fill is goo (GooIndicator): it flows to a
+// new choice and splits as it goes, and a fainter blob follows the hover.
 //   model: [{ value, icon, label }]
-Row {
+Item {
     id: root
 
     property var model: []
     property var current
     signal selected(var value)
 
-    spacing: 2
+    readonly property real spacing: 2
+    readonly property real segWidth: (width - spacing * Math.max(0, model.length - 1)) / Math.max(1, model.length)
+    readonly property real innerRadius: Math.max(2, Tokens.rounding.small / 2)
+
     // Segments share the width; without one set, each gets a comfortable
-    // 104 px (a Row takes no width from children sized from it).
-    width: model.length * 104 + spacing * Math.max(0, model.length - 1)
+    // 104 px.
+    implicitWidth: model.length * 104 + spacing * Math.max(0, model.length - 1)
+    implicitHeight: 52
+    width: implicitWidth
+    height: implicitHeight
+
+    // The segments' paper.
+    Repeater {
+        model: root.model
+
+        StyledRect {
+            required property int index
+
+            x: index * (root.segWidth + root.spacing)
+            width: root.segWidth
+            height: root.height
+            color: Colours.roleFill("paper", "strong", 3)
+            topLeftRadius: index === 0 ? Tokens.rounding.morph : root.innerRadius
+            bottomLeftRadius: topLeftRadius
+            topRightRadius: index === root.model.length - 1 ? Tokens.rounding.morph : root.innerRadius
+            bottomRightRadius: topRightRadius
+        }
+    }
+
+    GooIndicator {
+        anchors.fill: parent
+        selected: segs.itemAt(root.model.findIndex(m => m.value === root.current))
+        hovered: {
+            for (let i = 0; i < segs.count; i++) {
+                const s = segs.itemAt(i);
+                if (s?.hovered)
+                    return s;
+            }
+            return null;
+        }
+        fill: Colours.roleFill("secondary", "strong", 0)
+        hoverFill: Qt.alpha(Colours.palette.m3onSurface, 0.1)
+        radius: Tokens.rounding.morph
+    }
 
     Repeater {
+        id: segs
+
         model: root.model
 
         Surface {
@@ -28,29 +71,19 @@ Row {
             required property var modelData
             required property int index
             readonly property bool on: modelData.value === root.current
-            readonly property bool first: index === 0
-            readonly property bool last: index === root.model.length - 1
 
-            role: on ? "secondary" : "paper"
-            emphasis: "strong"
-            level: 3
+            emphasis: "ghost"
             interactive: true
+            hoverLayer: false
             pressDepth: 0.95
             morph: false
-            width: (root.width - root.spacing * (root.model.length - 1)) / root.model.length
-            height: 52
-            topLeftRadius: on || first ? Tokens.rounding.morph : Math.max(2, Tokens.rounding.small / 2)
-            bottomLeftRadius: topLeftRadius
-            topRightRadius: on || last ? Tokens.rounding.morph : Math.max(2, Tokens.rounding.small / 2)
-            bottomRightRadius: topRightRadius
+            radius: Tokens.rounding.morph
+            x: index * (root.segWidth + root.spacing)
+            width: root.segWidth
+            height: root.height
+            baseInk: on ? Colours.roleInk("secondary", "strong") : Colours.roleInk("paper", "soft")
+            baseSubInk: on ? baseInk : Colours.roleSubInk("paper", "soft")
             onClicked: root.selected(seg.modelData.value)
-
-            Behavior on topLeftRadius {
-                Anim {}
-            }
-            Behavior on topRightRadius {
-                Anim {}
-            }
 
             Column {
                 anchors.centerIn: parent
