@@ -6,9 +6,13 @@ import Quickshell.Widgets
 import qs.config
 import qs.services
 import qs.components
+import "../lock"
+import "../lock/themes/xianxia"
 
 // An authentication prompt (polkit), out of the bottom centre: a Panel with
-// what's asking and why, who to authenticate as (when there's a choice),
+// the lock's sealing formation (a rune lights per character, cinnabar on a
+// wrong password, gold when granted, with the cultivation it earned), what's
+// asking and why, who to authenticate as (when there's a choice),
 // the password, and Cancel / Authenticate. Caps Lock is pointed out, a
 // wrong password shakes the field and says so, Esc cancels. The action's id
 // shows on request (Details).
@@ -48,9 +52,16 @@ Panel {
         refocus.restart();
     }
 
-    onVisibleChanged: Qt.callLater(focusPrompt)
+    onVisibleChanged: {
+        Qt.callLater(focusPrompt);
+        if (visible)
+            drawIn.restart();
+    }
     onFlowChanged: Qt.callLater(focusPrompt)
-    Component.onCompleted: Qt.callLater(focusPrompt)
+    Component.onCompleted: {
+        Qt.callLater(focusPrompt);
+        drawIn.restart();
+    }
 
     Timer {
         id: refocus
@@ -62,46 +73,155 @@ Panel {
         }
     }
 
-    // What's asking: its icon and its message.
-    Surface {
+    // The lock's formation, small: what the runes and the centre read.
+    readonly property bool granted: polkit?.granted ?? false
+    readonly property var gain: polkit?.gain ?? null
+    readonly property int level: LockStats.level
+    readonly property var realm: Xian.realm(Math.max(1, level))
+    readonly property QtObject seal: QtObject {
+        readonly property int cells: Math.min(12, password.text.length)
+        property bool denying: false
+        readonly property string phase: root.granted ? "granted" : "ready"
+        readonly property date now: new Date()
+        readonly property string timeText: ""
+    }
+
+    // The theme's colours from the shell (when the lock hasn't set them).
+    ShellLockHost {
+        id: lockHost
+    }
+    Component.onDestruction: if (Xian.host === lockHost)
+        Xian.host = null
+
+    property real draw: 0
+    property real spin: 0
+    property real alarm: 0
+    property real surge: granted ? 1 : 0
+
+    Behavior on surge {
+        Anim {
+            duration: Xian.d(500)
+        }
+    }
+
+    NumberAnimation on spin {
+        running: root.visible && Xian.motion > 0
+        from: 0
+        to: 360
+        duration: 120000
+        loops: Animation.Infinite
+    }
+
+    SequentialAnimation {
+        id: drawIn
+
+        ScriptAction {
+            script: {
+                if (!Xian.host)
+                    Xian.host = lockHost;
+                root.draw = 0;
+            }
+        }
+        NumberAnimation {
+            target: root
+            property: "draw"
+            to: 1
+            duration: Xian.d(900)
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    // A wrong password: the formation flushes cinnabar, the runes with it.
+    SequentialAnimation {
+        id: deny
+
+        ScriptAction {
+            script: root.seal.denying = true
+        }
+        NumberAnimation {
+            target: root
+            property: "alarm"
+            to: 1
+            duration: Xian.d(120)
+        }
+        PauseAnimation {
+            duration: Xian.d(300)
+        }
+        NumberAnimation {
+            target: root
+            property: "alarm"
+            to: 0
+            duration: Xian.d(700)
+        }
+        ScriptAction {
+            script: root.seal.denying = false
+        }
+    }
+
+    Item {
         width: parent.width
-        height: ask.implicitHeight + Tokens.spacing.large * 2
-        role: "paper"
-        level: 2
+        height: formation.height * 0.86
 
-        Row {
-            id: ask
+        Formation {
+            id: formation
 
-            x: Tokens.spacing.large
-            y: Tokens.spacing.large
-            width: parent.width - Tokens.spacing.large * 2
-            spacing: Tokens.spacing.normal
+            anchors.centerIn: parent
+            ctx: root.seal
+            sc: 0.44
+            draw: root.draw
+            spin: root.spin
+            alarm: root.alarm
+            surge: root.surge
+            hush: 1
+        }
 
-            IconImage {
-                id: askIcon
+        // The centre: what's asked (授, granted 准), and your realm; once
+        // granted, what it earned.
+        Column {
+            anchors.centerIn: parent
+            spacing: 2
+            opacity: LockTheme.seg(root.draw, 0.4, 1)
 
-                anchors.verticalCenter: parent.verticalCenter
-                visible: (root.flow?.iconName ?? "") !== ""
-                implicitSize: 36
-                source: visible ? Quickshell.iconPath(root.flow.iconName, "dialog-password") : ""
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.granted ? "准" : "授"
+                font.family: Xian.cjk
+                font.pixelSize: 38
+                color: Qt.tint(Qt.tint(Xian.gold, Xian.alpha(Xian.cinnabar, root.alarm)), Xian.alpha(Xian.goldHi, root.surge))
             }
 
-            MaterialIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: !askIcon.visible
-                text: "lock"
-                fill: 1
-                size: 30
-                color: Colours.palette.m3primary
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.granted && root.gain ? (root.gain.levelAfter > root.gain.levelBefore ? "突破 · " : "") + `+${root.gain.total} 修为` : `${root.realm.zh} ${root.realm.stageZh}`
+                font.family: Xian.cjk
+                font.pixelSize: 12
+                color: root.granted ? Xian.goldHi : Xian.paperDim
             }
+        }
+    }
 
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 36 - Tokens.spacing.normal
-                text: root.flow?.message ?? ""
-                font.pixelSize: Tokens.font.body
-                wrapMode: Text.Wrap
-            }
+    // What's asking, and why.
+    Row {
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(implicitWidth, parent.width)
+        spacing: Tokens.spacing.small
+
+        IconImage {
+            id: askIcon
+
+            anchors.verticalCenter: parent.verticalCenter
+            visible: (root.flow?.iconName ?? "") !== ""
+            implicitSize: 20
+            source: visible ? Quickshell.iconPath(root.flow.iconName, "dialog-password") : ""
+        }
+
+        StyledText {
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.min(implicitWidth, root.width - (askIcon.visible ? 28 : 0) - Tokens.spacing.large * 2)
+            text: root.granted ? `${root.realm.en}${root.realm.stageEn ? ", " + root.realm.stageEn : ""} · the seal opens` : root.flow?.message ?? ""
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: Tokens.font.body
+            wrapMode: Text.Wrap
         }
     }
 
@@ -155,6 +275,7 @@ Panel {
 
             function onFailuresChanged(): void {
                 shakeAnim.restart();
+                deny.restart();
                 password.focusInput();
             }
         }

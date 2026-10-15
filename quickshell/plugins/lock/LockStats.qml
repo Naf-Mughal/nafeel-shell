@@ -252,6 +252,21 @@ Singleton {
         return true;
     }
 
+    // A smaller gain from outside the lock (the polkit prompt): `lines` as
+    // evaluate()'s ({ label, xp }), straight onto the XP; no unlock, streak
+    // or records. Returns { total, levelBefore, levelAfter }.
+    function award(lines) {
+        if (!ready)
+            return null;
+        let total = 0;
+        for (let i = 0; i < lines.length; i++)
+            total += lines[i].xp;
+        const before = adapter.xp;
+        adapter.xp = before + total;
+        statsFile.writeAdapter();
+        return { total: total, levelBefore: levelFor(before), levelAfter: levelFor(before + total) };
+    }
+
     Timer {
         id: reloadTimer
         interval: 100
