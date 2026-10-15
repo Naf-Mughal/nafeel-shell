@@ -171,7 +171,15 @@ Singleton {
         function toggle(): void {
             root.toggleDesktop("");
         }
+        // The desktop's menu, in the middle of the focused screen (as a
+        // right-click on the empty desktop opens it); again closes it.
+        function menu(): void {
+            root.desktopMenu(root.focusedOutput);
+        }
     }
+
+    // Asks the background on `output` for its menu (Background.qml).
+    signal desktopMenu(string output)
 
     // Run a compositor action, as `umbriel msg <action>`.
     function dispatch(action: string): void {

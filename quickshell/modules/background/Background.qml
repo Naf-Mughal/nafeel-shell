@@ -208,5 +208,18 @@ Variants {
                 show();
             }
         }
+
+        Connections {
+            target: Umbriel
+
+            function onDesktopMenu(output: string): void {
+                if (output !== win.modelData.name && !(output === "" && win.modelData === Quickshell.screens[0]))
+                    return;
+                if (deskMenu.open)
+                    deskMenu.open = false;
+                else
+                    deskMenu.popup(desk, Qt.point(desk.width / 2 - 150, desk.height / 2 - 160));
+            }
+        }
     }
 }
