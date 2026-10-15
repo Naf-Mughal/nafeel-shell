@@ -28,12 +28,12 @@ assemble() {
     test=${3:-false}
     rm -rf "$out"
     mkdir -p "$out/modules/lock/themes/xianxia" "$out/modules/background" "$out/shaders"
-    cp "$root/sddm/Main.qml" "$root/sddm/GreeterContext.qml" "$root/sddm/GreeterHost.qml" "$root/sddm/metadata.desktop" "$out/"
+    cp "$root/sddm/Main.qml" "$root/sddm/GreeterContext.qml" "$root/sddm/GreeterHost.qml" "$root/sddm/SessionPicker.qml" "$root/sddm/metadata.desktop" "$out/"
     sed -e "s|^dataDir=.*|dataDir=$data|" -e "s|^testMode=.*|testMode=$test|" "$root/sddm/theme.conf" >"$out/theme.conf"
     for f in Glyph HoldArea CaptureImage LockInput LockTheme; do
         cp "$lock/$f.qml" "$out/modules/lock/"
     done
-    for f in Xian XianxiaSurface Formation SealPrompt Paper Token CultivatorCard; do
+    for f in Xian XianxiaSurface Formation SealPrompt Paper Token CultivatorCard Calligraphy; do
         cp "$lock/themes/xianxia/$f.qml" "$out/modules/lock/themes/xianxia/"
     done
     # The live wallpaper's player: the greeter's own (QtQuick + QtMultimedia
@@ -46,7 +46,7 @@ assemble() {
         "CaptureImage 1.0 CaptureImage.qml" "LockInput 1.0 LockInput.qml" >"$out/modules/lock/qmldir"
     printf '%s\n' "singleton Xian 1.0 Xian.qml" "XianxiaSurface 1.0 XianxiaSurface.qml" "Formation 1.0 Formation.qml" \
         "SealPrompt 1.0 SealPrompt.qml" "Paper 1.0 Paper.qml" "Token 1.0 Token.qml" \
-        "CultivatorCard 1.0 CultivatorCard.qml" >"$out/modules/lock/themes/xianxia/qmldir"
+        "CultivatorCard 1.0 CultivatorCard.qml" "Calligraphy 1.0 Calligraphy.qml" >"$out/modules/lock/themes/xianxia/qmldir"
 }
 
 case "${1:-}" in

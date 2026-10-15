@@ -29,6 +29,13 @@ Item {
         level: 2
         width: 340 * root.sc
         height: 100 * root.sc
+        // The panels' paper (fibre and wash), not a flat fill.
+        fill: "transparent"
+
+        PaperSheet {
+            anchors.fill: parent
+            radius: player.restRadius
+        }
 
         Row {
             anchors.fill: parent
@@ -136,7 +143,10 @@ Item {
                     interactive: true
                     onClicked: {
                         root.ctx?.poke();
-                        CaveAbode.captureCommand(cap.modelData.event);
+                        if (cap.live)
+                            CaveAbode.captureCommand("record");
+                        else
+                            root.pick(cap.modelData.event);
                     }
 
                     StyledText {
@@ -154,6 +164,119 @@ Item {
                     readonly property int secs: CaveAbode.recordedSeconds(root.ctx?.now ?? new Date())
                     text: cap.live ? Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0") : cap.modelData.en
                 }
+            }
+        }
+    }
+
+    // ── Picking a region to capture (the lock's own: nothing else can
+    // draw over it): drag one out; a click without dragging takes the whole
+    // screen; Esc or a right-click lets it go. ──
+    property string picking: ""
+    property Item _focusWas: null
+
+    function pick(event: string): void {
+        _focusWas = Window.window?.activeFocusItem ?? null;
+        picking = event;
+        picker.forceActiveFocus();
+    }
+
+    function _endPick(): void {
+        picking = "";
+        _focusWas?.forceActiveFocus();
+    }
+
+    function _take(event: string, area: var): void {
+        _endPick();
+        // Once the picker is off the screen.
+        takeLater.event = event;
+        takeLater.area = area;
+        takeLater.restart();
+    }
+
+    Timer {
+        id: takeLater
+
+        property string event
+        property var area
+        interval: 120
+        onTriggered: Plugins.instance("capture")?.capture?.lockedCapture(event, Window.window?.screen?.name ?? "", area)
+    }
+
+    Item {
+        id: picker
+
+        anchors.fill: parent
+        visible: root.picking !== ""
+        z: 10
+        focus: visible
+        Keys.onEscapePressed: root._endPick()
+
+        readonly property real x0: Math.min(drag.ax, drag.bx)
+        readonly property real y0: Math.min(drag.ay, drag.by)
+        readonly property real w: Math.abs(drag.bx - drag.ax)
+        readonly property real h: Math.abs(drag.by - drag.ay)
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.alpha(Colours.palette.m3scrim, 0.35)
+        }
+
+        Rectangle {
+            visible: drag.pressed
+            x: picker.x0
+            y: picker.y0
+            width: picker.w
+            height: picker.h
+            color: Qt.alpha(Colours.palette.m3primary, 0.08)
+            border.width: 1.5
+            border.color: Colours.palette.m3primary
+            radius: Tokens.rounding.small
+        }
+
+        Surface {
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: 28 * root.sc
+            level: 2
+            width: hint.implicitWidth + Tokens.spacing.large * 2
+            height: 36
+
+            StyledText {
+                id: hint
+
+                anchors.centerIn: parent
+                text: (root.picking === "record" ? "Record" : "Capture") + " a region: drag it out · click for the whole screen · Esc to cancel"
+                font.pixelSize: Tokens.font.small
+            }
+        }
+
+        MouseArea {
+            id: drag
+
+            property real ax
+            property real ay
+            property real bx
+            property real by
+
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.CrossCursor
+            onPressed: e => {
+                if (e.button === Qt.RightButton) {
+                    root._endPick();
+                    return;
+                }
+                ax = bx = e.x;
+                ay = by = e.y;
+            }
+            onPositionChanged: e => {
+                bx = e.x;
+                by = e.y;
+            }
+            onReleased: e => {
+                if (e.button !== Qt.LeftButton)
+                    return;
+                const big = picker.w >= 8 && picker.h >= 8;
+                root._take(root.picking, big ? Qt.rect(picker.x0, picker.y0, picker.w, picker.h) : null);
             }
         }
     }

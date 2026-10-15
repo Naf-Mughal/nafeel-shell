@@ -253,7 +253,7 @@ Scope {
 
     function shot(mode: string, delayMs: int): void {
         if (ShellState.locked) {
-            lockedShot();
+            lockedShot(null);
             return;
         }
         Quickshell.execDetached(["mkdir", "-p", shotDir]);
@@ -288,12 +288,27 @@ Scope {
             });
     }
 
-    // Locked: the focused monitor, read from the GPU by gpu-screen-recorder.
-    function lockedShot(): void {
+    // Locked: the focused monitor, read from the GPU by gpu-screen-recorder;
+    // `area` (picked on the lock) a region of it, in its coordinates.
+    function lockedShot(area: var): void {
         const path = newShotPath();
+        const target = area && area.width >= 2 && area.height >= 2 ? `${Math.round(area.width)}x${Math.round(area.height)}+${Math.round(area.x)}+${Math.round(area.y)}` : (Umbriel.focusedOutput || "screen");
         lockedShotProc.path = path;
-        lockedShotProc.command = ["sh", "-c", 'mkdir -p "$1" && exec gpu-screen-recorder -w "$2" -cursor no -o "$3"', "sh", shotDir, Umbriel.focusedOutput || "screen", path];
+        lockedShotProc.command = ["sh", "-c", 'mkdir -p "$1" && exec gpu-screen-recorder -w "$2" -cursor no -o "$3"', "sh", shotDir, target, path];
         lockedShotProc.running = true;
+    }
+
+    // The lock's own picker: a region (or the screen, `area` null) shot or
+    // recorded while locked.
+    function lockedCapture(event: string, output: string, area: var): void {
+        if (event === "screenshot")
+            lockedShot(area);
+        else if (recording)
+            stop();
+        else if (area)
+            recordRegion(output, area);
+        else
+            startRecording("screen", 0);
     }
 
     // ── Recording ───────────────────────────────────────────────────────

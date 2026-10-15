@@ -342,14 +342,13 @@ Item {
             x: xian.edge
             y: 44 * xian.sc
             spacing: 16 * xian.sc
-            opacity: xian.uiIn
+            // Quickly: the calligraphy writes itself in.
+            opacity: Math.min(1, xian.uiIn * 3)
 
-            Text {
-                text: "洞\n府\n封\n印"
-                font.family: Xian.cjk
-                font.weight: Font.Black
-                font.pixelSize: 30 * xian.sc
-                lineHeight: 1.05
+            Calligraphy {
+                text: "洞府封印"
+                sc: xian.sc
+                go: xian.uiIn > 0.05
                 color: Xian.paper
             }
 
@@ -396,15 +395,14 @@ Item {
             anchors.rightMargin: xian.edge
             y: 44 * xian.sc
             spacing: 16 * xian.sc
-            opacity: xian.uiIn
+            // Quickly: the calligraphy writes itself in.
+            opacity: Math.min(1, xian.uiIn * 3)
             layoutDirection: Qt.RightToLeft
 
-            Text {
-                text: Xian.shichen(xian.ctx.now).zh.split("").join("\n")
-                font.family: Xian.cjk
-                font.weight: Font.Black
-                font.pixelSize: 30 * xian.sc
-                lineHeight: 1.05
+            Calligraphy {
+                text: Xian.shichen(xian.ctx.now).zh
+                sc: xian.sc
+                go: xian.uiIn > 0.05
                 color: Xian.gold
             }
 

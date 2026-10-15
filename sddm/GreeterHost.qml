@@ -36,9 +36,11 @@ QtObject {
         VideoLayer {}
     }
     readonly property url avatar: file(data?.avatar ?? "")
-    // The running session's things (player, capture, OSD, notifications):
-    // none at login.
-    readonly property Component sessionComponent: null
+    // At login, instead of the running session's things (player, capture,
+    // OSD, notifications): which desktop to log into.
+    readonly property Component sessionComponent: Component {
+        SessionPicker {}
+    }
 
     readonly property QtObject battery: QtObject {
         readonly property bool present: false
