@@ -12,7 +12,6 @@ import qs.components
 Item {
     id: root
 
-    property string armed: ""
 
     Component.onCompleted: Notifs.markSeen()
 
@@ -22,12 +21,6 @@ Item {
         precision: SystemClock.Minutes
     }
 
-    Timer {
-        id: disarm
-
-        interval: 4000
-        onTriggered: root.armed = ""
-    }
 
     Item {
         id: header
@@ -261,22 +254,23 @@ Item {
                         { action: "shutdown", icon: "power_settings_new", confirm: true }
                     ]
 
+                    // Held to confirm, like the Session panel's.
                     IconButton {
                         required property var modelData
 
-                        icon: root.armed === modelData.action ? "check" : modelData.icon
+                        icon: modelData.icon
                         size: 40
-                        filled: root.armed === modelData.action || modelData.action === "shutdown"
+                        filled: modelData.action === "shutdown"
                         fillColour: Colours.palette.m3errorContainer
                         inkColour: Colours.palette.m3onErrorContainer
-                        onClicked: {
-                            if (modelData.confirm && root.armed !== modelData.action) {
-                                root.armed = modelData.action;
-                                disarm.restart();
-                                return;
-                            }
+                        holdToConfirm: true
+                        onConfirmed: {
                             ShellState.close();
                             Session.run(modelData.action);
+                        }
+
+                        Tooltip {
+                            text: parent.hinting ? "Hold to confirm" : ({ lock: "Lock", logout: "Log out", suspend: "Suspend", reboot: "Restart", shutdown: "Shut down" })[parent.modelData.action]
                         }
                     }
                 }

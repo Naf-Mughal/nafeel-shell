@@ -57,6 +57,61 @@ StyledRect {
     signal rightClicked
     signal middleClicked
 
+    // For what can't be undone (restart, shut down, …): held, ink spreads
+    // from its middle in the theme's colour over `holdMs` and `confirmed`
+    // fires when it's full; let go early and it draws back. A click alone
+    // sets `hinting` a moment (say "Hold to confirm"). Any interactive one.
+    property bool holdToConfirm: false
+    property int holdMs: 700
+    signal confirmed
+    property real hold: 0
+    property bool hinting: false
+    // Covered by the hold's ink (its ink should turn).
+    readonly property bool holding: hold > 0.5
+
+    onPressedChanged: {
+        if (!holdToConfirm)
+            return;
+        if (pressed) {
+            holdDrain.stop();
+            holdFill.duration = holdMs * (1 - hold);
+            holdFill.restart();
+        } else if (hold < 1) {
+            holdFill.stop();
+            holdDrain.restart();
+        }
+    }
+    onClicked: if (holdToConfirm) {
+        hinting = true;
+        holdHint.restart();
+    }
+    NumberAnimation {
+        id: holdFill
+
+        target: root
+        property: "hold"
+        to: 1
+        onFinished: {
+            root.hold = 0;
+            root.confirmed();
+        }
+    }
+    NumberAnimation {
+        id: holdDrain
+
+        target: root
+        property: "hold"
+        to: 0
+        duration: Tokens.anim.normal
+        easing.type: Easing.OutCubic
+    }
+    Timer {
+        id: holdHint
+
+        interval: 1600
+        onTriggered: root.hinting = false
+    }
+
     color: fill
     radius: shapeRadius
     // A coloured ghost has a hairline in its role (and a faint wash, Colours):
@@ -98,6 +153,15 @@ StyledRect {
             return;
         }
         event.accepted = true;
+    }
+
+    // The hold's ink, under the content.
+    InkSpread {
+        visible: root.holdToConfirm && p > 0.001
+        color: Colours.roleFill("primary", "strong", 0)
+        origin: Qt.point(root.width / 2, root.height / 2)
+        p: root.hold
+        r1: root.radius
     }
 
     Loader {

@@ -25,7 +25,8 @@ Surface {
     // Tonal: a step above the paper with a hairline, so it reads as a button.
     fill: filled ? fillColour : Colours.roleFill("paper", "soft", 4)
     outlined: !filled
-    baseInk: filled ? inkColour : Colours.palette.m3onSurface
+    // Under a hold's ink (holdToConfirm), the ink of the fill.
+    baseInk: holding ? Colours.roleInk("primary", "strong") : filled ? inkColour : Colours.palette.m3onSurface
     // M3 Expressive shape morph: rounder at rest, squarer while pressed.
     shapeRadius: pressed ? Tokens.rounding.small : Math.min(size / 2, Tokens.rounding.morph)
 
