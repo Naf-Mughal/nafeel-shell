@@ -6,7 +6,7 @@ import qs.components
 import qs.modules.commandcenter.tabs
 
 // The dashboard tab, Caelestia's grid:
-//   weather  | you                   | media
+//   stack    | you (and the weather) | media
 //   clock | calendar     | resources |  (tall)
 GridLayout {
     id: root
@@ -16,7 +16,8 @@ GridLayout {
     rowSpacing: Tokens.spacing.normal
     columnSpacing: Tokens.spacing.normal
 
-    WeatherCard {
+    // Focus, system, network, agenda: flipped through in one card.
+    DashStack {
         Layout.row: 0
         Layout.column: 0
         Layout.columnSpan: 2

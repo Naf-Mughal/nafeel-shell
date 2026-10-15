@@ -7,4 +7,6 @@ import Quickshell
 // drawer.
 Scope {
     readonly property var visualiser: Visualiser
+    // The stack's focus timer: it keeps going with the dashboard shut.
+    readonly property FocusTimer focus: FocusTimer {}
 }

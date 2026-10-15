@@ -338,7 +338,8 @@ RowLayout {
                 anchors.bottom: parent.bottom
                 height: parent.height * Power.level
                 radius: Tokens.rounding.small
-                color: Colours.roleFill(Power.low ? "error" : "secondary", "strong", 0)
+                // Calm (the soft container) unless it's low (error, strong).
+                color: Colours.roleFill(Power.low ? "error" : "secondary", Power.low ? "strong" : "soft", 0)
                 clip: true
 
                 Behavior on height {
@@ -352,8 +353,8 @@ RowLayout {
                     anchors.margins: Tokens.spacing.normal
                     height: tank.height - Tokens.spacing.normal * 2
                     accent: Colours.roleFill("primary", "soft", 0)
-                    ink: Colours.roleInk(Power.low ? "error" : "secondary", "strong")
-                    subInk: Qt.alpha(Colours.roleInk(Power.low ? "error" : "secondary", "strong"), 0.75)
+                    ink: Colours.roleInk(Power.low ? "error" : "secondary", Power.low ? "strong" : "soft")
+                    subInk: Qt.alpha(Colours.roleInk(Power.low ? "error" : "secondary", Power.low ? "strong" : "soft"), 0.75)
                 }
             }
         }

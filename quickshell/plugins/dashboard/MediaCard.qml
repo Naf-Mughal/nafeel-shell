@@ -106,7 +106,8 @@ Surface {
             InkSwap {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
-                text: Media.title || "Nothing playing"
+                // No title (a browser tab, say): the player's own name.
+                text: Media.title || root.player?.identity || "Nothing playing"
                 color: root.ink
                 font.pixelSize: root.big ? Tokens.font.title : Tokens.font.row
                 font.family: Tokens.font.serif
@@ -116,7 +117,7 @@ Surface {
             MicroLabel {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
-                text: [Media.artist, root.big ? root.player?.trackAlbum ?? "" : ""].filter(x => x).join(" · ")
+                text: Media.title ? [Media.artist, root.big ? root.player?.trackAlbum ?? "" : ""].filter(x => x).join(" · ") : root.player ? (root.player.isPlaying ? "Playing" : "Paused") : ""
                 elide: Text.ElideRight
             }
         }

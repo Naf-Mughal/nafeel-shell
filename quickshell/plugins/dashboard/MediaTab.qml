@@ -173,7 +173,8 @@ Item {
             // The track's name brushed over when the song changes.
             InkSwap {
                 Layout.fillWidth: true
-                text: root.player?.trackTitle || "Unknown title"
+                // No title (a browser tab, say): the player's own name.
+                text: root.player?.trackTitle || root.player?.identity || "Nothing playing"
                 color: Colours.roleInk("paper", "soft")
                 font.pixelSize: 24
                 elide: Text.ElideRight
@@ -181,7 +182,9 @@ Item {
 
             StyledText {
                 Layout.fillWidth: true
-                text: root.player?.trackArtist || "Unknown artist"
+                // Nothing to say (no track info): Playing / Paused, no "Unknown".
+                text: root.player?.trackArtist || (root.player && !root.player.trackTitle ? (root.player.isPlaying ? "Playing" : "Paused") : "")
+                visible: text !== ""
                 color: Colours.roleSubInk("paper", "soft")
                 font.pixelSize: Tokens.font.title
                 elide: Text.ElideRight
@@ -189,7 +192,8 @@ Item {
 
             StyledText {
                 Layout.fillWidth: true
-                text: root.player?.trackAlbum || "Unknown album"
+                text: root.player?.trackAlbum ?? ""
+                visible: text !== ""
                 color: Colours.roleInk("secondary", "ghost")
                 font.pixelSize: Tokens.font.title
                 elide: Text.ElideRight
@@ -199,8 +203,10 @@ Item {
                 Layout.fillHeight: true
             }
 
+            // The timeline, only with a length to show (a page playing has none).
             RowLayout {
                 Layout.fillWidth: true
+                visible: root.length > 0
                 spacing: Tokens.spacing.small
 
                 StyledText {

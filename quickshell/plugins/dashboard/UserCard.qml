@@ -5,7 +5,8 @@ import qs.services
 import qs.components
 
 // You: the wallpaper behind, your face (~/.face) or initial seal, name,
-// user@host and how long the machine has been up.
+// user@host and how long the machine has been up; and on the right, the
+// weather now (it was its own card).
 Surface {
     id: root
 
@@ -104,6 +105,44 @@ Surface {
                     text: `up ${Session.formatUptime()}`
                 }
             }
+        }
+    }
+
+    // The weather now, on the cover's right.
+    Row {
+        anchors.right: parent.right
+        anchors.rightMargin: Tokens.spacing.large
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Tokens.spacing.normal
+        visible: Weather.current !== null
+
+        Column {
+            anchors.verticalCenter: parent.verticalCenter
+
+            StyledText {
+                anchors.right: parent.right
+                text: Time.deg(Weather.temp)
+                color: root.ink
+                font.family: Tokens.font.serif
+                font.pixelSize: 30
+            }
+            MicroLabel {
+                anchors.right: parent.right
+                text: Weather.description
+            }
+            MicroLabel {
+                anchors.right: parent.right
+                visible: Weather.place !== ""
+                text: Weather.place
+            }
+        }
+
+        MaterialIcon {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Weather.icon
+            size: 40
+            fill: 1
+            color: Colours.roleInk("primary", "ghost")
         }
     }
 }
