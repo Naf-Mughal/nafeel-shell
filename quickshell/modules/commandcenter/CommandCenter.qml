@@ -287,7 +287,9 @@ Item {
             Component {
                 id: calendar
 
-                CalendarTab {}
+                CalendarTab {
+                    agenda: true
+                }
             }
             Component {
                 id: media

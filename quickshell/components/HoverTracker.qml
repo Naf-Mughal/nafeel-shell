@@ -29,7 +29,12 @@ QtObject {
             const sp = it.hoverScene;
             if (Math.abs(sp.x - _last.x) < 1 && Math.abs(sp.y - _last.y) < 1)
                 return;
+            // The first reading only says where the pointer is: a panel
+            // opening under a resting pointer mustn't pick what it rests on.
+            const first = _last.x === -999;
             _last = sp;
+            if (first)
+                return;
             away.stop();
             const dx = Math.min(deadZone, it.width / 3), dy = Math.min(deadZone, it.height / 3);
             if (at.x > dx && at.x < it.width - dx && at.y > dy && at.y < it.height - dy)
