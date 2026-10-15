@@ -15,8 +15,8 @@ Surface {
     property bool checked
     // Icon above the label, centred: for tiles three or more across.
     property bool stacked: false
-    // For what can't be undone (restart, shut down): held, ink fills it from
-    // the start over `holdMs` and `confirmed` fires when it's full; let go
+    // For what can't be undone (restart, shut down): held, ink spreads from
+    // its middle over `holdMs` and `confirmed` fires when it's full; let go
     // early and it drains. A click alone says "Hold to confirm".
     property bool holdToConfirm: false
     property int holdMs: 700
@@ -81,8 +81,8 @@ Surface {
     emphasis: "strong"
     level: 3
     // The ink turns once the fill has spread under it.
-    baseInk: spread > 0.5 ? Colours.roleInk("primary", "strong") : Colours.roleInk("paper", "strong")
-    baseSubInk: spread > 0.5 ? Colours.roleSubInk("primary", "strong") : Colours.roleSubInk("paper", "strong")
+    baseInk: spread > 0.5 || hold > 0.5 ? Colours.roleInk("primary", "strong") : Colours.roleInk("paper", "strong")
+    baseSubInk: spread > 0.5 || hold > 0.5 ? Colours.roleSubInk("primary", "strong") : Colours.roleSubInk("paper", "strong")
     interactive: true
     pressDepth: 0.97
     implicitHeight: 64
@@ -95,14 +95,13 @@ Surface {
         r1: root.radius
     }
 
-    // The hold's ink, filling from the start.
-    StyledRect {
-        visible: root.hold > 0
-        width: Math.max(root.radius * 2, root.width * root.hold)
-        height: root.height
-        radius: root.radius
-        color: Colours.roleFill("error", "soft", 0)
-        opacity: 0.85
+    // The hold's ink: the same spread as the toggles', from the middle, in
+    // the theme's colour.
+    InkSpread {
+        color: Colours.roleFill("primary", "strong", 0)
+        origin: Qt.point(root.width / 2, root.height / 2)
+        p: root.hold
+        r1: root.radius
     }
 
     Column {
