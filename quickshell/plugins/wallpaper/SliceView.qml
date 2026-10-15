@@ -59,18 +59,7 @@ Item {
         pos = i;
     }
 
-    // The current one once it has stayed put a moment (the full picture's).
-    property int settledIndex: currentIndex
-    Timer {
-        id: settle
-
-        interval: 220
-        onTriggered: root.settledIndex = root.currentIndex
-    }
-
     onCurrentIndexChanged: {
-        settledIndex = -1;
-        settle.restart();
         if (drag.active)
             return;
         travel.to = currentIndex;
@@ -206,9 +195,8 @@ Item {
 
                 Loader {
                     anchors.fill: parent
-                    // Open only, once the selection rests: one full image at a
-                    // time, and none decoded for each one browsed past.
-                    active: slice.idx === root.settledIndex && root.awake
+                    // Open (or opening) only: one full image at a time.
+                    active: slice.isCurrent && root.awake
                     // A live wallpaper moves here: its animated preview (the
                     // indexer's, a few seconds as animated WebP), not the video.
                     sourceComponent: (slice.modelData.video ?? false) ? livePreview : stillFull
