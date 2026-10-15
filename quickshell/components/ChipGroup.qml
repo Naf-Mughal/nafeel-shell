@@ -13,6 +13,8 @@ Item {
 
     property var model: []
     property var current
+    // Bumped as the Repeater's items come and go (the goo's lookups depend on it).
+    property int _items: 0
     signal selected(var value)
 
     implicitWidth: flow.implicitWidth
@@ -39,9 +41,10 @@ Item {
         id: goo
 
         anchors.fill: flow
-        // Read again once the items exist (itemAt says nothing when they arrive).
-        selected: chips.count > 0 ? chips.itemAt(root.model.findIndex(m => m.value === root.current)) : null
+        // Read again as the items arrive (itemAt and count say nothing then).
+        selected: root._items >= 0 ? chips.itemAt(root.model.findIndex(m => m.value === root.current)) : null
         hovered: {
+            void root._items;
             for (let i = 0; i < chips.count; i++) {
                 const c = chips.itemAt(i);
                 if (c?.hovered)
@@ -63,6 +66,8 @@ Item {
             id: chips
 
             model: root.model
+            onItemAdded: root._items++
+            onItemRemoved: root._items++
 
             Chip {
                 id: chip

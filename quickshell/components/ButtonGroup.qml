@@ -13,6 +13,8 @@ Item {
 
     property var model: []
     property var current
+    // Bumped as the Repeater's items come and go (the goo's lookups depend on it).
+    property int _items: 0
     signal selected(var value)
 
     readonly property real spacing: 2
@@ -48,9 +50,10 @@ Item {
         id: goo
 
         anchors.fill: parent
-        // Read again once the items exist (itemAt says nothing when they arrive).
-        selected: segs.count > 0 ? segs.itemAt(root.model.findIndex(m => m.value === root.current)) : null
+        // Read again as the items arrive (itemAt and count say nothing then).
+        selected: root._items >= 0 ? segs.itemAt(root.model.findIndex(m => m.value === root.current)) : null
         hovered: {
+            void root._items;
             for (let i = 0; i < segs.count; i++) {
                 const s = segs.itemAt(i);
                 if (s?.hovered)
@@ -67,6 +70,8 @@ Item {
         id: segs
 
         model: root.model
+        onItemAdded: root._items++
+        onItemRemoved: root._items++
 
         Surface {
             id: seg
