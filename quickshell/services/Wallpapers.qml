@@ -276,6 +276,7 @@ Singleton {
                         Theme.goOutput(path, output);
                         return;
                     }
+                    console.info(`wallpaper: ${path} at ${new Date().toLocaleTimeString()}`);
                     // Every screen (or the main one, which the theme follows).
                     if (!output)
                         root._clearOutputs();

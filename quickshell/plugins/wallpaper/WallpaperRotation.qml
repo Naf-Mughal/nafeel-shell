@@ -179,6 +179,10 @@ Scope {
     function next(): void {
         if (ShellState.locked)
             return;
+        // Who asked, with the time (the log has none): a change nobody
+        // remembers making can be traced.
+        console.info(`rotation: next at ${new Date().toLocaleTimeString()} (rotating ${root.enabled})`);
+        console.trace();
         const walls = pool().filter(w => w.path !== Wallpapers.current);
         if (walls.length === 0)
             return;
