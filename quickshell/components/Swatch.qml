@@ -2,7 +2,7 @@ import QtQuick
 import qs.config
 import qs.services
 
-// A colour to pick: a round swatch (a Surface: hover, press, keyboard).
+// A colour to pick: a swatch on the shell's rounding (a Surface: hover, press, keyboard).
 // Picked, a ring is drawn round it with a gap, in the theme's ink.
 //   Swatch { colour: "#e680a1"; picked: …; onClicked: … }
 Surface {
@@ -27,7 +27,6 @@ Surface {
     pressDepth: 0.85
     implicitWidth: size
     implicitHeight: size
-    radius: size / 2
     fill: colour
     baseInk: Colours.on(colour)
 
@@ -36,7 +35,8 @@ Surface {
         anchors.centerIn: parent
         width: root.size + 8 * root.ring
         height: width
-        radius: width / 2
+        // The swatch's own corners (the rounding setting), plus the gap.
+        radius: root.radius + 4 * root.ring
         visible: root.ring > 0.01
         color: "transparent"
         border.width: 2

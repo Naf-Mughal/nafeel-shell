@@ -14,6 +14,8 @@
 "Mod+D" = "spawn:shell-msg desktop"
 # The edit mode on the bar: move icons and panels on the real bar.
 "Mod+B" = "spawn:shell-msg baredit"
+# The kit: every primitive, numbered (its gallery).
+"Mod+K" = { action = "spawn:shell-msg kit", repeat = false }
 "Alt+Shift+Tab" = { action = "spawn:shell-msg switch prev", allow_when_inhibited = true }
 "Mod+Tab" = { action = "spawn:sh -c 'umbriel msg overview-open; umbriel msg window-focus-next'", allow_when_inhibited = true }
 "Ctrl+Alt+Escape" = { action = "submap:reset", submap = "switcher" }
