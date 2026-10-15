@@ -15,7 +15,8 @@ Item {
     property real sc: 1
     property bool hold: false
     property bool live: false
-    property bool enabled: true
+    // Takes presses (not `enabled`: that's Item's own).
+    property bool usable: true
     property color tone: Xian.gold
     signal activated
 
@@ -81,7 +82,7 @@ Item {
         id: area
 
         anchors.fill: parent
-        enabled: token.enabled
+        enabled: token.usable
         holdMs: token.hold ? 750 : 1
         onConfirmed: token.activated()
         onPressed: if (!token.hold) sweep.restart()

@@ -40,7 +40,7 @@ assemble() {
     # only; the shell's needs its native module, which SDDM hasn't).
     cp "$root/sddm/VideoLayer.qml" "$out/modules/background/"
     echo "VideoLayer 1.0 VideoLayer.qml" >"$out/modules/background/qmldir"
-    cp "$root/quickshell/shaders/lock_ink_backdrop.frag.qsb" "$root/quickshell/shaders/lock_ink_dissolve.frag.qsb" "$root/quickshell/shaders/paper_sheet.frag.qsb" "$root/quickshell/shaders/ink_pool.frag.qsb" "$out/shaders/"
+    cp "$root/quickshell/shaders/lock_ink_backdrop.frag.qsb" "$root/quickshell/shaders/lock_ink_dissolve.frag.qsb" "$root/quickshell/shaders/lock_ink_mist.frag.qsb" "$root/quickshell/shaders/paper_sheet.frag.qsb" "$root/quickshell/shaders/ink_pool.frag.qsb" "$out/shaders/"
     # Plain Qt (no Quickshell) needs the types listed, singletons marked.
     printf '%s\n' "singleton LockTheme 1.0 LockTheme.qml" "Glyph 1.0 Glyph.qml" "HoldArea 1.0 HoldArea.qml" \
         "CaptureImage 1.0 CaptureImage.qml" "LockInput 1.0 LockInput.qml" >"$out/modules/lock/qmldir"

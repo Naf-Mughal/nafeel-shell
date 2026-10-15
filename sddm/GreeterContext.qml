@@ -21,6 +21,8 @@ Item {
     property bool preview: false
 
     signal denied(bool costLife)
+    // Esc on an empty passcode in test mode (LockInput asks; nothing to end).
+    signal previewExit
     signal granted
     signal typed(int index)
     signal erased(int index)

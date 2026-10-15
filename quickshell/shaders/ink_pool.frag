@@ -20,7 +20,8 @@ void main() {
     vec2 p = qt_TexCoord0 * 2.0 - 1.0;
     float a = atan(p.y, p.x);
     float r = length(p) * (1.0 + 0.035 * sin(a * 5.0) + 0.02 * sin(a * 11.0 + 1.3));
-    float k = 1.0 - smoothstep(0.0, 1.0, r);
-    float alpha = ubuf.strength * k * k * (3.0 - 2.0 * k);
+    // Dense through the middle, then a long soft fall to nothing.
+    float k = 1.0 - smoothstep(0.3, 1.0, r);
+    float alpha = ubuf.strength * pow(k, 1.6);
     fragColor = vec4(ubuf.inkColor.rgb, 1.0) * alpha * ubuf.qt_Opacity;
 }

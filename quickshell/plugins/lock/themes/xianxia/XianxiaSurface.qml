@@ -171,11 +171,11 @@ Item {
         visible: xian.floating
         x: xian.width / 2 - width / 2
         y: xian.formationY + 70 * xian.sc - height / 2
-        width: 1250 * xian.sc
+        width: 1625 * xian.sc
         height: width
         opacity: LockTheme.seg(xian.draw, 0, 0.6) * (1 - xian.burst)
         property color inkColor: Xian.ink
-        property real strength: 0.9
+        property real strength: 0.95
 
         fragmentShader: Qt.resolvedUrl("../../../../shaders/ink_pool.frag.qsb")
     }
@@ -535,7 +535,7 @@ Item {
                     sc: xian.sc
                     hold: true
                     tone: Xian.jade
-                    enabled: !xian.still
+                    usable: !xian.still
                     onActivated: xian.ctx[modelData.act]()
                 }
             }

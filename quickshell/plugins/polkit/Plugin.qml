@@ -168,6 +168,8 @@ Scope {
             grab.active = false;
         }
         onLeaveRequested: root._dismiss()
+        // (A pretend request is the lock's preview: Esc ends it there.)
+        onPreviewExit: root._dismiss()
     }
 
     Connections {
