@@ -18,9 +18,36 @@ Column {
     bottomPadding: Tokens.spacing.huge
 
     Item {
+        id: wash
+
+        // The wash soaks in the first time it's shown.
+        property real soak: 1
+        property bool soaked: false
+
         anchors.horizontalCenter: parent.horizontalCenter
         width: 72
         height: 72
+        onVisibleChanged: soakIn()
+        Component.onCompleted: soakIn()
+
+        function soakIn(): void {
+            if (!visible || soaked)
+                return;
+            soaked = true;
+            if (!Tokens.reduceMotion)
+                soaking.start();
+        }
+
+        NumberAnimation {
+            id: soaking
+
+            target: wash
+            property: "soak"
+            from: 0
+            to: 1
+            duration: Tokens.dur(900)
+            easing.type: Easing.OutCubic
+        }
 
         // Ink wash: two soft, offset discs of the accent, barely there.
         Rectangle {
@@ -30,6 +57,8 @@ Column {
             height: 64
             radius: 32
             color: Qt.alpha(Colours.palette.m3primary, 0.08)
+            scale: 0.35 + 0.65 * wash.soak
+            opacity: wash.soak
         }
         Rectangle {
             anchors.centerIn: parent
@@ -39,6 +68,9 @@ Column {
             height: 52
             radius: 26
             color: Qt.alpha(Colours.palette.m3tertiary, 0.08)
+            // A beat behind the first disc, as ink spreads unevenly.
+            scale: 0.35 + 0.65 * Math.max(0, wash.soak * 1.25 - 0.25)
+            opacity: wash.soak
         }
 
         MaterialIcon {

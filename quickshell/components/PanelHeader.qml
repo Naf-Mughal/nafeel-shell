@@ -36,16 +36,19 @@ RowLayout {
         Layout.fillWidth: !mid.visible
         spacing: 0
 
+        // Written on the first time it shows this session.
         GlossTitle {
             Layout.fillWidth: true
             text: root.title
             gloss: root.gloss
             size: Tokens.font.value
+            writeOn: true
         }
 
-        StyledText {
+        // Brushed over when it changes (Speakers · 60% → Headphones · 40%).
+        InkSwap {
             Layout.fillWidth: true
-            visible: text !== ""
+            visible: root.subtitle !== ""
             text: root.subtitle
             color: Colours.palette.m3onSurfaceVariant
             font.pixelSize: Tokens.font.small

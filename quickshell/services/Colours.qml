@@ -68,8 +68,10 @@ Singleton {
     }
 
     function roleFill(role: string, emphasis: string, level: int): color {
+        // A coloured ghost: a faint wash of its role (paper's stays clear,
+        // the rows of a list).
         if (emphasis === "ghost")
-            return "transparent";
+            return role === "paper" ? "transparent" : Qt.alpha(palette[`m3${role}`], 0.07);
         if (role === "paper")
             return palette[`m3${paperLevels[Math.max(0, Math.min(4, level))]}`];
         return palette[emphasis === "strong" ? `m3${role}` : `m3${role}Container`];

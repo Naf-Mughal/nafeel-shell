@@ -78,6 +78,7 @@ Item {
                 // Under the fill right now (the ink turns with the goo).
                 selected: goo.covers(chip)
                 fill: "transparent"
+                inkFill: false
                 hoverLayer: false
                 baseInk: selected ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
                 baseSubInk: selected ? baseInk : Colours.roleSubInk("paper", "soft")

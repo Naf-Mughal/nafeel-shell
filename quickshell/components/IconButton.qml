@@ -5,7 +5,8 @@ import qs.services
 // A round Material icon button (a Surface). `filled` uses the colour pair as
 // a solid fill; otherwise it's a tonal button on the paper. A `caption` (a
 // level, say) sits small under the icon. With an `appId` the app's icon
-// stands in for the Material one.
+// stands in for the Material one. Pressed, its icon dips and fills in, then
+// springs back; a caption that changes rolls (RollText).
 Surface {
     id: root
 
@@ -21,7 +22,9 @@ Surface {
     pressDepth: 0.9
     implicitWidth: size
     implicitHeight: size
-    fill: filled ? fillColour : Colours.roleFill("paper", "soft", 3)
+    // Tonal: a step above the paper with a hairline, so it reads as a button.
+    fill: filled ? fillColour : Colours.roleFill("paper", "soft", 4)
+    outlined: !filled
     baseInk: filled ? inkColour : Colours.palette.m3onSurface
     // M3 Expressive shape morph: rounder at rest, squarer while pressed.
     shapeRadius: pressed ? Tokens.rounding.small : Math.min(size / 2, Tokens.rounding.morph)
@@ -42,12 +45,22 @@ Surface {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.appId === ""
             text: root.icon
-            fill: root.filled ? 1 : 0
+            fill: root.filled || root.pressed ? 1 : 0
             color: root.ink
             size: Math.round(root.size * (root.caption ? 0.4 : 0.5))
+            scale: root.pressed ? 0.82 : 1
+
+            Behavior on scale {
+                enabled: !Tokens.reduceMotion
+                SpringAnimation {
+                    spring: Tokens.spring.bouncy.spring
+                    damping: Tokens.spring.bouncy.damping
+                    epsilon: 0.005
+                }
+            }
         }
 
-        StyledText {
+        RollText {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.caption !== ""
             text: root.caption

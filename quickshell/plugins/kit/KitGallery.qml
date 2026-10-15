@@ -402,6 +402,56 @@ Item {
                     }
                 }
                 Spec {
+                    caption: "a list · goo glides to the hovered and picked row"
+                    Item {
+                        width: 300
+                        height: rows.height
+
+                        property int picked: 1
+
+                        GooIndicator {
+                            id: listGoo
+
+                            anchors.fill: rows
+                            selected: rows.children[parent.picked] ?? null
+                            hovered: {
+                                for (let i = 0; i < rows.children.length; i++)
+                                    if (rows.children[i].hovered)
+                                        return rows.children[i];
+                                return null;
+                            }
+                            fill: Colours.roleFill("secondary", "soft", 0)
+                            radius: Tokens.rounding.normal
+                        }
+
+                        Column {
+                            id: rows
+
+                            width: parent.width
+
+                            Repeater {
+                                model: [["folder", "Wallpapers", "753 pictures"], ["play_circle", "Live", "6 videos"], ["star", "Favourites", "12 picked"], ["history", "Recent", "this week"]]
+
+                                ListRow {
+                                    id: lr
+
+                                    required property var modelData
+                                    required property int index
+
+                                    width: rows.width
+                                    icon: modelData[0]
+                                    title: modelData[1]
+                                    subtitle: modelData[2]
+                                    hoverLayer: false
+                                    baseInk: listGoo.covers(lr) ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
+                                    baseSubInk: listGoo.covers(lr) ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk("paper", "soft")
+                                    onClicked: rows.parent.picked = index
+                                }
+                            }
+                        }
+                    }
+                }
+                Spec {
                     caption: "highlighted"
                     ListRow {
                         width: 300
@@ -630,6 +680,23 @@ Item {
                     }
                 }
                 Spec {
+                    caption: "gauge · rolls (click)"
+                    Gauge {
+                        id: rollGauge
+
+                        property int pct: 76
+
+                        value: pct / 100
+                        text: pct + "%"
+                        label: "BAT"
+                        roll: true
+
+                        TapHandler {
+                            onTapped: rollGauge.pct = rollGauge.pct > 50 ? rollGauge.pct - 23 : rollGauge.pct + 41
+                        }
+                    }
+                }
+                Spec {
                     caption: "gauge warn"
                     Gauge {
                         value: 0.91
@@ -708,6 +775,16 @@ Item {
                         shape: MaterialShape.Cookie4Sided
                         role: "tertiary"
                         icon: "memory"
+                    }
+                }
+                Spec {
+                    caption: "live · breathes"
+                    ShapeBadge {
+                        implicitSize: 56
+                        shape: MaterialShape.Cookie9Sided
+                        role: "primary"
+                        icon: "music_note"
+                        live: true
                     }
                 }
                 Spec {

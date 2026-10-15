@@ -875,6 +875,15 @@ every control and state on, then the controls, then moving panels onto them, mot
   - Text motion where it fits the use: numbers that change now and then roll (volume, brightness,
     battery, counts), labels that switch ink-swap, panel headings write on (first open); never
     clocks' seconds, live stats or anything changing many times a second.
+- [ ] **K3c The user's review, primitive by primitive (2026-10-15)**: 1 Surface: ink press
+  (a ripple from the click), ghosts visible (hairline + faint wash), a stronger press. 2
+  IconButton: clearer tonal, the icon bounces/fills on press, caption numbers roll. 3 Chip: a
+  better active state, the fill spreading from the click like goo on toggle. 4 Switch: an ink
+  drop thumb that slides and soaks the track. 6 Tile: the same spreading fill, its state line
+  ink-swaps. 7 ListRow: the goo highlight gliding between rows. 8 Slider: a rolling number in a
+  bubble while dragging, the handle swells. 10 Progress: eased values, gauge numbers roll. 11
+  headings write on (first show per session). 12 ShapeBadge breathes while live (cheap). 13
+  PanelHeader subtitles ink-swap. 14 EmptyState's disc soaks in once. Good as they are: 5, 9.
 - [ ] **K4 Controls upgraded** into the ink-and-paper language (roles, not raw M3 colours):
   Switch, Slider, TextField (label, leading/trailing icon, clear, helper/error, focus ring),
   Chip, ButtonGroup; a shared focus ring.

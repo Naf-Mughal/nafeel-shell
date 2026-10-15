@@ -29,7 +29,7 @@ StyledRect {
     property bool outlined: false
     property bool interactive: false
     // The squash while pressed (1 = none).
-    property real pressDepth: 0.96
+    property real pressDepth: 0.93
     // Rounds tighter while pressed (Expressive shape morph).
     property bool morph: interactive
     // The state layer's hover tint (off where a group's goo shows the hover).
@@ -43,13 +43,15 @@ StyledRect {
     property color subInk: baseSubInk
     readonly property bool hovered: interaction.item?.hovered ?? false
     readonly property bool pressed: interaction.item?.pressed ?? false
+    // Where the last press landed (a toggle's ink fill spreads from here).
+    property point pressPoint: Qt.point(width / 2, height / 2)
     readonly property real restRadius: shape === "full" ? Math.min(width, height) / 2 : shape === "small" ? Tokens.rounding.small : shape === "large" ? Tokens.rounding.large : Tokens.rounding.normal
     // The fill for its role, and the radius for its shape (squarer while
     // pressed, the Expressive morph): what it shows; an interactive one
     // animates to them. A control with its own fill or shape sets these, not
     // `color` or `radius`.
     property color fill: Colours.roleFill(role, emphasis, level)
-    property real shapeRadius: morph && pressed ? Math.min(restRadius, Tokens.rounding.small) : restRadius
+    property real shapeRadius: morph && pressed ? Math.min(restRadius, Tokens.rounding.small * 0.6) : restRadius
 
     signal clicked
     signal rightClicked
@@ -57,8 +59,11 @@ StyledRect {
 
     color: fill
     radius: shapeRadius
-    border.width: keyFocused ? 2 : outlined ? Tokens.hairline : 0
-    border.color: keyFocused ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3onSurface, 0.13)
+    // A coloured ghost has a hairline in its role (and a faint wash, Colours):
+    // without them it read as empty on dark paper.
+    readonly property bool tintedGhost: emphasis === "ghost" && role !== "paper"
+    border.width: keyFocused ? 2 : outlined || tintedGhost ? Tokens.hairline : 0
+    border.color: keyFocused ? Colours.palette.m3primary : tintedGhost ? Qt.alpha(Colours.roleInk(role, "ghost"), 0.4) : Qt.alpha(Colours.palette.m3onSurface, 0.13)
 
     // The keyboard: an interactive surface takes it from Tab and the arrows
     // (within its panel, KeyNav), Enter or Space presses it; the ring shows
@@ -172,9 +177,53 @@ StyledRect {
                 restoreMode: Binding.RestoreBindingOrValue
             }
 
+            // The press: ink spreading from where it landed, fading on release.
+            InkSpread {
+                id: ripple
+
+                color: root.ink
+                opacity: 0
+                origin: root.pressPoint
+                r1: root.radius
+
+                Connections {
+                    target: ix
+
+                    function onPressedChanged(): void {
+                        if (ix.pressed) {
+                            fade.stop();
+                            ripple.opacity = 0.14;
+                            spread.restart();
+                        } else {
+                            fade.restart();
+                        }
+                    }
+                }
+                NumberAnimation {
+                    id: spread
+
+                    target: ripple
+                    property: "p"
+                    from: 0
+                    to: 1
+                    duration: Tokens.anim.normal
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Tokens.anim.emphasizedDecel
+                }
+                NumberAnimation {
+                    id: fade
+
+                    target: ripple
+                    property: "opacity"
+                    to: 0
+                    duration: Tokens.anim.normal
+                    easing.type: Easing.OutQuad
+                }
+            }
+
             StateLayer {
                 hovered: (ix.hovered && root.hoverLayer) || root.keyFocused
-                pressed: ix.pressed
+                pressed: false
                 ink: root.ink
                 // The surface's shape (its parent here is this holder).
                 radius: root.radius
@@ -194,6 +243,8 @@ StyledRect {
                 id: tap
 
                 acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                onPressedChanged: if (pressed)
+                    root.pressPoint = point.position
                 onTapped: (eventPoint, button) => {
                     if (button === Qt.RightButton)
                         root.rightClicked();

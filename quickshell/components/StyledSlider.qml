@@ -5,6 +5,7 @@ import "keynav.js" as KeyNav
 
 // An M3 Expressive slider: a thick filled track, a gap, the rest of the track,
 // and a thin handle; an icon inside the filled part. Drag, click or scroll.
+// Held, the handle swells and a bubble above it shows the value, rolling.
 Item {
     id: root
 
@@ -15,6 +16,10 @@ Item {
     property color track: Colours.palette.m3secondaryContainer
     property color ink: Colours.palette.m3onPrimary
     readonly property real fraction: Math.max(0, Math.min(1, value / to))
+    // What the bubble says while it's dragged (a percentage by default).
+    property string valueText: Math.round(fraction * 100) + "%"
+    // Held: the handle swells and the bubble shows the value.
+    readonly property bool grabbed: drag.active || tap.pressed
 
     signal moved(real value)
 
@@ -90,13 +95,67 @@ Item {
     }
 
     StyledRect {
+        id: handle
+
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: filled.right
-        anchors.leftMargin: 4
-        width: 4
-        height: parent.height + 6
-        radius: 2
+        anchors.leftMargin: root.grabbed ? 3 : 4
+        width: root.grabbed ? 6 : 4
+        height: parent.height + (root.grabbed ? 12 : 6)
+        radius: width / 2
         color: root.fill
+
+        Behavior on width {
+            Anim {
+                duration: Tokens.anim.fast
+                easing.bezierCurve: Tokens.anim.expressiveFastSpatial
+            }
+        }
+        Behavior on height {
+            Anim {
+                duration: Tokens.anim.fast
+                easing.bezierCurve: Tokens.anim.expressiveFastSpatial
+            }
+        }
+    }
+
+    // The value while it's held, in a bubble over the handle.
+    StyledRect {
+        id: bubble
+
+        anchors.horizontalCenter: handle.horizontalCenter
+        anchors.bottom: handle.top
+        anchors.bottomMargin: 6
+        width: readout.implicitWidth + 16
+        height: 26
+        radius: height / 2
+        color: Colours.palette.m3inverseSurface
+        opacity: root.grabbed ? 1 : 0
+        scale: root.grabbed ? 1 : 0.6
+        transformOrigin: Item.Bottom
+        visible: opacity > 0.01
+
+        Behavior on opacity {
+            Anim {
+                duration: Tokens.anim.fast
+            }
+        }
+        Behavior on scale {
+            Anim {
+                duration: Tokens.anim.fast
+                easing.bezierCurve: Tokens.anim.expressiveFastSpatial
+            }
+        }
+
+        RollText {
+            id: readout
+
+            anchors.centerIn: parent
+            text: root.valueText
+            color: Colours.palette.m3inverseOnSurface
+            font.pixelSize: Tokens.font.small
+            font.weight: Font.DemiBold
+        }
     }
 
     StyledRect {
@@ -119,6 +178,8 @@ Item {
     }
 
     TapHandler {
+        id: tap
+
         onTapped: point => root.setFromX(point.position.x)
     }
 

@@ -3,8 +3,9 @@ import qs.config
 import qs.services
 
 // An M3 Expressive toggle tile (a Surface): icon, label and state line. On,
-// it fills with primary and its corners round out further (a shape change,
-// not just a colour one).
+// it fills with primary, the ink spreading from where it was pressed (and
+// drawing back there when it's turned off), and its corners round out
+// further; the state line is brushed over when it changes (InkSwap).
 Surface {
     id: root
 
@@ -15,13 +16,33 @@ Surface {
     // Icon above the label, centred: for tiles three or more across.
     property bool stacked: false
 
-    role: checked ? "primary" : "paper"
+    // The fill's spread: 0 off, 1 on.
+    property real spread: checked ? 1 : 0
+    Behavior on spread {
+        enabled: !Tokens.reduceMotion
+        Anim {
+            duration: Tokens.anim.normal
+            easing.bezierCurve: root.checked ? Tokens.anim.emphasizedDecel : Tokens.anim.emphasizedAccel
+        }
+    }
+
+    role: "paper"
     emphasis: "strong"
     level: 3
+    // The ink turns once the fill has spread under it.
+    baseInk: spread > 0.5 ? Colours.roleInk("primary", "strong") : Colours.roleInk("paper", "strong")
+    baseSubInk: spread > 0.5 ? Colours.roleSubInk("primary", "strong") : Colours.roleSubInk("paper", "strong")
     interactive: true
     pressDepth: 0.97
     implicitHeight: 64
     shapeRadius: checked ? Tokens.rounding.large : pressed ? Tokens.rounding.small : Tokens.rounding.normal
+
+    InkSpread {
+        color: Colours.roleFill("primary", "strong", 0)
+        origin: root.pressPoint
+        p: root.spread
+        r1: root.radius
+    }
 
     Column {
         visible: root.stacked
@@ -75,9 +96,9 @@ Surface {
                 elide: Text.ElideRight
             }
 
-            StyledText {
+            InkSwap {
                 width: parent.width
-                visible: text !== ""
+                visible: root.sublabel !== ""
                 text: root.sublabel
                 color: root.subInk
                 font.pixelSize: 11

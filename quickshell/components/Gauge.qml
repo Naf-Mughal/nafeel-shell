@@ -13,6 +13,7 @@ Item {
     property string text
     property string label
     property bool warn
+    property bool roll: false
     property real thickness: 10
 
     implicitWidth: 112
@@ -57,17 +58,38 @@ Item {
     Column {
         anchors.centerIn: parent
 
-        StyledText {
+        // Rolling where the value changes now and then (`roll`: a battery);
+        // live stats (CPU every second or two) stay still.
+        Loader {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: root.text
-            font.pixelSize: Tokens.font.value
-            font.family: Tokens.font.mono
-            color: Colours.palette.m3onSurface
+            sourceComponent: root.roll ? rolling : still
         }
 
         MicroLabel {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.label
+        }
+    }
+
+    Component {
+        id: still
+
+        StyledText {
+            text: root.text
+            font.pixelSize: Tokens.font.value
+            font.family: Tokens.font.mono
+            color: Colours.palette.m3onSurface
+        }
+    }
+
+    Component {
+        id: rolling
+
+        RollText {
+            text: root.text
+            font.pixelSize: Tokens.font.value
+            font.family: Tokens.font.mono
+            color: Colours.palette.m3onSurface
         }
     }
 }

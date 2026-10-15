@@ -2,7 +2,7 @@ import QtQuick
 import qs.config
 import qs.services
 
-// A line of recent values (oldest left), filled faintly below, scaled to
+// A smooth line of recent values (oldest left), filled faintly below, scaled to
 // `max` (or the largest value seen). Repaints when the values change.
 //
 //   Sparkline { values: SystemStats.cpuHistory; max: 1 }
@@ -27,10 +27,15 @@ Canvas {
         const step = width / 59;
         const x0 = width - (v.length - 1) * step;
         const y = val => height - 2 - (height - 4) * Math.min(1, val / top);
+        // A smooth curve through the values (each bend at the midpoint
+        // between two, the values as its control points), not a zigzag.
         ctx.beginPath();
         ctx.moveTo(x0, y(v[0]));
-        for (let i = 1; i < v.length; i++)
-            ctx.lineTo(x0 + i * step, y(v[i]));
+        for (let i = 1; i < v.length - 1; i++) {
+            const mx = x0 + (i + 0.5) * step, my = (y(v[i]) + y(v[i + 1])) / 2;
+            ctx.quadraticCurveTo(x0 + i * step, y(v[i]), mx, my);
+        }
+        ctx.lineTo(x0 + (v.length - 1) * step, y(v[v.length - 1]));
         ctx.lineWidth = 2;
         ctx.lineJoin = "round";
         ctx.strokeStyle = colour;
