@@ -36,6 +36,15 @@ QtObject {
     readonly property color cinnabar: "#c8372d"
     readonly property color ember: follow ? m3.m3secondary : "#ff9d4d"
 
+    // The host's motion: the shell's tempo (0 under reduced motion); 1 with
+    // no host (the greeter's keeps the designed timing unless it says).
+    readonly property real motion: host?.motion ?? 1
+
+    // A designed duration at the host's motion.
+    function d(ms) {
+        return Math.round(ms * motion);
+    }
+
     function alpha(c, a) {
         return Qt.rgba(c.r, c.g, c.b, a);
     }

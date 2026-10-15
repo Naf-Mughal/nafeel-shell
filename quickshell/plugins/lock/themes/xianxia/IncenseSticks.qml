@@ -32,7 +32,7 @@ Row {
             onAlightChanged: if (!alight) puff.restart()
 
             Behavior on stickH {
-                NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Xian.d(500); easing.type: Easing.OutCubic }
             }
 
             // The stick.
@@ -106,8 +106,8 @@ Row {
 
             ParallelAnimation {
                 id: puff
-                NumberAnimation { target: puffRing; property: "scale"; from: 0.5; to: 3.2; duration: 700; easing.type: Easing.OutCubic }
-                NumberAnimation { target: puffRing; property: "opacity"; from: 0.9; to: 0; duration: 700 }
+                NumberAnimation { target: puffRing; property: "scale"; from: 0.5; to: 3.2; duration: Xian.d(700); easing.type: Easing.OutCubic }
+                NumberAnimation { target: puffRing; property: "opacity"; from: 0.9; to: 0; duration: Xian.d(700) }
             }
         }
     }

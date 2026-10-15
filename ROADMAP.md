@@ -845,6 +845,36 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   Regular still loads for some glyph the serif lacks (~4 MB; find which); the still under the
   video keeps its 8 MB CPU copy; ~40 MB of growth over the soak.
 
+## Stage K: primitives and behaviours (asked 2026-10-15, after Stage O)
+
+The user's scope: a consistency sweep, the controls upgraded (radios, inputs, ...), new
+primitives, then the motion feel. Order: the invisible fixes first, then a gallery to review
+every control and state on, then the controls, then moving panels onto them, motion last
+(it needs the user's eyes).
+
+- [x] **K1 Motion tokens everywhere** (2026-10-15). Outside the lock every animation already
+  went through `Tokens.anim.*` / `Tokens.dur()` and the springs through `springK`/`dampK`; the
+  six literals left are on purpose (the drawer's one-frame pauses, the frame's keep-awake and
+  pump loops, the record's spin, which reduced motion already stops). The lock theme's 53
+  (its own choreography, shared with the greeter, so no shell imports) now run at
+  `Xian.d(ms)`: the host's `motion` (ShellLockHost: the tempo, 0 when reduced; the greeter's
+  host has none: 1). The hold-to-confirm time stays fixed (a function, not motion). Checked in
+  LockPreview: wrong passcode, right passcode, outro, release.
+- [ ] **K2 Interaction on the primitives**: the 10 raw MouseAreas onto Surface (or StateLayer +
+  PressBounce), so hover, press, cursor and the state layer are the same everywhere.
+- [ ] **K3 Gallery**: every primitive in every state (rest, hover, pressed, focused, disabled,
+  checked, error), light and dark, reachable by IPC (`shell open kit`), for reviewing K4-K7.
+- [ ] **K4 Controls upgraded** into the ink-and-paper language (roles, not raw M3 colours):
+  Switch, Slider, TextField (label, leading/trailing icon, clear, helper/error, focus ring),
+  Chip, ButtonGroup; a shared focus ring.
+- [ ] **K5 New primitives**: Checkbox, Radio + RadioGroup, Select (dropdown) on a Menu,
+  Menu/ContextMenu, Tooltip, Stepper, Dialog/Confirm, a drag-reorder list.
+- [ ] **K6 Panels onto the primitives**: the ~71 hand-made rectangles (not the lock theme's own
+  drawing, Capture's big buttons, progress tracks, workspace miniatures), and the command
+  center tabs, action center and OSD onto Panel/Sheet.
+- [ ] **K7 Motion feel**: spring presets, open/close choreography (staggered contents),
+  press and hover ink, blobs: variants shown in the gallery for the user to choose.
+
 ## Ideas, not scheduled
 
 - Custom panels as plugins (a Ryoku Rashin-style dashboard).

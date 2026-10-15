@@ -257,7 +257,7 @@ Item {
                 property: "glow"
                 from: 1.8
                 to: 1
-                duration: 320
+                duration: Xian.d(320)
                 easing.type: Easing.OutCubic
             }
 

@@ -1145,29 +1145,29 @@ Item {
     ParallelAnimation {
         id: intro
         SequentialAnimation {
-            PauseAnimation { duration: 80 }
-            NumberAnimation { target: xian; property: "draw"; from: 0; to: 1; duration: 650; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: Xian.d(80) }
+            NumberAnimation { target: xian; property: "draw"; from: 0; to: 1; duration: Xian.d(650); easing.type: Easing.OutCubic }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 380 }
-            NumberAnimation { target: xian; property: "sealIn"; from: 0; to: 1; duration: 190; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+            PauseAnimation { duration: Xian.d(380) }
+            NumberAnimation { target: xian; property: "sealIn"; from: 0; to: 1; duration: Xian.d(190); easing.type: Easing.OutBack; easing.overshoot: 1.2 }
             ScriptAction { script: { sealRingFx.restart(); stampShake.restart(); } }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 460 }
-            NumberAnimation { target: xian; property: "wash"; from: 0; to: 1; duration: 420 }
+            PauseAnimation { duration: Xian.d(460) }
+            NumberAnimation { target: xian; property: "wash"; from: 0; to: 1; duration: Xian.d(420) }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 540 }
-            NumberAnimation { target: xian; property: "dissolve"; from: 0; to: 1; duration: 900; easing.type: Easing.InOutSine }
+            PauseAnimation { duration: Xian.d(540) }
+            NumberAnimation { target: xian; property: "dissolve"; from: 0; to: 1; duration: Xian.d(900); easing.type: Easing.InOutSine }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 1100 }
-            NumberAnimation { target: xian; property: "sealOut"; from: 0; to: 1; duration: 380 }
+            PauseAnimation { duration: Xian.d(1100) }
+            NumberAnimation { target: xian; property: "sealOut"; from: 0; to: 1; duration: Xian.d(380) }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 950 }
-            NumberAnimation { target: xian; property: "uiIn"; from: 0; to: 1; duration: 700; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: Xian.d(950) }
+            NumberAnimation { target: xian; property: "uiIn"; from: 0; to: 1; duration: Xian.d(700); easing.type: Easing.OutCubic }
         }
     }
 
@@ -1175,83 +1175,83 @@ Item {
     // frame is the desktop exactly.
     ParallelAnimation {
         id: outro
-        NumberAnimation { target: xian; property: "uiIn"; to: 0; duration: 280; easing.type: Easing.InQuad }
-        NumberAnimation { target: xian; property: "burst"; to: 1; duration: 520; easing.type: Easing.OutCubic }
-        NumberAnimation { target: xian; property: "openIn"; to: 0; duration: 300 }
-        NumberAnimation { target: xian; property: "breakthrough"; to: 0; duration: 300 }
-        NumberAnimation { target: xian; property: "rewardIn"; to: 0; duration: 250 }
-        NumberAnimation { target: xian; property: "pillar"; to: 0; duration: 300 }
+        NumberAnimation { target: xian; property: "uiIn"; to: 0; duration: Xian.d(280); easing.type: Easing.InQuad }
+        NumberAnimation { target: xian; property: "burst"; to: 1; duration: Xian.d(520); easing.type: Easing.OutCubic }
+        NumberAnimation { target: xian; property: "openIn"; to: 0; duration: Xian.d(300) }
+        NumberAnimation { target: xian; property: "breakthrough"; to: 0; duration: Xian.d(300) }
+        NumberAnimation { target: xian; property: "rewardIn"; to: 0; duration: Xian.d(250) }
+        NumberAnimation { target: xian; property: "pillar"; to: 0; duration: Xian.d(300) }
         SequentialAnimation {
-            PauseAnimation { duration: 140 }
+            PauseAnimation { duration: Xian.d(140) }
             PropertyAction { target: xian; property: "inward"; value: true }
-            NumberAnimation { target: xian; property: "dissolve"; to: 0; duration: 820; easing.type: Easing.InOutSine }
+            NumberAnimation { target: xian; property: "dissolve"; to: 0; duration: Xian.d(820); easing.type: Easing.InOutSine }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 680 }
-            NumberAnimation { target: xian; property: "wash"; to: 0; duration: 420 }
+            PauseAnimation { duration: Xian.d(680) }
+            NumberAnimation { target: xian; property: "wash"; to: 0; duration: Xian.d(420) }
         }
     }
 
     ParallelAnimation {
         id: sealRingFx
-        NumberAnimation { target: sealRing; property: "scale"; from: 0.6; to: 3.4; duration: 650; easing.type: Easing.OutCubic }
-        NumberAnimation { target: sealRing; property: "opacity"; from: 0.9; to: 0; duration: 650 }
+        NumberAnimation { target: sealRing; property: "scale"; from: 0.6; to: 3.4; duration: Xian.d(650); easing.type: Easing.OutCubic }
+        NumberAnimation { target: sealRing; property: "opacity"; from: 0.9; to: 0; duration: Xian.d(650) }
     }
 
     SequentialAnimation {
         id: stampShake
-        NumberAnimation { target: xian; property: "shakeY"; to: 7 * xian.sc; duration: 45 }
-        NumberAnimation { target: xian; property: "shakeY"; to: -4 * xian.sc; duration: 70 }
-        NumberAnimation { target: xian; property: "shakeY"; to: 0; duration: 90 }
+        NumberAnimation { target: xian; property: "shakeY"; to: 7 * xian.sc; duration: Xian.d(45) }
+        NumberAnimation { target: xian; property: "shakeY"; to: -4 * xian.sc; duration: Xian.d(70) }
+        NumberAnimation { target: xian; property: "shakeY"; to: 0; duration: Xian.d(90) }
     }
 
     ParallelAnimation {
         id: deviationFx
         SequentialAnimation {
-            NumberAnimation { target: xian; property: "alarm"; to: 1; duration: 80 }
-            NumberAnimation { target: xian; property: "alarm"; to: 0; duration: 700 }
+            NumberAnimation { target: xian; property: "alarm"; to: 1; duration: Xian.d(80) }
+            NumberAnimation { target: xian; property: "alarm"; to: 0; duration: Xian.d(700) }
         }
         SequentialAnimation {
-            NumberAnimation { target: xian; property: "deviation"; to: 1; duration: 120 }
-            PauseAnimation { duration: 750 }
-            NumberAnimation { target: xian; property: "deviation"; to: 0; duration: 350 }
+            NumberAnimation { target: xian; property: "deviation"; to: 1; duration: Xian.d(120) }
+            PauseAnimation { duration: Xian.d(750) }
+            NumberAnimation { target: xian; property: "deviation"; to: 0; duration: Xian.d(350) }
         }
         SequentialAnimation {
-            NumberAnimation { target: xian; property: "shakeX"; to: -16 * xian.sc; duration: 50 }
-            NumberAnimation { target: xian; property: "shakeX"; to: 13 * xian.sc; duration: 70 }
-            NumberAnimation { target: xian; property: "shakeX"; to: -8 * xian.sc; duration: 70 }
-            NumberAnimation { target: xian; property: "shakeX"; to: 4 * xian.sc; duration: 70 }
-            NumberAnimation { target: xian; property: "shakeX"; to: 0; duration: 80 }
+            NumberAnimation { target: xian; property: "shakeX"; to: -16 * xian.sc; duration: Xian.d(50) }
+            NumberAnimation { target: xian; property: "shakeX"; to: 13 * xian.sc; duration: Xian.d(70) }
+            NumberAnimation { target: xian; property: "shakeX"; to: -8 * xian.sc; duration: Xian.d(70) }
+            NumberAnimation { target: xian; property: "shakeX"; to: 4 * xian.sc; duration: Xian.d(70) }
+            NumberAnimation { target: xian; property: "shakeX"; to: 0; duration: Xian.d(80) }
         }
     }
 
     ParallelAnimation {
         id: grantFx
-        NumberAnimation { target: xian; property: "surge"; to: 1; duration: 220 }
+        NumberAnimation { target: xian; property: "surge"; to: 1; duration: Xian.d(220) }
         SequentialAnimation {
-            NumberAnimation { target: xian; property: "openIn"; from: 0; to: 1; duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
-            PauseAnimation { duration: 450 }
-            NumberAnimation { target: xian; property: "openIn"; to: 0; duration: 300 }
+            NumberAnimation { target: xian; property: "openIn"; from: 0; to: 1; duration: Xian.d(220); easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+            PauseAnimation { duration: Xian.d(450) }
+            NumberAnimation { target: xian; property: "openIn"; to: 0; duration: Xian.d(300) }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 120 }
-            NumberAnimation { target: xian; property: "pillar"; to: 1; duration: 240; easing.type: Easing.OutQuad }
-            NumberAnimation { target: xian; property: "pillar"; to: 0; duration: 950; easing.type: Easing.InQuad }
+            PauseAnimation { duration: Xian.d(120) }
+            NumberAnimation { target: xian; property: "pillar"; to: 1; duration: Xian.d(240); easing.type: Easing.OutQuad }
+            NumberAnimation { target: xian; property: "pillar"; to: 0; duration: Xian.d(950); easing.type: Easing.InQuad }
         }
         SequentialAnimation {
-            PauseAnimation { duration: 250 }
-            NumberAnimation { target: xian; property: "rewardIn"; from: 0; to: 1; duration: 800 }
+            PauseAnimation { duration: Xian.d(250) }
+            NumberAnimation { target: xian; property: "rewardIn"; from: 0; to: 1; duration: Xian.d(800) }
         }
     }
 
     SequentialAnimation {
         id: qiFill
-        PauseAnimation { duration: 450 }
+        PauseAnimation { duration: Xian.d(450) }
         NumberAnimation {
             target: xian
             property: "shownXp"
             to: xian.reward ? xian.reward.xpAfter : 0
-            duration: 800
+            duration: Xian.d(800)
             easing.type: Easing.InOutCubic
         }
         PropertyAction { target: xian; property: "rewarding"; value: false }
@@ -1263,7 +1263,7 @@ Item {
         property: "breakthrough"
         from: 0
         to: 1
-        duration: 320
+        duration: Xian.d(320)
         easing.type: Easing.OutBack
     }
 }

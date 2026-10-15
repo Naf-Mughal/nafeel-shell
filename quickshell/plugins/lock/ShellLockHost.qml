@@ -16,6 +16,8 @@ QtObject {
     readonly property string fontSerif: Tokens.font.serif
     readonly property real radiusSmall: Tokens.rounding.small
     readonly property real radiusNormal: Tokens.rounding.normal
+    // Motion: the theme's timings at the shell's tempo, none when reduced.
+    readonly property real motion: Tokens.reduceMotion ? 0 : Tokens.tempo
 
     // The palette, on the theme's roles; `follow` false keeps the original
     // ink and gold (the Session & lock page, or a light palette).
