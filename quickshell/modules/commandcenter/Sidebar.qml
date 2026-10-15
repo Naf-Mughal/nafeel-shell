@@ -12,15 +12,29 @@ Item {
 
     required property var tabs // [{ id, icon, label }]
 
-    // A tab rested on opens (crossing the list doesn't flick through them).
+    // A tab rested on opens (crossing the list doesn't flick through them);
+    // only the pointer's own moves switch (a layout shift under a still
+    // pointer doesn't).
+    HoverHandler {
+        id: pointer
+    }
+    property point switchedAt: Qt.point(-999, -999)
+    property double switchedTime: 0
+
     Timer {
         id: dwell
 
         interval: 90
         onTriggered: {
             const t = goo.hovered;
-            if (t && ShellState.ccTab !== t.modelData.id)
-                ShellState.ccTab = t.modelData.id;
+            if (!t || ShellState.ccTab === t.modelData.id)
+                return;
+            const p = pointer.point.scenePosition;
+            if (Math.hypot(p.x - root.switchedAt.x, p.y - root.switchedAt.y) <= 6 || Date.now() - root.switchedTime < 250)
+                return;
+            root.switchedAt = p;
+            root.switchedTime = Date.now();
+            ShellState.ccTab = t.modelData.id;
         }
     }
 

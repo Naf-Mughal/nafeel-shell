@@ -50,14 +50,30 @@ Item {
         }
     }
 
+    // Only the pointer's own moves switch: a switch can resize the panel
+    // and slide the tabs under a still pointer onto the next one, which
+    // then switched back, and so on (ping-pong between two tabs).
+    HoverHandler {
+        id: pointer
+    }
+    property point switchedAt: Qt.point(-999, -999)
+    property double switchedTime: 0
+
     Timer {
         id: dwell
 
         interval: 90
         onTriggered: {
             const s = goo.hovered;
-            if (s && s.modelData.value !== root.current)
-                root.selected(s.modelData.value);
+            if (!s || s.modelData.value === root.current)
+                return;
+            const p = pointer.point.scenePosition;
+            const moved = Math.hypot(p.x - root.switchedAt.x, p.y - root.switchedAt.y) > 6;
+            if (!moved || Date.now() - root.switchedTime < 250)
+                return;
+            root.switchedAt = p;
+            root.switchedTime = Date.now();
+            root.selected(s.modelData.value);
         }
     }
 
