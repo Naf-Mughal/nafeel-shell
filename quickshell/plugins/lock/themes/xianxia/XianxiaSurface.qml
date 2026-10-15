@@ -153,12 +153,15 @@ Item {
     }
 
     // ── The ink world ────────────────────────────────────────────────
+    // Compact: the ink is translucent, the desktop (live, the windows as
+    // they are) under it, and no painted backdrop.
     Rectangle {
         anchors.fill: parent
-        color: Xian.ink
+        color: xian.compact ? Xian.alpha(Xian.ink, 0.62) : Xian.ink
     }
 
     Item {
+        visible: !xian.compact
         width: 0
         height: 0
         clip: true
@@ -236,7 +239,7 @@ Item {
 
     ShaderEffect {
         anchors.fill: parent
-        visible: wallItem.ready && !xian.debugOff.includes("backdrop")
+        visible: wallItem.ready && !xian.compact && !xian.debugOff.includes("backdrop")
 
         property variant wall: wallTex
         property variant mist: mistTex
