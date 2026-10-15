@@ -8,13 +8,66 @@ import Nafeel
 import qs.config
 import qs.services
 import qs.components
+import "../../components/hosts.js" as Hosts
 
 // Workspace previews: a card per workspace on the focused screen. The active
 // one is a live view of the screen; the others are miniatures with each
 // window at its real place and size, live (WindowThumb, a few frames a
-// second). Click a card to switch, a window to focus it.
+// second). Click a card to switch, a window to focus it; drag a window
+// onto another card to move it there (you stay where you are).
 Column {
     id: root
+
+    // A window being dragged to another workspace: what, where the pointer
+    // is (in the panel), and the card it's over.
+    property var dragging: null
+    property point dragAt: Qt.point(0, 0)
+    property int dropOn: -1
+    readonly property Item host: Hosts.of(root)
+
+    function cardAt(p: point): int {
+        for (let i = 0; i < cards.count; i++) {
+            const c = cards.itemAt(i);
+            const r = c?.mapToItem(host, 0, 0, c.width, c.height);
+            if (r && p.x >= r.x && p.x < r.x + r.width && p.y >= r.y && p.y < r.y + r.height)
+                return i;
+        }
+        return -1;
+    }
+
+    function drop(): void {
+        const w = dragging, i = dropOn;
+        dragging = null;
+        dropOn = -1;
+        const target = i >= 0 ? root.spaces[i] : null;
+        if (!w || !target || w.workspace === target.id)
+            return;
+        const back = root.spaces.find(s => s.active);
+        // umbriel moves the focused window: focus it, send it, come back.
+        Umbriel.dispatch("window-focus:" + w.id);
+        Umbriel.dispatch(`window-move-to-workspace-silent:${target.name}/${root.output}`);
+        if (back)
+            Umbriel.dispatch(`workspace-switch:${back.name}/${root.output}`);
+    }
+
+    // The window on its way, riding the pointer (over the cards, which clip).
+    Surface {
+        parent: root.host
+        z: 1000
+        visible: root.dragging !== null
+        x: root.dragAt.x - width / 2
+        y: root.dragAt.y - height / 2
+        width: 56
+        height: 56
+        level: 4
+        outlined: true
+
+        IconImage {
+            anchors.centerIn: parent
+            implicitSize: 30
+            source: root.dragging ? Apps.icon(root.dragging.app_id) : ""
+        }
+    }
 
     readonly property string output: Umbriel.focusedOutput
     readonly property ShellScreen screen: Quickshell.screens.find(s => s.name === output) ?? Quickshell.screens[0] ?? null
@@ -70,6 +123,8 @@ Column {
         spacing: Tokens.spacing.normal
 
         Repeater {
+            id: cards
+
             // Diffed (ScriptModel, by id): umbriel sends every list again at
             // any focus change (the shell's own keyboard grab as this opens
             // included), and a new array rebuilt every card and restarted
@@ -97,8 +152,10 @@ Column {
                     height: Math.round(width * root.aspect)
                     radius: Tokens.rounding.normal
                     color: Colours.palette.m3surfaceContainerLow
-                    border.width: card.active ? 2 : 1
-                    border.color: card.active ? Colours.palette.m3primary : cardHover.hovered ? Colours.palette.m3outline : Qt.alpha(Colours.palette.m3onSurface, 0.13)
+                    // A window dragged over it: lit as where it'll go.
+                    readonly property bool target: root.dragging !== null && root.dropOn === card.index && root.dragging.workspace !== card.modelData.id
+                    border.width: card.active || target ? 2 : 1
+                    border.color: target ? Colours.palette.m3tertiary : card.active ? Colours.palette.m3primary : cardHover.hovered ? Colours.palette.m3outline : Qt.alpha(Colours.palette.m3onSurface, 0.13)
 
                     // The active workspace: captured as the popout opens and
                     // twice a second while it's open; never while it closes (a
@@ -181,11 +238,12 @@ Column {
                         }
                     }
 
+                    // On the active card they're there only to be dragged (the
+                    // live view shows the windows).
                     Item {
                         id: tiles
 
                         anchors.fill: parent
-                        visible: !card.active
 
                         Repeater {
                             model: ScriptModel {
@@ -205,6 +263,7 @@ Column {
                                 width: Math.min(tiles.width - x, modelData.w * sx)
                                 height: Math.min(tiles.height - y, modelData.h * sy)
                                 visible: width > 4 && height > 4
+                                opacity: card.active ? 0 : root.dragging?.id === modelData.id ? 0.35 : 1
                                 radius: Tokens.rounding.small / 2
                                 color: Colours.palette.m3surfaceContainerHighest
                                 border.width: 1
@@ -244,6 +303,24 @@ Column {
                                     onTapped: {
                                         ShellState.close();
                                         Umbriel.dispatch("window-focus:" + tile.modelData.id);
+                                    }
+                                }
+
+                                // Drag it onto another card to move it there.
+                                DragHandler {
+                                    target: null
+                                    onActiveChanged: {
+                                        if (active) {
+                                            root.dragging = tile.modelData;
+                                        } else if (root.dragging) {
+                                            root.drop();
+                                        }
+                                    }
+                                    onCentroidChanged: {
+                                        if (!active || !root.host)
+                                            return;
+                                        root.dragAt = tile.mapToItem(root.host, centroid.position.x, centroid.position.y);
+                                        root.dropOn = root.cardAt(root.dragAt);
                                     }
                                 }
                             }

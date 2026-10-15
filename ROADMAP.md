@@ -904,6 +904,16 @@ every control and state on, then the controls, then moving panels onto them, mot
   old feel), Contents (together, stagger, ink: Panel's sections enter as it opens). Kit 21 plays
   them side by side.
 
+## Stage P: each panel (asked 2026-10-15, after Stage K; reviewed with the user, panel by panel)
+
+- [x] **P1 Bar popouts, first look** (2026-10-15): Sound became Sound & Display (声光), a player
+  without a title shows its app; Session's log out / restart / shut down are held to confirm;
+  Battery, Connect, Capture as they are. Notifications: grouped by app, swiped away with
+  resistance. Clipboard: thumbnails, pins dragged into order (native thumbFile / movePin).
+  Workspaces: drag a window onto another card to move it (you stay where you are).
+- [ ] **P2 The rest**: dashboard tabs, wallpaper picker, notes, action center, command center
+  tabs, settings, OSD, the switcher and overview, the dock, polkit, the desktop menu.
+
 ## Ideas, not scheduled
 
 - Custom panels as plugins (a Ryoku Rashin-style dashboard).
