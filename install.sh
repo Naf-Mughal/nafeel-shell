@@ -161,6 +161,20 @@ elif ask "Use the shell's lock as the login screen (SDDM; replaces greetd if it'
     sudo "$root/bin/nafeel-greeter" switch
 fi
 
+# --- Power tuning (laptops) -----------------------------------------------------------
+# Charger-following system tuning: wifi power save, USB autosuspend, writeback
+# on battery (udev rule + service; system/power-tune).
+if compgen -G "/sys/class/power_supply/BAT*" >/dev/null; then
+    if [[ -x /usr/local/bin/nafeel-power-tune ]]; then
+        if ! cmp -s "$root/system/power-tune/nafeel-power-tune" /usr/local/bin/nafeel-power-tune &&
+            ask "Update the battery power tuning (sudo)?"; then
+            sudo "$root/system/power-tune/install"
+        fi
+    elif ask "Install the battery power tuning: wifi power save, USB autosuspend, writeback (sudo)?"; then
+        sudo "$root/system/power-tune/install"
+    fi
+fi
+
 # --- Running session -----------------------------------------------------------------
 if [[ -n "${WAYLAND_DISPLAY:-}" ]] && command -v umbriel >/dev/null; then
     running=$(qs_pids "$root/quickshell/shell.qml")
