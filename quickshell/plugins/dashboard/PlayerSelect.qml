@@ -73,6 +73,14 @@ Item {
         level: 4
         z: 10
 
+        // The goo on the player in use, following the hover.
+        ListGoo {
+            id: playersGoo
+
+            anchors.fill: list
+            container: list
+        }
+
         Column {
             id: list
 
@@ -94,11 +102,17 @@ Item {
 
                     required property var modelData
                     readonly property bool on: modelData === Media.active
+                    // A goo row (the list's goo rests on the one in use).
+                    property Item goo: playersGoo
+                    readonly property bool picked: on
+                    readonly property bool inked: playersGoo.covers(item)
 
                     width: list.width
                     height: 38
-                    role: on ? "secondary" : "paper"
-                    emphasis: on ? "soft" : "ghost"
+                    emphasis: "ghost"
+                    hoverLayer: false
+                    baseInk: inked ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
+                    baseSubInk: inked ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk("paper", "soft")
                     interactive: true
                     onClicked: {
                         Media.choose(item.modelData);

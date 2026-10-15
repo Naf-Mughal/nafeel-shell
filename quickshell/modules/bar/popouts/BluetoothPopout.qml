@@ -58,33 +58,56 @@ Panel {
         text: "Paired"
     }
 
-    Repeater {
-        // Diffed (ScriptModel): a new array (a signal strength, a stream
-        // coming or going) moves or adds rows; rebuilding every row held the GUI
-        // thread past a refresh, dropping a frame of whatever was animating.
-        model: ScriptModel {
-            values: BluetoothState.enabled ? BluetoothState.paired : []
+    // Paired devices: the goo follows the hover (several can be connected,
+    // each keeps its own highlight).
+    Item {
+        width: root.width
+        height: pairedRows.height
+        visible: pairedRows.height > 0
+
+        ListGoo {
+            id: pairedGoo
+
+            anchors.fill: pairedRows
+            container: pairedRows
+            hoverOnly: true
         }
-        ListRow {
-            id: dev
 
-            required property var modelData
+        Column {
+            id: pairedRows
 
-            width: root.width
-            icon: BluetoothState.deviceIcon(modelData.icon ?? "")
-            iconFill: modelData.connected ? 1 : 0
-            highlighted: modelData.connected
-            title: modelData.name
-            subtitle: {
-                const state = modelData.state === BluetoothDeviceState.Connecting ? "Connecting…" : modelData.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…" : modelData.connected ? "Connected" : "Not connected";
-                return modelData.batteryAvailable ? `${state} · ${Math.round(modelData.battery * 100)}%` : state;
-            }
-            onClicked: modelData.connected ? modelData.disconnect() : modelData.connect()
+            width: parent.width
 
-            IconButton {
-                icon: "delete"
-                size: 32
-                onClicked: dev.modelData.forget()
+            Repeater {
+                // Diffed (ScriptModel): a new array (a signal strength, a stream
+                // coming or going) moves or adds rows; rebuilding every row held the GUI
+                // thread past a refresh, dropping a frame of whatever was animating.
+                model: ScriptModel {
+                    values: BluetoothState.enabled ? BluetoothState.paired : []
+                }
+                ListRow {
+                    id: dev
+
+                    required property var modelData
+
+                    width: pairedRows.width
+                    goo: pairedGoo
+                    icon: BluetoothState.deviceIcon(modelData.icon ?? "")
+                    iconFill: modelData.connected ? 1 : 0
+                    highlighted: modelData.connected
+                    title: modelData.name
+                    subtitle: {
+                        const state = modelData.state === BluetoothDeviceState.Connecting ? "Connecting…" : modelData.state === BluetoothDeviceState.Disconnecting ? "Disconnecting…" : modelData.connected ? "Connected" : "Not connected";
+                        return modelData.batteryAvailable ? `${state} · ${Math.round(modelData.battery * 100)}%` : state;
+                    }
+                    onClicked: modelData.connected ? modelData.disconnect() : modelData.connect()
+
+                    IconButton {
+                        icon: "delete"
+                        size: 32
+                        onClicked: dev.modelData.forget()
+                    }
+                }
             }
         }
     }
@@ -110,21 +133,43 @@ Panel {
         }
     }
 
-    Repeater {
-        // Diffed (ScriptModel): a new array (a signal strength, a stream
-        // coming or going) moves or adds rows; rebuilding every row held the GUI
-        // thread past a refresh, dropping a frame of whatever was animating.
-        model: ScriptModel {
-            values: BluetoothState.enabled && BluetoothState.adapter?.discovering ? BluetoothState.available : []
-        }
-        ListRow {
-            required property var modelData
+    // Devices nearby: the goo follows the hover.
+    Item {
+        width: root.width
+        height: availableRows.height
+        visible: availableRows.height > 0
 
-            width: root.width
-            icon: BluetoothState.deviceIcon(modelData.icon ?? "")
-            title: modelData.name
-            subtitle: modelData.pairing || BluetoothState.pending.some(p => p.device === modelData) ? "Pairing…" : "Click to pair"
-            onClicked: BluetoothState.pairAndConnect(modelData)
+        ListGoo {
+            id: availableGoo
+
+            anchors.fill: availableRows
+            container: availableRows
+            hoverOnly: true
+        }
+
+        Column {
+            id: availableRows
+
+            width: parent.width
+
+            Repeater {
+                // Diffed (ScriptModel): a new array (a signal strength, a stream
+                // coming or going) moves or adds rows; rebuilding every row held the GUI
+                // thread past a refresh, dropping a frame of whatever was animating.
+                model: ScriptModel {
+                    values: BluetoothState.enabled && BluetoothState.adapter?.discovering ? BluetoothState.available : []
+                }
+                ListRow {
+                    required property var modelData
+
+                    width: availableRows.width
+                    goo: availableGoo
+                    icon: BluetoothState.deviceIcon(modelData.icon ?? "")
+                    title: modelData.name
+                    subtitle: modelData.pairing || BluetoothState.pending.some(p => p.device === modelData) ? "Pairing…" : "Click to pair"
+                    onClicked: BluetoothState.pairAndConnect(modelData)
+                }
+            }
         }
     }
 

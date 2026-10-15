@@ -13,6 +13,10 @@ Item {
 
     property var model: []
     property var current
+    // Tabs: hovering one picks it (after a short rest on it, so crossing the
+    // group to somewhere else doesn't flick through every tab). Options that
+    // change a setting stay click-only.
+    property bool switchOnHover: false
     // Bumped as the Repeater's items come and go (the goo's lookups depend on it).
     property int _items: 0
     signal selected(var value)
@@ -46,8 +50,22 @@ Item {
         }
     }
 
+    Timer {
+        id: dwell
+
+        interval: 90
+        onTriggered: {
+            const s = goo.hovered;
+            if (s && s.modelData.value !== root.current)
+                root.selected(s.modelData.value);
+        }
+    }
+
     GooIndicator {
         id: goo
+
+        onHoveredChanged: if (root.switchOnHover)
+            dwell.restart()
 
         anchors.fill: parent
         // Read again as the items arrive (itemAt and count say nothing then).

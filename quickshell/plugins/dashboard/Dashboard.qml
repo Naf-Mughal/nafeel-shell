@@ -49,6 +49,7 @@ Panel {
     ]
     actions: [
         ButtonGroup {
+            switchOnHover: true
             model: root.tabs
             current: ShellState.dashTab
             onSelected: value => ShellState.dashTab = value

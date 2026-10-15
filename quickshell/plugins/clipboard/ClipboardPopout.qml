@@ -194,6 +194,17 @@ Panel {
             highlightFollowsCurrentItem: false
             onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
+            // The goo on the selected entry (it glides as the keys move it),
+            // following the hover; in the list's content, under the rows.
+            ListGoo {
+                id: entriesGoo
+
+                z: -1
+                width: list.width
+                height: list.contentHeight
+                container: list.contentItem
+            }
+
             delegate: Surface {
                 id: row
 
@@ -201,11 +212,18 @@ Panel {
                 required property int index
                 readonly property var e: Clipboard.entries[modelData] ?? ({})
                 readonly property bool selected: index === root.sel
+                // A goo row: the list's goo rests on the selected one and follows
+                // the hover; the ink turns while it's under the row.
+                property Item goo: entriesGoo
+                readonly property bool picked: selected
+                readonly property bool inked: entriesGoo.covers(row)
 
                 width: list.width
                 height: 48
-                role: selected ? "secondary" : "paper"
-                emphasis: selected ? "soft" : "ghost"
+                emphasis: "ghost"
+                hoverLayer: false
+                baseInk: inked ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
+                baseSubInk: inked ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk("paper", "soft")
                 interactive: true
                 pressDepth: 1
                 morph: false
@@ -226,7 +244,7 @@ Panel {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.e.pinned ? "push_pin" : row.e.image ? "image" : "notes"
                     fill: row.e.pinned ? 1 : 0
-                    color: row.selected ? row.ink : row.subInk
+                    color: row.inked ? row.ink : row.subInk
                     size: 18
                 }
 

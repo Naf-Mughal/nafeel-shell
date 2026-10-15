@@ -95,15 +95,27 @@ Panel {
             spacing: Tokens.spacing.tiny
             model: Settings.pages
 
+            // The goo on the page that's open, following the hover (in the
+            // list's content, under the rows: it scrolls with them).
+            ListGoo {
+                id: pagesGoo
+
+                z: -1
+                width: list.width
+                height: list.contentHeight
+                container: list.contentItem
+            }
+
             delegate: ListRow {
                 required property var modelData
 
                 width: list.width
+                goo: pagesGoo
+                picked: modelData === root.page
                 icon: modelData.icon
-                iconFill: highlighted ? 1 : 0
+                iconFill: picked ? 1 : 0
                 title: modelData.title
                 subtitle: modelData.gloss
-                highlighted: modelData === root.page
                 onClicked: ShellState.settingsPage = modelData.name
             }
         }

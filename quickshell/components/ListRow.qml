@@ -3,7 +3,9 @@ import qs.config
 import qs.services
 
 // A list row (a Surface, no fill until highlighted): leading icon, title and
-// subtitle, trailing items.
+// subtitle, trailing items. In a list with goo (`goo`: its ListGoo), the goo
+// is the highlight: `picked` marks the one it rests on, and the row's ink
+// turns while the goo is under it.
 Surface {
     id: root
 
@@ -12,10 +14,18 @@ Surface {
     property string title
     property string subtitle
     property bool highlighted
+    property Item goo: null
+    property bool picked: false
+    readonly property bool inked: goo?.covers(root) ?? false
+    // The goo is the highlight (a hover-only goo leaves `highlighted` to it).
+    readonly property bool gooPicks: goo !== null && !goo.hoverOnly
     default property alias trailing: end.data
 
-    role: highlighted ? "secondary" : "paper"
-    emphasis: highlighted ? "soft" : "ghost"
+    role: highlighted && !gooPicks ? "secondary" : "paper"
+    emphasis: highlighted && !gooPicks ? "soft" : "ghost"
+    hoverLayer: !goo
+    baseInk: inked ? Colours.roleInk("secondary", "soft") : Colours.roleInk(role, emphasis)
+    baseSubInk: inked ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk(role, emphasis)
     interactive: true
     pressDepth: 1
     morph: false
@@ -29,7 +39,7 @@ Surface {
         anchors.verticalCenter: parent.verticalCenter
         text: root.icon
         fill: root.iconFill
-        color: root.highlighted ? root.ink : root.subInk
+        color: (root.highlighted && !root.gooPicks) || root.inked ? root.ink : root.subInk
     }
 
     Column {

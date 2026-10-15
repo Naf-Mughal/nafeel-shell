@@ -245,16 +245,34 @@ Item {
             centred: false
             model: root.shown
 
+            // The goo on the open note, following the hover; in the list's
+            // content, under the rows.
+            ListGoo {
+                id: notesGoo
+
+                z: -1
+                width: list.width
+                height: list.contentHeight
+                container: list.contentItem
+            }
+
             delegate: Surface {
                 id: row
 
                 required property var modelData
                 readonly property bool on: modelData.name === root.current
+                // A goo row: the list's goo rests on the on one and follows
+                // the hover; the ink turns while it's under the row.
+                property Item goo: notesGoo
+                readonly property bool picked: on
+                readonly property bool inked: notesGoo.covers(row)
 
                 width: list.width
                 height: 50
-                role: on ? "secondary" : "paper"
-                emphasis: on ? "soft" : "ghost"
+                emphasis: "ghost"
+                hoverLayer: false
+                baseInk: inked ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
+                baseSubInk: inked ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk("paper", "soft")
                 interactive: true
                 pressDepth: 1
                 morph: false
@@ -268,7 +286,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.scratch ? "edit_note" : row.modelData.pinned ? "push_pin" : "description"
                     fill: row.modelData.pinned ? 1 : 0
-                    color: row.on ? row.ink : row.subInk
+                    color: row.inked ? row.ink : row.subInk
                     size: 18
                 }
 

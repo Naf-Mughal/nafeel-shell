@@ -220,22 +220,44 @@ Panel {
         text: "Output"
     }
 
-    Repeater {
-        // Diffed (ScriptModel): a new array (a signal strength, a stream
-        // coming or going) moves or adds rows; rebuilding every row held the GUI
-        // thread past a refresh, dropping a frame of whatever was animating.
-        model: ScriptModel {
-            values: Audio.sinks.length > 1 ? Audio.sinks : []
-        }
-        ListRow {
-            required property var modelData
+    // The outputs, the goo resting on the one in use and following the hover.
+    Item {
+        width: root.width
+        height: outputs.height
+        visible: outputs.height > 0
 
-            width: root.width
-            icon: (modelData.description ?? "").toLowerCase().includes("hdmi") ? "tv" : (modelData.description ?? "").toLowerCase().includes("headphone") ? "headphones" : "speaker"
-            iconFill: Audio.sink === modelData ? 1 : 0
-            highlighted: Audio.sink === modelData
-            title: modelData.nickname || modelData.description || modelData.name
-            onClicked: Audio.setSink(modelData)
+        ListGoo {
+            id: outputsGoo
+
+            anchors.fill: outputs
+            container: outputs
+        }
+
+        Column {
+            id: outputs
+
+            width: parent.width
+
+            Repeater {
+                // Diffed (ScriptModel): a new array (a signal strength, a stream
+                // coming or going) moves or adds rows; rebuilding every row held
+                // the GUI thread past a refresh, dropping a frame of whatever
+                // was animating.
+                model: ScriptModel {
+                    values: Audio.sinks.length > 1 ? Audio.sinks : []
+                }
+                ListRow {
+                    required property var modelData
+
+                    width: outputs.width
+                    goo: outputsGoo
+                    picked: Audio.sink === modelData
+                    icon: (modelData.description ?? "").toLowerCase().includes("hdmi") ? "tv" : (modelData.description ?? "").toLowerCase().includes("headphone") ? "headphones" : "speaker"
+                    iconFill: Audio.sink === modelData ? 1 : 0
+                    title: modelData.nickname || modelData.description || modelData.name
+                    onClicked: Audio.setSink(modelData)
+                }
+            }
         }
     }
 }

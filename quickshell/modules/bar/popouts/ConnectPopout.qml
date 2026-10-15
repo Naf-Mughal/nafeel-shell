@@ -14,6 +14,7 @@ Column {
 
     ButtonGroup {
         width: parent.width
+        switchOnHover: true
         current: ShellState.connectTab
         model: [
             {

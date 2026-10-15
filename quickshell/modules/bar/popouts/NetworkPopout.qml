@@ -155,6 +155,15 @@ Panel {
         contentHeight: list.implicitHeight
         clip: true
 
+        // Hover only: the network in use isn't in this list.
+        ListGoo {
+            id: networksGoo
+
+            anchors.fill: list
+            container: list
+            hoverOnly: true
+        }
+
         Column {
             id: list
 
@@ -187,6 +196,7 @@ Panel {
 
                     ListRow {
                         width: parent.width
+                        goo: networksGoo
                         icon: Network.signalIcon(entry.modelData.signalStrength)
                         title: entry.modelData.name
                         subtitle: entry.modelData.stateChanging ? "Connecting…" : entry.modelData.known ? "Saved" : entry.open ? "Open" : "Secured"
