@@ -573,7 +573,7 @@ private:
             return AV_PIX_FMT_NONE;
         };
         // The processor holds an input frame or two.
-        m_dec->extra_hw_frames = 4;
+        m_dec->extra_hw_frames = qEnvironmentVariableIsSet("NAFEEL_DEC_EXTRA") ? qEnvironmentVariableIntValue("NAFEEL_DEC_EXTRA") : 4;
         m_dec->thread_count = 1;
         if (avcodec_open2(m_dec, codec, nullptr) < 0)
             return closeFile(), false;
@@ -651,7 +651,7 @@ private:
             return false;
         scale->hw_device_ctx = av_buffer_ref(m_hw);
         // Frames out are held: two queued, two with the compositor.
-        scale->extra_hw_frames = 6;
+        scale->extra_hw_frames = qEnvironmentVariableIsSet("NAFEEL_VPP_EXTRA") ? qEnvironmentVariableIntValue("NAFEEL_VPP_EXTRA") : 6;
         if (avfilter_graph_create_filter(&m_sink, avfilter_get_by_name("buffersink"), "out", nullptr, nullptr, m_graph) < 0)
             return false;
         if (avfilter_link(m_src, 0, scale, 0) < 0 || avfilter_link(scale, 0, m_sink, 0) < 0)

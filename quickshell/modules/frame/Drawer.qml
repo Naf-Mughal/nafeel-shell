@@ -200,6 +200,27 @@ Item {
             });
     }
 
+    // The soak layer's texture (the content at the panel's size, in VRAM)
+    // is made with the content and let go a while after it's hidden: warm
+    // panels held ~30 MB of them while closed. Made again as the content
+    // shows (on `preparing`, before the panel moves), a reopen within the
+    // while finds it still there.
+    property bool layerKept: false
+    onContentShownChanged: {
+        if (contentShown) {
+            layerRelease.stop();
+            layerKept = true;
+        } else {
+            layerRelease.restart();
+        }
+    }
+    Timer {
+        id: layerRelease
+
+        interval: Quickshell.env("NAFEEL_LAYER_KEEP_MS") ? parseInt(Quickshell.env("NAFEEL_LAYER_KEEP_MS")) : 20000
+        onTriggered: root.layerKept = root.contentShown
+    }
+
     // About to open (ShellState.grabbing: the keyboard being taken first):
     // the content is made live now, still clipped to nothing, so its first
     // frame (its nodes, the soak layer's texture, glyphs and images) is drawn
@@ -459,7 +480,7 @@ Item {
                 // the growing window (`out`) it was reallocated at a new size
                 // every frame, and switched on and off as a panel opened and
                 // closed, both mid-animation (dropped frames on every close).
-                layer.enabled: Tokens.goo.enabled
+                layer.enabled: Tokens.goo.enabled && root.layerKept
                 layer.effect: ShaderEffect {
                     property real progress: root.soak
                     property vector2d origin: Qt.vector2d((root.goo.x + 1) / 2, (root.goo.y + 1) / 2)
