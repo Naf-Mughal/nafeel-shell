@@ -211,10 +211,36 @@ Panel {
                         }
 
                         MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
                             visible: !entry.open
                             text: "lock"
                             size: 16
                             color: Colours.palette.m3onSurfaceVariant
+                        }
+
+                        // A saved network can be forgotten (asked first: its
+                        // password goes with it).
+                        IconButton {
+                            id: forgetButton
+
+                            visible: entry.modelData.known
+                            icon: "delete"
+                            size: 32
+                            onClicked: forget.show()
+
+                            Tooltip {
+                                text: "Forget"
+                            }
+                            Dialog {
+                                id: forget
+
+                                from: forgetButton
+                                title: `Forget ${entry.modelData.name}?`
+                                text: "Its saved password goes with it; you'll need it again to connect."
+                                confirmText: "Forget"
+                                danger: true
+                                onAccepted: entry.modelData.forget()
+                            }
                         }
                     }
 
