@@ -9,7 +9,8 @@ import qs.services
 import qs.components
 
 // One notification: image (or app icon), app and time, summary, body, its
-// buttons and a close button. Clicking the text runs its default action.
+// buttons and a close button. Clicking the text runs its default action;
+// swiping it sideways dismisses it (with resistance, SwipeDismiss).
 StyledRect {
     id: root
 
@@ -39,11 +40,23 @@ StyledRect {
 
     implicitHeight: content.implicitHeight + Tokens.spacing.normal * 2
     radius: Tokens.rounding.large
-    color: critical ? Colours.palette.m3errorContainer : toast ? Colours.palette.m3surfaceContainer : Colours.palette.m3surfaceContainerHigh
+    // The swipe: it rides the finger and fades as it goes (its own opacity is
+    // the list's, for arriving and leaving).
+    color: Qt.alpha(critical ? Colours.palette.m3errorContainer : toast ? Colours.palette.m3surfaceContainer : Colours.palette.m3surfaceContainerHigh, swipe.fade)
+    transform: Translate {
+        x: swipe.shift
+    }
+
+    SwipeDismiss {
+        id: swipe
+
+        onDismissed: root.toast ? Notifs.hidePopup(root.entry) : Notifs.remove(root.entry)
+    }
 
     Column {
         id: content
 
+        opacity: swipe.fade
         x: Tokens.spacing.normal
         y: Tokens.spacing.normal
         width: parent.width - Tokens.spacing.normal * 2
