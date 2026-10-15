@@ -202,7 +202,7 @@ Column {
 
                         Image {
                             anchors.fill: parent
-                            source: Session.wallpaper ? "file://" + Session.wallpaper : ""
+                            source: Wallpapers.still(Session.wallpaper, true)
                             // One size for every card, so they share one decoded copy.
                             sourceSize: Qt.size(Math.round(root.cardWidth), Math.round(root.cardWidth * root.aspect))
                             fillMode: Image.PreserveAspectCrop

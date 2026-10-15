@@ -45,7 +45,7 @@ Item {
         anchors.fill: parent
         active: root.path !== "" && !Wallpapers.isVideo(root.path)
         sourceComponent: Image {
-            source: "file://" + root.path
+            source: Wallpapers.still(root.path, true)
             sourceSize: root.decode
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
@@ -69,7 +69,7 @@ Item {
     Image {
         anchors.fill: parent
         visible: root.isVideo && !root.clear
-        source: root.isVideo && Wallpapers.stillOf(root.path) ? "file://" + Wallpapers.stillOf(root.path) : ""
+        source: root.isVideo ? Wallpapers.still(Wallpapers.stillOf(root.path), true) : ""
         sourceSize: root.decode
         fillMode: Image.PreserveAspectCrop
         asynchronous: true

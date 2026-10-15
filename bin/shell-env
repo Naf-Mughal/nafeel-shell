@@ -12,3 +12,13 @@ export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
 # a second (on a jemalloc thread of its own, so not on a frame), one arena,
 # smaller caches: 452 MB, frame timing unchanged (bin/frame-probe).
 export MALLOC_CONF="background_thread:true,dirty_decay_ms:500,muzzy_decay_ms:0,narenas:1,tcache_max:1024${MALLOC_CONF:+,$MALLOC_CONF}"
+
+# GPU memory (VRAM) the shell holds, measured per buffer (2026-10-16):
+# - the scene graph's depth buffer: every layer and panel texture carried a
+#   depth-stencil buffer of its own size (48 MB in all). The shell is 2D and
+#   almost all translucent, drawn back to front anyway: without depth testing
+#   it looks the same (clipping keeps its stencil). -52 MB of VRAM.
+# - the texture atlas small images are packed into: 2048x2048 (16 MB) per
+#   window; 512x512 holds the shell's icons, bigger ones get their own.
+export QSG_NO_DEPTH_BUFFER=1
+export QSG_ATLAS_WIDTH=512 QSG_ATLAS_HEIGHT=512

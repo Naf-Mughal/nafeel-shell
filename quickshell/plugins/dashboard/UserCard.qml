@@ -19,7 +19,7 @@ Surface {
 
         Image {
             anchors.fill: parent
-            source: Session.wallpaper ? "file://" + Session.wallpaper : ""
+            source: Wallpapers.still(Session.wallpaper, true)
             // Never 0x0 (the full picture) before the layout has a size.
             sourceSize: Qt.size(Math.max(64, Math.ceil(width)), Math.max(64, Math.ceil(height)))
             fillMode: Image.PreserveAspectCrop

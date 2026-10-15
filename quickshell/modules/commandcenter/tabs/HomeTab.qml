@@ -32,7 +32,7 @@ Item {
 
         Image {
             anchors.fill: parent
-            source: Session.wallpaper ? "file://" + Session.wallpaper : ""
+            source: Wallpapers.still(Session.wallpaper, true)
             sourceSize: Qt.size(1280, 400)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true

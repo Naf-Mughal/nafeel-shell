@@ -184,7 +184,7 @@ Item {
                     id: img
 
                     anchors.fill: parent
-                    source: root.awake || Math.abs(slice.idx - root.currentIndex) <= 5 ? Wallpapers.picture(slice.modelData) : ""
+                    source: root.awake || Math.abs(slice.idx - root.currentIndex) <= 5 ? Wallpapers.still(Wallpapers.picture(slice.modelData), true) : ""
                     sourceSize: Qt.size(Math.round(root.expandedWidth), Math.round(root.height))
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true

@@ -467,6 +467,15 @@ Singleton {
             Memory.trim();
         }
 
+        // What the warm shell is made of: objects by type and by file.
+        function census(path: string): void {
+            Memory.census(path);
+        }
+        // A jemalloc heap profile (MALLOC_CONF=prof:true at start).
+        function heapDump(path: string): void {
+            Memory.heapDump(path);
+        }
+
         function toggle(drawer: string): void {
             if (root.pinned === drawer) {
                 root.close();

@@ -48,7 +48,7 @@ Item {
             anchors.fill: parent
             // Let go while `keep` is off (the studio closed, far from the
             // current one): warm, it holds ~10 pictures, not every card's.
-            source: root.keep ? Wallpapers.picture(root.wall) : ""
+            source: root.keep ? Wallpapers.still(Wallpapers.picture(root.wall), true) : ""
             sourceSize: Qt.size(Math.round(root.width * 1.2), Math.round(root.height * 1.2))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true

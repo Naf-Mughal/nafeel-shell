@@ -340,6 +340,17 @@ Singleton {
 
     // A wallpaper's picture for a card: the library's thumbnail, a store
     // result's preview, or the file.
+    // A local picture as a texture only (the Nafeel module's image://still:
+    // its decoded copy is let go once it's on the GPU). `crop` covers the
+    // Image's sourceSize, otherwise it fits inside. Anything not a local
+    // file (a remote thumbnail, a player's art online) is left as it is.
+    function still(url: string, crop: bool): string {
+        if (!url)
+            return "";
+        const path = url.startsWith("file://") ? url.slice(7) : url.startsWith("/") ? url : "";
+        return path ? `image://still/${crop ? "crop" : "fit"}/${encodeURIComponent(path)}` : url;
+    }
+
     function picture(w: var): string {
         if (!w)
             return "";
