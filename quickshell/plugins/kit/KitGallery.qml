@@ -5,6 +5,7 @@ import M3Shapes
 import qs.config
 import qs.services
 import qs.components
+import "../../components/written.js" as Written
 
 // The kit's gallery (IPC `shell open kit`): every primitive, numbered, in
 // its states, side by side, so the design can be reviewed and talked about
@@ -510,6 +511,79 @@ Item {
                         placeholder: "Password"
                         echoMode: TextInput.Password
                         seals: true
+                    }
+                }
+            }
+
+            Entry {
+                num: "18"
+                name: "Text motion"
+                note: "only for text that changes now and then"
+
+                Spec {
+                    caption: "roll · numbers"
+                    Row {
+                        spacing: Tokens.spacing.normal
+
+                        property int value: 64
+
+                        IconButton {
+                            id: down
+
+                            icon: "remove"
+                            onClicked: parent.value = Math.max(0, parent.value - (parent.value % 10 === 0 ? 7 : 1))
+                        }
+                        RollText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: parent.value + "%"
+                            font.pixelSize: Tokens.font.hero
+                        }
+                        IconButton {
+                            icon: "add"
+                            onClicked: parent.value = Math.min(100, parent.value + (parent.value % 10 === 9 ? 1 : 3))
+                        }
+                    }
+                }
+                Spec {
+                    caption: "ink-swap · labels"
+                    Row {
+                        spacing: Tokens.spacing.normal
+
+                        property int i: 0
+                        readonly property var labels: ["Off", "On", "Paused", "Kabhi Kabhi Aditi", "Main Haar Giyan"]
+
+                        IconButton {
+                            icon: "sync"
+                            onClicked: parent.i = (parent.i + 1) % parent.labels.length
+                        }
+                        InkSwap {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 200
+                            text: parent.labels[parent.i]
+                            font.pixelSize: Tokens.font.value
+                        }
+                    }
+                }
+                Spec {
+                    caption: "write-on · headings (first show per session)"
+                    Row {
+                        spacing: Tokens.spacing.normal
+
+                        IconButton {
+                            icon: "replay"
+                            onClicked: {
+                                delete Written.seen[heading.text + "|" + heading.gloss];
+                                heading.write();
+                            }
+                        }
+                        GlossTitle {
+                            id: heading
+
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Notifications"
+                            gloss: "传音"
+                            writeOn: true
+                        }
                     }
                 }
             }
