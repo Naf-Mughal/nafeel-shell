@@ -419,14 +419,15 @@ Item {
         return chips;
     }
 
-    // ── Which screen (only with more than one): every screen, or one ──
+    // ── For what: every screen, one (with more than one), or battery (on a
+    // laptop: the wallpaper while unplugged) ──
     Row {
         id: screensRow
 
         anchors.top: head.bottom
         anchors.topMargin: visible ? Tokens.spacing.small : 0
         height: visible ? 30 : 0
-        visible: Quickshell.screens.length > 1
+        visible: Quickshell.screens.length > 1 || Power.hasBattery
         spacing: Tokens.spacing.small
 
         MicroLabel {
@@ -435,16 +436,24 @@ Item {
         }
 
         Repeater {
-            model: ["", ...Quickshell.screens.map(s => s.name)]
+            model: ["", ...(Quickshell.screens.length > 1 ? Quickshell.screens.map(s => s.name) : []), ...(Power.hasBattery ? ["battery"] : [])]
 
             Chip {
                 required property string modelData
 
-                icon: modelData ? (modelData === Wallpapers.mainOutput ? "monitor_heart" : "monitor") : "select_all"
-                text: modelData ? modelData + (modelData === Wallpapers.mainOutput ? " · colours" : "") : "Every screen"
+                icon: modelData === "battery" ? "battery_saver" : modelData ? (modelData === Wallpapers.mainOutput ? "monitor_heart" : "monitor") : Quickshell.screens.length > 1 ? "select_all" : "power"
+                text: modelData === "battery" ? "On battery" + (Wallpapers.battery ? "" : " · same") : modelData ? modelData + (modelData === Wallpapers.mainOutput ? " · colours" : "") : Quickshell.screens.length > 1 ? "Every screen" : "On the charger"
                 selected: Wallpapers.target === modelData
                 onClicked: Wallpapers.target = modelData
             }
+        }
+
+        // Battery uses the same wallpaper again.
+        Chip {
+            visible: Wallpapers.target === "battery" && Wallpapers.battery !== ""
+            icon: "undo"
+            text: "Same as charger"
+            onClicked: Wallpapers.setBattery("")
         }
     }
 

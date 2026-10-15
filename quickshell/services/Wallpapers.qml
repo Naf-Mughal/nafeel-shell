@@ -76,7 +76,7 @@ Singleton {
             icon: "battery_charging_full"
             kind: "toggle"
             label: "Keep playing on battery"
-            description: "Off: a live wallpaper holds still while the laptop runs on battery."
+            description: "Off: a live wallpaper holds still while the laptop runs on battery. Or pick a wallpaper for battery in the picker (for: On battery): it takes over when you unplug. A live one playing on battery uses noticeably more of it (about 3-4 W for a 4K video here)."
             def: true
         }
         SettingItem {
@@ -189,7 +189,67 @@ Singleton {
     property string target: ""
 
     function wallpaperOf(output: string): string {
-        return outputs[output] || current;
+        return output === "battery" ? battery || current : outputs[output] || current;
+    }
+
+    // ── On battery ──
+    // The wallpaper while unplugged ("" = the same one). Unplugging sets it
+    // (the colours follow, as for any change) and remembers the one it
+    // replaced, `charger`; plugging in sets that back, unless another was
+    // picked meanwhile (then that one stays). Both are kept in the state
+    // file, so a restart on battery still goes back.
+    property string battery: ""
+    property string charger: ""
+    property bool _sawCharger: false
+    readonly property bool unplugged: Power.unplugged
+
+    readonly property bool powerKnown: Power.ready
+    onUnpluggedChanged: Qt.callLater(_followPower)
+    onPowerKnownChanged: Qt.callLater(_followPower)
+
+    function setBattery(path: string): void {
+        battery = path;
+        _save();
+        if (unplugged)
+            _followPower();
+    }
+
+    function _followPower(): void {
+        if (!loadedState || !Power.ready)
+            return;
+        if (unplugged) {
+            if (battery && current && current !== battery) {
+                charger = current;
+                _save();
+                Theme.go(battery);
+            }
+            // Only for an unplug seen happening (not a start on battery).
+            if (_sawCharger)
+                warnLive.restart();
+            _sawCharger = false;
+        } else {
+            _sawCharger = true;
+            warnLive.stop();
+            if (charger && current === battery)
+                Theme.go(charger);
+            if (charger) {
+                charger = "";
+                _save();
+            }
+        }
+    }
+
+    // Unplugged with a live wallpaper still playing (once the change above
+    // has landed): it costs battery, so say so, once per unplug.
+    Timer {
+        id: warnLive
+
+        interval: 6000
+        onTriggered: {
+            if (!root.unplugged || !root.isVideo(root.current) || !root.settings.v.liveOnBattery)
+                return;
+            Quickshell.execDetached(["notify-send", "--app-name=Wallpaper", "-i", "battery-caution", "Live wallpaper on battery", root.battery ? "Your battery wallpaper is a live one: it keeps playing and uses more battery (about 3-4 W for 4K)." : "It keeps playing and uses more battery (about 3-4 W for 4K). Pick a wallpaper for battery in the picker (for: On battery), or turn off Keep playing on battery."]);
+        }
     }
     // [{ path, name, folder }]
     property var all: []
@@ -206,6 +266,10 @@ Singleton {
                     const output = args.output ?? "";
                     if (!path)
                         return;
+                    if (output === "battery") {
+                        root.setBattery(path);
+                        return;
+                    }
                     if (output && output !== root.mainOutput) {
                         // Another screen's own: its picture changes, the
                         // colours stay with the main one.
@@ -222,7 +286,7 @@ Singleton {
         prepare: ({
                 set: args => {
                     const output = args.output ?? "";
-                    if (!output || output === root.mainOutput)
+                    if (output !== "battery" && (!output || output === root.mainOutput))
                         Theme.prepare(args.path ?? args);
                 }
             })
@@ -374,7 +438,9 @@ Singleton {
     function _save(): void {
         stateFile.setText(JSON.stringify({
             path: current,
-            outputs
+            outputs,
+            battery,
+            charger
         }, null, 2) + "\n");
     }
 
@@ -411,6 +477,10 @@ Singleton {
         function get(): string {
             return root.current;
         }
+        // The wallpaper for battery ("" = the same one).
+        function battery(path: string): void {
+            root.setBattery(path);
+        }
         // One screen's own wallpaper (another screen than the main one keeps
         // the colours as they are).
         function setFor(output: string, path: string): void {
@@ -445,6 +515,8 @@ Singleton {
                 const st = JSON.parse(text());
                 const p = st.path ?? "";
                 root.outputs = st.outputs ?? {};
+                root.battery = st.battery ?? "";
+                root.charger = st.charger ?? "";
                 for (const [o, op] of Object.entries(root.outputs))
                     Bus.retain(`wallpaper.output.${o}`, {
                         output: o,
@@ -464,6 +536,20 @@ Singleton {
             }
         }
         onLoadFailed: adopt.running = true
+    }
+    // The state file has been read (or wasn't there): the battery switch
+    // may act.
+    property bool loadedState: false
+    Connections {
+        target: stateFile
+
+        function onLoaded(): void {
+            root.loadedState = true;
+            Qt.callLater(root._followPower);
+        }
+        function onLoadFailed(): void {
+            root.loadedState = true;
+        }
     }
 
     // First run: carry over Noctalia's wallpaper.
