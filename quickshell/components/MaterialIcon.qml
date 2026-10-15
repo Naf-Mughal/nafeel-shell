@@ -17,7 +17,10 @@ StyledText {
     font.variableAxes: ({
             "FILL": fill >= 0.5 ? 1 : 0,
             "GRAD": grade,
-            "opsz": Math.max(20, Math.min(48, size)),
+            // The font's four designed optical sizes (20, 24, 40, 48dp),
+            // the nearest for the size: every distinct value was a font
+            // engine and glyph cache of its own (~15 MB in all, warm).
+            "opsz": size <= 22 ? 20 : size <= 32 ? 24 : size <= 44 ? 40 : 48,
             "wght": 400
         })
     renderType: Text.QtRendering
