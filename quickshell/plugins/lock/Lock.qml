@@ -10,6 +10,9 @@ import qs.services
 //
 //   qs -p <shell> ipc call lock lock        lock now (no-op while locked)
 //   qs -p <shell> ipc call lock isLocked
+//   qs -p <shell> ipc call lock preview     the lock as it looks, without
+//                                           locking ("wrong" is refused;
+//                                           Esc ends it)
 //
 // Cave Abode's bin/cave-abode-lock (keybinds, session menu, idle, before
 // suspend) calls this when the shell runs, and falls back to its own
@@ -35,6 +38,14 @@ Scope {
     function done(unlocked: bool): void {
         session.active = false;
         Quickshell.execDetached(["rm", "-f", root.marker]);
+    }
+
+    LazyLoader {
+        id: previewLoader
+
+        LockPreview {
+            onFinished: previewLoader.active = false
+        }
     }
 
     LazyLoader {
@@ -77,6 +88,16 @@ Scope {
 
         function isLocked(): bool {
             return root.locked;
+        }
+
+        function preview(): void {
+            if (!session.active)
+                previewLoader.active = !previewLoader.active;
+        }
+
+        // Offer `text` to the preview (tests).
+        function previewSubmit(text: string): void {
+            previewLoader.item?.submit(text);
         }
     }
 }
