@@ -8,9 +8,14 @@
 #                                                   (sddm-greeter --test-mode;
 #                                                   "wrong" fails, any other
 #                                                   password passes)
+#   nafeel-greeter sync            rebuild the installed theme from the shell's
+#                                  lock now (the shell runs it at start, so
+#                                  the login screen follows the lock)
 #   sudo nafeel-greeter install    install the theme (/usr/share/sddm/themes/
-#                                  nafeel), make /var/lib/nafeel-greeter for
-#                                  the shell's export, and make it SDDM's theme
+#                                  nafeel, a link to /var/lib/nafeel-greeter/
+#                                  theme, yours: sync keeps it current), make
+#                                  /var/lib/nafeel-greeter for the shell's
+#                                  export, and make it SDDM's theme
 #   sudo nafeel-greeter switch     greetd off, SDDM on (from the next boot)
 set -eu
 
@@ -28,7 +33,7 @@ assemble() {
     for f in Glyph HoldArea CaptureImage LockInput LockTheme; do
         cp "$lock/$f.qml" "$out/modules/lock/"
     done
-    for f in Xian XianxiaSurface Formation IncenseSticks SealPrompt; do
+    for f in Xian XianxiaSurface Formation SealPrompt Paper Token CultivatorCard; do
         cp "$lock/themes/xianxia/$f.qml" "$out/modules/lock/themes/xianxia/"
     done
     # The live wallpaper's player: the greeter's own (QtQuick + QtMultimedia
@@ -40,7 +45,8 @@ assemble() {
     printf '%s\n' "singleton LockTheme 1.0 LockTheme.qml" "Glyph 1.0 Glyph.qml" "HoldArea 1.0 HoldArea.qml" \
         "CaptureImage 1.0 CaptureImage.qml" "LockInput 1.0 LockInput.qml" >"$out/modules/lock/qmldir"
     printf '%s\n' "singleton Xian 1.0 Xian.qml" "XianxiaSurface 1.0 XianxiaSurface.qml" "Formation 1.0 Formation.qml" \
-        "IncenseSticks 1.0 IncenseSticks.qml" "SealPrompt 1.0 SealPrompt.qml" >"$out/modules/lock/themes/xianxia/qmldir"
+        "SealPrompt 1.0 SealPrompt.qml" "Paper 1.0 Paper.qml" "Token 1.0 Token.qml" \
+        "CultivatorCard 1.0 CultivatorCard.qml" >"$out/modules/lock/themes/xianxia/qmldir"
 }
 
 case "${1:-}" in
@@ -52,13 +58,33 @@ test)
     assemble "$dir" "${XDG_STATE_HOME:-$HOME/.local/state}/nafeel-shell/greeter" true
     exec sddm-greeter-qt6 --test-mode --theme "$dir"
     ;;
+sync)
+    # Into the installed theme (yours, under the export folder), only when
+    # something changed, swapped in whole.
+    data=/var/lib/nafeel-greeter
+    [ -L /usr/share/sddm/themes/nafeel ] && [ -w "$data" ] || exit 0
+    assemble "$data/theme.new" "$data" false
+    if [ -d "$data/theme" ] && diff -rq "$data/theme" "$data/theme.new" >/dev/null 2>&1; then
+        rm -rf "$data/theme.new"
+    else
+        rm -rf "$data/theme.old"
+        [ -d "$data/theme" ] && mv "$data/theme" "$data/theme.old"
+        mv "$data/theme.new" "$data/theme"
+        chmod -R a+rX "$data/theme"
+        rm -rf "$data/theme.old"
+        echo "login screen: rebuilt from the lock"
+    fi
+    ;;
 install)
     [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
     user=${SUDO_USER:?run with sudo from your account}
-    assemble /usr/share/sddm/themes/nafeel /var/lib/nafeel-greeter false
-    chmod -R a+rX /usr/share/sddm/themes/nafeel
     # The shell writes here (the greeter can't read your home); SDDM reads.
     mkdir -p /var/lib/nafeel-greeter
+    # The theme lives there too, yours, so the shell keeps it current (sync);
+    # SDDM's themes folder links to it.
+    assemble /var/lib/nafeel-greeter/theme /var/lib/nafeel-greeter false
+    rm -rf /usr/share/sddm/themes/nafeel
+    ln -s /var/lib/nafeel-greeter/theme /usr/share/sddm/themes/nafeel
     # What the shell has exported so far, so the first login already shows it.
     home=$(getent passwd "$user" | cut -d: -f6)
     [ -d "$home/.local/state/nafeel-shell/greeter" ] && cp -a "$home/.local/state/nafeel-shell/greeter/." /var/lib/nafeel-greeter/

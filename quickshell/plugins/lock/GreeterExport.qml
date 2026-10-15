@@ -46,6 +46,8 @@ Singleton {
             fontSerif: Tokens.font.serif,
             radiusSmall: Tokens.rounding.small,
             radiusNormal: Tokens.rounding.normal,
+            radiusMorph: Tokens.rounding.morph,
+            paperFill: Qt.alpha(Colours.roleFill("paper", "soft", 2), Tokens.transparency.base).toString(),
             h24: Time.h24,
             xp: LockStats.xp,
             streak: LockStats.liveStreak,
@@ -103,5 +105,21 @@ exit 0`, "sh", "", root.text, root.wallpaperPath, root.wallpaperName, root.state
         id: writer
     }
 
-    Component.onCompleted: later.restart()
+    Component.onCompleted: {
+        later.restart();
+        sync.running = true;
+    }
+
+    // The login screen's theme rebuilt from the lock as it is now, when
+    // that changed (bin/nafeel-greeter sync; nothing until it's installed
+    // as yours).
+    Process {
+        id: sync
+
+        command: [Quickshell.shellDir + "/../bin/nafeel-greeter", "sync"]
+        stdout: StdioCollector {
+            onStreamFinished: if (text.trim())
+                console.info(text.trim())
+        }
+    }
 }

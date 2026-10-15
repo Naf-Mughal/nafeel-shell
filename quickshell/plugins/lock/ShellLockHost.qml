@@ -16,6 +16,9 @@ QtObject {
     readonly property string fontSerif: Tokens.font.serif
     readonly property real radiusSmall: Tokens.rounding.small
     readonly property real radiusNormal: Tokens.rounding.normal
+    readonly property real radiusMorph: Tokens.rounding.morph
+    // A card's paper, as the panels' (frosted: translucent).
+    readonly property color paperFill: Qt.alpha(Colours.roleFill("paper", "soft", 2), Tokens.transparency.base)
     // Motion: the theme's timings at the shell's tempo, none when reduced.
     readonly property real motion: Tokens.reduceMotion ? 0 : Tokens.tempo
 
@@ -35,6 +38,11 @@ QtObject {
     }
 
     readonly property url avatar: CaveAbode.avatar
+    // The running session's things on the lock, on the shell's own
+    // primitives: what's playing, capture, the OSD, notifications.
+    readonly property Component sessionComponent: Component {
+        LockSessionLayer {}
+    }
     // NAFEEL_LOCK_OFF (parts the theme leaves out, for measuring).
     readonly property string debugOff: Quickshell.env("NAFEEL_LOCK_OFF") ?? ""
 

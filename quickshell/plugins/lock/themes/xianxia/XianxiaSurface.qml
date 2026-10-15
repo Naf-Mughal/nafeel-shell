@@ -467,358 +467,40 @@ Item {
             opacity: xian.uiIn
         }
 
-        // The cultivator, bottom centre.
-        Row {
-            visible: !xian.compact
+        // The cultivator, bottom centre (as the dashboard's user card).
+        CultivatorCard {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 58 * xian.sc
-            spacing: 24 * xian.sc
-            opacity: xian.uiIn
-
-            Item {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 86 * xian.sc
-                height: width
-
-                Rectangle {
-                    id: avatarMask
-                    anchors.fill: parent
-                    anchors.margins: 7 * xian.sc
-                    radius: width / 2
-                    visible: false
-                    layer.enabled: true
-                }
-
-                Image {
-                    id: avatar
-                    anchors.fill: parent
-                    anchors.margins: 7 * xian.sc
-                    source: xian.host.avatar
-                    sourceSize: Qt.size(width * 2, height * 2)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: false
-                    visible: false
-                }
-
-                MultiEffect {
-                    anchors.fill: avatar
-                    source: avatar
-                    visible: avatar.status === Image.Ready
-                    maskEnabled: true
-                    maskSource: avatarMask
-                    maskThresholdMin: 0.5
-                    maskSpreadAtMin: 1.0
-                    saturation: -0.35
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: width / 2
-                    color: "transparent"
-                    border.width: 1.5 * xian.sc
-                    border.color: Xian.gold
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: 4 * xian.sc
-                    radius: width / 2
-                    color: "transparent"
-                    border.width: 1 * xian.sc
-                    border.color: Xian.alpha(Xian.jade, 0.7)
-                }
-            }
-
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 5 * xian.sc
-
-                Row {
-                    spacing: 10 * xian.sc
-
-                    Text {
-                        id: nameText
-                        text: xian.ctx.userName.toUpperCase()
-                        font.family: Xian.serif
-                        font.pixelSize: 22 * xian.sc
-                        font.letterSpacing: 6 * xian.sc
-                        color: Xian.paper
-                    }
-
-                    Text {
-                        anchors.baseline: nameText.baseline
-                        text: "道友"
-                        font.family: Xian.cjk
-                        font.pixelSize: 15 * xian.sc
-                        color: Xian.gold
-                    }
-                }
-
-                Row {
-                    spacing: 12 * xian.sc
-
-                    Text {
-                        id: realmText
-                        text: xian.realm.zh + (xian.realm.stageZh ? " · " + xian.realm.stageZh : "")
-                        font.family: Xian.cjk
-                        font.weight: Font.Medium
-                        font.pixelSize: 19 * xian.sc
-                        color: Xian.gold
-                    }
-
-                    Text {
-                        anchors.baseline: realmText.baseline
-                        text: xian.realm.en + (xian.realm.stageEn ? ", " + xian.realm.stageEn : "")
-                        font.family: Xian.serif
-                        font.italic: true
-                        font.pixelSize: 13 * xian.sc
-                        color: Xian.paperDim
-                    }
-                }
-
-                // Cultivation as a brush stroke.
-                Item {
-                    id: stroke
-                    width: 320 * xian.sc
-                    height: 12 * xian.sc
-                    readonly property real progress: Math.max(0, Math.min(1, (xian.shownXp - xian.levelFloor) / Math.max(1, xian.levelCeil - xian.levelFloor)))
-
-                    component Brush: Shape {
-                        id: brush
-                        property color tone
-                        preferredRendererType: Shape.CurveRenderer
-
-                        ShapePath {
-                            strokeColor: "transparent"
-                            fillColor: brush.tone
-                            startX: 0
-                            startY: stroke.height * 0.55
-                            PathCubic {
-                                x: stroke.width
-                                y: stroke.height * 0.4
-                                control1X: stroke.width * 0.3
-                                control1Y: -stroke.height * 0.15
-                                control2X: stroke.width * 0.75
-                                control2Y: stroke.height * 0.05
-                            }
-                            PathCubic {
-                                x: 0
-                                y: stroke.height * 0.55
-                                control1X: stroke.width * 0.7
-                                control1Y: stroke.height * 1.05
-                                control2X: stroke.width * 0.25
-                                control2Y: stroke.height * 1.2
-                            }
-                        }
-                    }
-
-                    Brush {
-                        anchors.fill: parent
-                        tone: Xian.alpha(Xian.paper, 0.14)
-                    }
-
-                    Item {
-                        width: parent.width * stroke.progress
-                        height: parent.height
-                        clip: true
-
-                        Brush {
-                            width: stroke.width
-                            height: stroke.height
-                            tone: Xian.gold
-                        }
-                    }
-                }
-
-                Text {
-                    text: "修为 " + Math.floor(xian.shownXp - xian.levelFloor) + " / " + (xian.levelCeil - xian.levelFloor)
-                        + "    " + xian.host.stats.streak + "-day streak"
-                        + "    悟道 " + xian.host.stats.achieved + "/" + xian.host.stats.achievable
-                    font.family: Xian.cjk
-                    font.pixelSize: 13 * xian.sc
-                    color: Xian.paperDim
-                }
-            }
-
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: xian.ctx.maxLives > 0
-                spacing: 2 * xian.sc
-
-                IncenseSticks {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    ctx: xian.ctx
-                    sc: xian.sc
-                }
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "香 · incense"
-                    font.family: Xian.cjk
-                    font.pixelSize: 13 * xian.sc
-                    color: Xian.paperDim
-                }
-            }
-        }
-
-        // Guqin: what's playing, bottom left.
-        Row {
-            x: xian.edge
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 50 * xian.sc
-            spacing: 14 * xian.sc
-            visible: xian.host.media.active && !xian.compact
-            opacity: xian.uiIn
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "琴"
-                font.family: Xian.cjk
-                font.weight: Font.Black
-                font.pixelSize: 26 * xian.sc
-                color: Xian.gold
-            }
-
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2 * xian.sc
-
-                Text {
-                    width: Math.min(implicitWidth, 340 * xian.sc)
-                    elide: Text.ElideRight
-                    text: xian.host.media.title
-                    font.family: Xian.serif
-                    font.pixelSize: 15 * xian.sc
-                    color: Xian.paper
-                }
-
-                Row {
-                    spacing: 12 * xian.sc
-
-                    Repeater {
-                        // Static model: only the icon follows play/pause.
-                        model: ["previous", "playPause", "next"]
-
-                        Glyph {
-                            id: mediaKey
-                            required property string modelData
-                            text: modelData === "playPause" ? (xian.host.media.playing ? "pause" : "play_arrow") : modelData === "previous" ? "skip_previous" : "skip_next"
-                            filled: true
-                            font.pixelSize: 18 * xian.sc
-                            color: mediaArea.containsMouse ? Xian.goldHi : Xian.paperDim
-
-                            MouseArea {
-                                id: mediaArea
-                                anchors.fill: parent
-                                anchors.margins: -6 * xian.sc
-                                enabled: !xian.still
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: xian.host.media.call(mediaKey.modelData)
-                            }
-                        }
-                    }
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Math.min(implicitWidth, 240 * xian.sc)
-                        elide: Text.ElideRight
-                        text: xian.host.media.artist
-                        font.family: Xian.serif
-                        font.italic: true
-                        font.pixelSize: 13 * xian.sc
-                        color: Xian.paperDim
-                    }
-                }
-            }
-        }
-
-        // Capture tokens, left of the jade ones: 影 screenshot, 录 record
-        // (plugin nafeel/capture). A click is enough: nothing here is
-        // destructive. While recording, 录 turns cinnabar and shows the time.
-        Row {
-            anchors.right: jadeTokens.left
-            anchors.rightMargin: 34 * xian.sc
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 40 * xian.sc
-            spacing: 18 * xian.sc
-            opacity: xian.uiIn
-            visible: xian.host.capture.available && !xian.still && !xian.compact
-
-            Repeater {
-                model: [
-                    { zh: "影", en: "Capture", event: "screenshot" },
-                    { zh: "录", en: "Record", event: "record" }
-                ]
-
-                Column {
-                    id: captureToken
-                    required property var modelData
-                    readonly property bool live: modelData.event === "record" && xian.host.capture.recording
-                    spacing: 6 * xian.sc
-
-                    Item {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: 46 * xian.sc
-                        height: width
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: captureToken.live
-                                ? Xian.alpha(Xian.cinnabar, xian.host.capture.paused ? 0.25 : 0.55 + 0.25 * Math.sin(xian.ctx.ambientTime * 3))
-                                : Xian.alpha(Xian.gold, captureArea.containsMouse ? 0.24 : 0.12)
-                            border.width: 1 * xian.sc
-                            border.color: captureToken.live ? Xian.cinnabar : Xian.alpha(Xian.gold, 0.65)
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: captureToken.live ? "停" : captureToken.modelData.zh
-                            font.family: Xian.cjk
-                            font.weight: Font.Black
-                            font.pixelSize: 20 * xian.sc
-                            color: captureToken.live ? Xian.paper : Xian.gold
-                        }
-
-                        MouseArea {
-                            id: captureArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                xian.ctx.poke();
-                                xian.host.capture.command(captureToken.modelData.event);
-                            }
-                        }
-                    }
-
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        readonly property int secs: xian.host.capture.recordedSeconds(xian.ctx.now)
-                        text: captureToken.live
-                            ? Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0")
-                            : captureToken.modelData.en
-                        font.family: Xian.serif
-                        font.italic: !captureToken.live
-                        font.pixelSize: 12 * xian.sc
-                        color: captureToken.live ? Xian.cinnabar : Xian.paperDim
-                    }
-                }
-            }
-        }
-
-        // Jade tokens, bottom right: hold to confirm.
-        Row {
+            anchors.bottomMargin: 44 * xian.sc
             visible: !xian.compact
+            opacity: xian.uiIn
+            xian: xian
+        }
+
+        // What only a running session has, on the shell's own primitives
+        // (the host's: the player, the capture buttons, the OSD and the
+        // notifications; the login screen has none).
+        Loader {
+            anchors.fill: parent
+            active: !xian.compact && !xian.still && xian.host.sessionComponent !== null && xian.host.sessionComponent !== undefined
+            sourceComponent: xian.host.sessionComponent ?? null
+            opacity: xian.uiIn
+            onLoaded: {
+                item.sc = Qt.binding(() => xian.sc);
+                item.edge = Qt.binding(() => xian.edge);
+                item.ctx = xian.ctx;
+            }
+        }
+
+        // The session, bottom right: hold to confirm.
+        Row {
             id: jadeTokens
+            visible: !xian.compact
             anchors.right: parent.right
             anchors.rightMargin: xian.edge
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 40 * xian.sc
-            spacing: 18 * xian.sc
+            anchors.bottomMargin: 44 * xian.sc
+            spacing: 14 * xian.sc
             opacity: xian.uiIn
 
             Repeater {
@@ -828,70 +510,15 @@ Item {
                     { zh: "寂", en: "Nirvana", act: "poweroff" }
                 ]
 
-                Column {
-                    id: token
+                Token {
                     required property var modelData
-                    spacing: 6 * xian.sc
-
-                    Item {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: 46 * xian.sc
-                        height: width
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: Xian.alpha(Xian.jade, tokenHold.containsMouse ? 0.24 : 0.12)
-                            border.width: 1 * xian.sc
-                            border.color: Xian.alpha(Xian.jade, 0.65)
-                        }
-
-                        Shape {
-                            anchors.fill: parent
-                            visible: tokenHold.progress > 0
-                            preferredRendererType: Shape.CurveRenderer
-
-                            ShapePath {
-                                fillColor: "transparent"
-                                strokeColor: Xian.goldHi
-                                strokeWidth: 2 * xian.sc
-                                capStyle: ShapePath.RoundCap
-                                PathAngleArc {
-                                    centerX: 23 * xian.sc
-                                    centerY: 23 * xian.sc
-                                    radiusX: 21.5 * xian.sc
-                                    radiusY: 21.5 * xian.sc
-                                    startAngle: -90
-                                    sweepAngle: 360 * tokenHold.progress
-                                }
-                            }
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: token.modelData.zh
-                            font.family: Xian.cjk
-                            font.weight: Font.Black
-                            font.pixelSize: 20 * xian.sc
-                            color: Xian.jade
-                        }
-
-                        HoldArea {
-                            id: tokenHold
-                            anchors.fill: parent
-                            enabled: !xian.still
-                            onConfirmed: xian.ctx[token.modelData.act]()
-                        }
-                    }
-
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: token.modelData.en
-                        font.family: Xian.serif
-                        font.italic: true
-                        font.pixelSize: 12 * xian.sc
-                        color: Xian.paperDim
-                    }
+                    glyph: modelData.zh
+                    label: modelData.en
+                    sc: xian.sc
+                    hold: true
+                    tone: Xian.jade
+                    enabled: !xian.still
+                    onActivated: xian.ctx[modelData.act]()
                 }
             }
         }

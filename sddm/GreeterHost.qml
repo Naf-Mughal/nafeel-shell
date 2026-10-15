@@ -21,6 +21,8 @@ QtObject {
     readonly property string fontSerif: data?.fontSerif ?? "Noto Serif"
     readonly property real radiusSmall: data?.radiusSmall ?? 8
     readonly property real radiusNormal: data?.radiusNormal ?? 10
+    readonly property real radiusMorph: data?.radiusMorph ?? 14
+    readonly property color paperFill: data?.paperFill ?? Qt.rgba(0.08, 0.09, 0.12, 0.85)
 
     readonly property bool follow: data?.follow ?? false
     readonly property var m3: data?.m3 ?? ({})
@@ -34,6 +36,9 @@ QtObject {
         VideoLayer {}
     }
     readonly property url avatar: file(data?.avatar ?? "")
+    // The running session's things (player, capture, OSD, notifications):
+    // none at login.
+    readonly property Component sessionComponent: null
 
     readonly property QtObject battery: QtObject {
         readonly property bool present: false

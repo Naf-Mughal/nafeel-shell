@@ -34,6 +34,14 @@ QtObject {
     readonly property color jade: follow ? m3.m3tertiary : "#79c2ad"
     // The seal red never themes, in the lock or the shell (components/Seal).
     readonly property color cinnabar: "#c8372d"
+
+    // The shell's paper and rounding (its primitives' look): a card's fill
+    // (translucent as the frosted-paper setting), and a control's corners at
+    // rest and pressed.
+    readonly property color paperFill: host?.paperFill ?? alpha(night, 0.85)
+    readonly property real radiusSmall: host?.radiusSmall ?? 8
+    readonly property real radiusNormal: host?.radiusNormal ?? 10
+    readonly property real radiusMorph: host?.radiusMorph ?? 14
     readonly property color ember: follow ? m3.m3secondary : "#ff9d4d"
 
     // The host's motion: the shell's tempo (0 under reduced motion); 1 with
