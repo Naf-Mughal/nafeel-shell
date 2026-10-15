@@ -1,12 +1,16 @@
 // The polkit plugin's root: the shell's polkit agent. A request shows as the
-// lock's sealing formation floating in the centre of the focused screen
-// (PolkitPrompt): typed straight in like the lock, no field. A granted
-// request is cultivation too (the lock's XP, a little), and the formation
-// stays a beat to show it. Switched off, the shell has no agent.
+// lock itself, compact (XianxiaSurface): its formation, prompt and seals
+// floating over the desktop on the focused screen, typed into as the lock
+// is, with the lock's lives and seclusion (faillock's tally, shared). Granted:
+// the 开 seal breaks it open and the cultivation earned shows (the lock's
+// XP, a little). A wrong incantation: qi deviation, and the request is
+// dismissed. Esc leaves. Switched off, the shell has no agent.
 //
-//   qs -p <shell> ipc call polkit preview    (a pretend request: "wrong"
-//                                             is refused, anything else is
-//                                             granted, no XP; Esc ends it)
+//   qs -p <shell> ipc call polkit preview    (a pretend request: "wrong" is
+//                                             refused, anything else granted;
+//                                             no PAM, no XP)
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -15,93 +19,75 @@ import Quickshell.Wayland
 import Quickshell.Services.Polkit
 import qs.services
 import "../lock"
+import "../lock/themes/xianxia"
 
 Scope {
     id: root
 
     readonly property alias agent: agent
     readonly property var flow: agent.flow
-    readonly property bool asking: (agent.isActive && flow !== null) || preview
-    readonly property bool active: asking || granted
-    // Bumped on a wrong password.
-    property int failures: 0
-    // This request's wrong passwords.
-    property int misses: 0
-    // Granted, showing the gain: { total, levelBefore, levelAfter } | null.
-    property bool granted: false
-    property var gain: null
-    // A pretend request (IPC preview), for looking at it.
+    // A pretend request (IPC preview).
     property bool preview: false
-    // Waiting on polkit's answer.
-    property bool weighing: false
+    // Whether the formation is up (it outlives the request through the seal
+    // breaking, or the deviation).
+    property bool showing: false
+    readonly property bool active: showing
 
-    onFlowChanged: if (flow) {
-        misses = 0;
-        weighing = false;
+    function _start(): void {
+        lockCtx.preview = preview;
+        lockCtx.failures = 0;
+        lockCtx.reward = null;
+        lockCtx.buffer = "";
+        lockCtx.cells = 0;
+        lockCtx.begin();
+        showing = true;
     }
 
-    function submit(text: string): void {
-        if (text === "" || weighing)
-            return;
-        weighing = true;
-        if (preview) {
-            demo.accept = text.toLowerCase() !== "wrong";
-            demo.restart();
-        } else {
-            flow?.submit(text);
-        }
-    }
-
-    function cancel(): void {
-        if (preview)
-            preview = false;
-        else
-            flow?.cancelAuthenticationRequest();
-        weighing = false;
-    }
-
-    function _failed(): void {
-        weighing = false;
-        failures++;
-        misses++;
-    }
-
-    function _succeeded(award: bool): void {
-        weighing = false;
-        const lines = [{
-                label: "AUTHORISED",
-                xp: 5
-            }];
-        if (misses === 0)
-            lines.push({
-                label: "FLAWLESS",
-                xp: 3
-            });
-        gain = award ? LockStats.award(lines) : {
-            total: lines.reduce((a, l) => a + l.xp, 0),
-            levelBefore: LockStats.level,
-            levelAfter: LockStats.level
-        };
-        granted = true;
+    // Ends the request (cancelled, or after a wrong one) and lets go.
+    function _dismiss(): void {
+        if (!preview && flow && !flow.isCompleted)
+            flow.cancelAuthenticationRequest();
         preview = false;
-        linger.restart();
+        showing = false;
     }
 
     PolkitAgent {
         id: agent
 
         onIsRegisteredChanged: console.info(`polkit: agent ${isRegistered ? "registered" : "not registered"}`)
+        onAuthenticationRequestStarted: root._start()
+    }
+
+    // The lock's context, answered by polkit (or the pretend verdict).
+    LockContext {
+        id: lockCtx
+
+        smallReward: true
+        answer: response => {
+            if (root.preview) {
+                demo.accept = response.toLowerCase() !== "wrong";
+                demo.restart();
+            } else {
+                root.flow?.submit(response);
+            }
+        }
+        onDenied: dismissAfter.restart()
+        onReleased: root.showing = false
+        onLeaveRequested: root._dismiss()
     }
 
     Connections {
         target: root.flow
 
         function onAuthenticationFailed(): void {
-            root._failed();
+            lockCtx.verdict(false);
         }
-
         function onAuthenticationSucceeded(): void {
-            root._succeeded(true);
+            lockCtx.verdict(true);
+        }
+        function onAuthenticationRequestCancelled(): void {
+            if (lockCtx.phase !== "granted" && lockCtx.phase !== "exiting")
+                root.showing = false;
         }
     }
 
@@ -110,32 +96,44 @@ Scope {
 
         property bool accept
         interval: 700
-        onTriggered: accept ? root._succeeded(false) : root._failed()
+        onTriggered: lockCtx.verdict(accept)
     }
 
+    // A wrong one: the deviation plays, then the request goes.
     Timer {
-        id: linger
+        id: dismissAfter
 
-        interval: 1500
-        onTriggered: root.granted = false
+        interval: Xian.d(1300)
+        onTriggered: root._dismiss()
     }
 
     IpcHandler {
         target: "polkit"
 
         function preview(): void {
-            root.misses = 0;
-            root.granted = false;
             root.preview = true;
+            root._start();
         }
         function cancel(): void {
-            root.cancel();
+            root._dismiss();
+        }
+        // Offer `text` to the pretend request (tests; never a real one).
+        function previewSubmit(text: string): void {
+            if (root.preview) {
+                lockCtx.buffer = text;
+                lockCtx.submit();
+            }
         }
     }
 
-    // The formation, on the focused screen (kept while it fades out).
+    // The theme's colours from the shell.
+    ShellLockHost {
+        id: lockHost
+    }
+
+    // On the focused screen while it's up.
     Variants {
-        model: prompt.shown ? Quickshell.screens.filter(s => s.name === Umbriel.focusedOutput || (Umbriel.focusedOutput === "" && s === Quickshell.screens[0])).slice(0, 1) : []
+        model: root.showing ? Quickshell.screens.filter(s => s.name === Umbriel.focusedOutput || (Umbriel.focusedOutput === "" && s === Quickshell.screens[0])).slice(0, 1) : []
 
         PanelWindow {
             required property ShellScreen modelData
@@ -150,28 +148,17 @@ Scope {
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.namespace: "nafeel-shell-polkit"
-            WlrLayershell.keyboardFocus: root.asking ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+            // Not "nafeel-shell…": the frosted-paper rule would blur behind
+            // the ink pool, edged where it turns 5% opaque.
+            WlrLayershell.namespace: "nafeel-polkit"
+            WlrLayershell.keyboardFocus: lockCtx.phase === "exiting" ? WlrKeyboardFocus.None : WlrKeyboardFocus.Exclusive
 
-            PolkitPrompt {
+            XianxiaSurface {
                 anchors.fill: parent
-                polkit: root
-                fade: prompt.fade
-            }
-        }
-    }
-
-    // Fading in and out (the window outlives `active` while it fades).
-    Item {
-        id: prompt
-
-        property real fade: root.active ? 1 : 0
-        readonly property bool shown: root.active || fade > 0.001
-
-        Behavior on fade {
-            NumberAnimation {
-                duration: 260
-                easing.type: Easing.OutCubic
+                compact: true
+                idleLine: root.preview ? "A pretend request: “wrong” is refused, anything else granted" : (root.flow?.message ?? "") + ((root.flow?.identities?.length ?? 0) > 1 ? `  ·  as ${root.flow.selectedIdentity?.displayName || root.flow.selectedIdentity?.name || ""}` : "")
+                ctx: lockCtx
+                host: lockHost
             }
         }
     }

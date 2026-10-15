@@ -254,17 +254,38 @@ Singleton {
 
     // A smaller gain from outside the lock (the polkit prompt): `lines` as
     // evaluate()'s ({ label, xp }), straight onto the XP; no unlock, streak
-    // or records. Returns { total, levelBefore, levelAfter }.
+    // or records. The same shape as evaluate()'s result.
     function award(lines) {
+        const r = awardPreview(lines);
         if (!ready)
-            return null;
+            return r;
+        adapter.xp = r.xpAfter;
+        statsFile.writeAdapter();
+        return r;
+    }
+
+    // What award() would give, saving nothing.
+    function awardPreview(lines) {
         let total = 0;
         for (let i = 0; i < lines.length; i++)
             total += lines[i].xp;
-        const before = adapter.xp;
-        adapter.xp = before + total;
-        statsFile.writeAdapter();
-        return { total: total, levelBefore: levelFor(before), levelAfter: levelFor(before + total) };
+        return {
+            lines: lines,
+            multiplier: 1,
+            streak: adapter.streak,
+            total: total,
+            xpBefore: adapter.xp,
+            xpAfter: adapter.xp + total,
+            levelBefore: levelFor(adapter.xp),
+            levelAfter: levelFor(adapter.xp + total),
+            achievements: [],
+            record: false,
+            kps: 0,
+            flawlessRun: adapter.flawlessRun,
+            awayMs: 0,
+            failures: 0,
+            day: adapter.lastDay
+        };
     }
 
     Timer {

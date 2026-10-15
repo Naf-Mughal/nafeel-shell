@@ -19,7 +19,7 @@ Scope {
 
     // ── Lifecycle ────────────────────────────────────────────────────
     property string phase: "intro"
-    readonly property bool inputLocked: phase === "verifying" || phase === "granted" || phase === "exiting"
+    readonly property bool inputLocked: phase === "verifying" || phase === "granted" || phase === "exiting" || lockedOut
     property double lockedAt: Date.now()
 
     // Choreography lengths, set from the active theme's registry entry
@@ -37,6 +37,25 @@ Scope {
     signal previewExit
 
     signal released
+    // Another asker (the polkit prompt): `answer(response)` takes the
+    // passcode instead of PAM, and `verdict(ok)` gives its outcome; the
+    // grant is a small one (LockStats.award). `leave()` (Esc) asks to go.
+    property var answer: null
+    property bool smallReward: false
+    signal leaveRequested
+
+    function leave() {
+        leaveRequested();
+    }
+
+    function verdict(ok) {
+        if (phase !== "verifying")
+            return;
+        if (ok)
+            _succeed();
+        else
+            _fail(true, true);
+    }
     signal denied(bool costLife)
     signal granted
     signal typed(int index)
@@ -135,6 +154,10 @@ Scope {
         buffer = "";
         message = "";
         verifyTimeout.restart();
+        if (answer) {
+            answer(response);
+            return;
+        }
         if (preview) {
             _demoAccepts = response.toLowerCase() !== "wrong";
             demoVerdict.restart();
@@ -195,7 +218,7 @@ Scope {
         deniedTimer.restart();
         phase = "ready";
         denied(costsLife);
-        if (preview)
+        if (preview || answer)
             return;
         if (greeter) {
             if (Greetd.state !== GreetdState.Inactive)
@@ -213,7 +236,12 @@ Scope {
         let r = null;
         if (!greeter) try {
             const a = _attempt ?? { length: 0, typeMs: 0, backspaces: 0 };
-            r = LockStats.evaluate({
+            if (smallReward) {
+                const lines = [{ label: "AUTHORISED", xp: 5 }];
+                if (failures === 0)
+                    lines.push({ label: "FLAWLESS", xp: 3 });
+                r = preview ? LockStats.awardPreview(lines) : LockStats.award(lines);
+            } else r = LockStats.evaluate({
                 lockedAt: lockedAt,
                 unlockedAt: Date.now(),
                 failures: failures,
@@ -223,7 +251,7 @@ Scope {
                 livesLeft: lives,
                 maxLives: maxLives
             });
-            if (!preview && !LockStats.commit(r))
+            if (!smallReward && !preview && !LockStats.commit(r))
                 console.warn("lock: stats file not loaded, progress from this unlock was not saved");
         } catch (e) {
             console.warn("lock: reward failed:", e);
@@ -238,7 +266,9 @@ Scope {
         // How long the reward read-out stays up before the exit; the XP bar
         // finishes filling at ~1 s. Any key or click skips ahead.
         let hold = Math.min(350, rewardBaseMs);
-        if (r) {
+        if (r && smallReward) {
+            hold = 700;
+        } else if (r) {
             hold = rewardBaseMs;
             if (r.levelAfter > r.levelBefore)
                 hold += rewardLevelUpMs;
@@ -332,7 +362,7 @@ Scope {
         configDirectory: ctx.pamConfigDirectory
 
         Component.onCompleted: {
-            if (!ctx.preview && !ctx.greeter)
+            if (!ctx.preview && !ctx.greeter && !ctx.answer)
                 pam.start();
         }
 
@@ -459,10 +489,11 @@ Scope {
     readonly property bool lastLife: maxLives > 1 && lives === 1 && !lockedOut
     // "9:41" while a lockout counts down; empty when there is none or it
     // only ends when an admin resets it.
-    readonly property string lockoutClock: lockoutLeft > 0
-        ? Math.floor(lockoutLeft / 60) + ":" + String(lockoutLeft % 60).padStart(2, "0") : ""
-    property int unlockTime: 600    // s, from faillock.conf
-    property int failInterval: 900  // s
+    readonly property string lockoutClock: lockoutLeft > 0 ? LockTheme.clock(lockoutLeft) : ""
+    // The seclusion the next full round brings (s); rounds of three, longer
+    // each time (LockTheme.seclusion).
+    property int unlockTime: 10
+    property int failInterval: 86400  // s, from faillock.conf
 
     readonly property string userName: CaveAbode.user
 
@@ -482,11 +513,9 @@ Scope {
             const v = m[2] === "never" ? 0 : parseInt(m[2]);
             if (isNaN(v))
                 continue;
-            if (m[1] === "deny")
-                maxLives = v;
-            else if (m[1] === "unlock_time")
-                unlockTime = v;
-            else
+            // (deny and unlock_time are the last round's backstop; a round
+            // is LockTheme's three.)
+            if (m[1] === "fail_interval")
                 failInterval = v;
         }
         lives = Math.min(lives, maxLives);
@@ -495,32 +524,17 @@ Scope {
 
     function _parseFaillock(text) {
         const now = Date.now();
-        const times = [];
-        const lines = text.split("\n");
-        for (let i = 0; i < lines.length; i++) {
-            const m = lines[i].match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\s.*\s([VI])\s*$/);
-            if (m && m[7] === "V")
-                times.push(new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime());
-        }
-        const window = failInterval * 1000;
-        const latest = times.length > 0 ? Math.max.apply(null, times) : 0;
-        let sinceNow = 0;
-        let sinceLatest = 0;
-        for (let i = 0; i < times.length; i++) {
-            if (now - times[i] < window)
-                sinceNow += 1;
-            if (latest - times[i] < window)
-                sinceLatest += 1;
-        }
+        const times = LockTheme.failureTimes(text).filter(t => now - t < failInterval * 1000);
         // No tally despite failures means pam_faillock isn't recording for
         // this stack; keep the locally counted lives then.
-        if (maxLives > 0 && !(failures > 0 && times.length === 0)) {
-            lives = Math.max(0, maxLives - sinceNow);
-            if (sinceLatest >= maxLives)
-                lockoutUntil = unlockTime > 0 ? latest + unlockTime * 1000 : -1;
-            else
-                lockoutUntil = 0;
+        if (failures > 0 && times.length === 0) {
+            _tickLockout();
+            return;
         }
+        const sec = LockTheme.seclusion(times, now);
+        lives = sec.lives;
+        lockoutUntil = sec.until;
+        unlockTime = sec.next;
         _tickLockout();
     }
 

@@ -37,10 +37,17 @@ Item {
     property bool shown: true
     property bool still: false
     property real minScale: 0.7
+    // Compact (the polkit prompt): the formation, its prompt and its seals
+    // floating over the desktop on a pool of ink; no backdrop, no desktop
+    // dissolve, no title, hour, cultivator, music, tokens or insights. Esc
+    // leaves (ctx.leave()).
+    property bool compact: false
+    // The prompt's idle line (compact: what's asking).
+    property string idleLine: "Recite the incantation to break the seal"
 
     readonly property real sc: Math.max(minScale, Math.min(2, Math.min(width / 1920, height / 1080)))
     readonly property real edge: 60 * sc
-    readonly property real formationY: height * 0.42
+    readonly property real formationY: compact ? height * 0.45 : height * 0.42
 
     // Choreography.
     property real draw: 0
@@ -148,10 +155,27 @@ Item {
     // ── The ink world ────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
+        visible: !xian.compact
         color: Xian.ink
     }
 
+    // Compact: a pool of ink under the formation and its prompt, fading
+    // out to the desktop (no veil over the rest of it).
+    ShaderEffect {
+        visible: xian.compact
+        x: xian.width / 2 - width / 2
+        y: xian.formationY + 70 * xian.sc - height / 2
+        width: 1250 * xian.sc
+        height: width
+        opacity: LockTheme.seg(xian.draw, 0, 0.6) * (1 - xian.burst)
+        property color inkColor: Xian.ink
+        property real strength: 0.9
+
+        fragmentShader: Qt.resolvedUrl("../../../../shaders/ink_pool.frag.qsb")
+    }
+
     Item {
+        visible: !xian.compact
         width: 0
         height: 0
         clip: true
@@ -173,7 +197,7 @@ Item {
                 id: wallpaper
                 anchors.fill: parent
                 // A live wallpaper's still until its first frames.
-                source: xian.host.wallpaperStill
+                source: xian.compact ? "" : xian.host.wallpaperStill
                 sourceSize: Qt.size(Math.max(1, xian.width), Math.max(1, xian.height))
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
@@ -182,7 +206,7 @@ Item {
 
             Loader {
                 anchors.fill: parent
-                active: wallItem.live && xian.host.liveComponent !== null
+                active: wallItem.live && xian.host.liveComponent !== null && !xian.compact
                 sourceComponent: xian.host.liveComponent
                 // The host's player: the live file, playing until the screen
                 // dims (as the rest of the motion).
@@ -229,7 +253,7 @@ Item {
 
     ShaderEffect {
         anchors.fill: parent
-        visible: wallItem.ready && !xian.debugOff.includes("backdrop")
+        visible: wallItem.ready && !xian.compact && !xian.debugOff.includes("backdrop")
 
         property variant wall: wallTex
         property variant mist: mistTex
@@ -247,7 +271,7 @@ Item {
     LockInput {
         ctx: xian.ctx
         active: !xian.still
-        onEscapePressed: xian.ctx.clearInput()
+        onEscapePressed: xian.compact ? xian.ctx.leave() : xian.ctx.clearInput()
     }
 
     // ── The desktop, dissolving into ink (under the formation) ───────
@@ -260,7 +284,7 @@ Item {
 
     ShaderEffect {
         anchors.fill: parent
-        visible: capture.ready && xian.dissolve < 1
+        visible: capture.ready && xian.dissolve < 1 && !xian.compact
 
         property variant source: capture.image
         property real itemWidth: width
@@ -278,7 +302,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: "black"
-        visible: !capture.ready && opacity > 0
+        visible: !capture.ready && opacity > 0 && !xian.compact
         opacity: 1 - xian.dissolve
     }
 
@@ -328,6 +352,7 @@ Item {
 
         // Title, top left: 洞府封印 in a vertical column.
         Row {
+            visible: !xian.compact
             x: xian.edge
             y: 44 * xian.sc
             spacing: 16 * xian.sc
@@ -380,6 +405,7 @@ Item {
 
         // The hour, top right: 时辰 in a vertical column.
         Row {
+            visible: !xian.compact
             anchors.right: parent.right
             anchors.rightMargin: xian.edge
             y: 44 * xian.sc
@@ -443,104 +469,21 @@ Item {
             }
         }
 
-        // Prompt / reward, under the formation.
-        Item {
+        // Prompt / reward, under the formation (shared with the polkit prompt).
+        SealPrompt {
             id: promptArea
             anchors.horizontalCenter: parent.horizontalCenter
             y: formation.y + formation.height - 6 * xian.sc
-            width: 900 * xian.sc
-            height: 86 * xian.sc
+            ctx: xian.ctx
+            sc: xian.sc
+            rewardIn: xian.rewardIn
+            idleLine: xian.idleLine
             opacity: xian.uiIn
-
-            Column {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 6 * xian.sc
-                visible: !xian.granted
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    readonly property var c: xian.ctx
-                    text: c.phase === "verifying" ? "破阵中"
-                        : c.lockedOut && c.cells === 0 ? "闭关"
-                        : c.cells > 0 ? "运转周天"
-                        : "诵咒解封"
-                    font.family: Xian.cjk
-                    font.weight: Font.Medium
-                    font.pixelSize: 22 * xian.sc
-                    font.letterSpacing: 8 * xian.sc
-                    color: c.lockedOut && c.cells === 0 ? Xian.cinnabar : Xian.gold
-
-                    // The other lines' glyphs, drawn (all but invisible)
-                    // from the start, so the first keystroke doesn't
-                    // rasterise them.
-                    Text {
-                        text: "运转周天破阵中闭关"
-                        font: parent.font
-                        color: parent.color
-                        opacity: 0.004
-                    }
-                }
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    readonly property var c: xian.ctx
-                    text: c.phase === "verifying" ? "The formation weighs your incantation…"
-                        : c.lockedOut && c.cells === 0 ? "Closed-door seclusion. The seal reopens in " + (c.lockoutClock || "time")
-                        : c.cells > 0 ? c.cells + (c.cells === 1 ? " rune" : " runes") + " kindled" + (c.combo >= 5 ? "  ·  unbroken circulation ×" + c.combo : "")
-                        : "Recite the incantation to break the seal"
-                    font.family: Xian.serif
-                    font.italic: true
-                    font.pixelSize: 15 * xian.sc
-                    color: Xian.paperDim
-                }
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    readonly property var c: xian.ctx
-                    text: c.message.length > 0 ? c.message
-                        : c.capsLock ? "Caps Lock is on. Incantations are case-sensitive"
-                        : c.lastLife ? "One incense stick remains. Another failure means " + Math.round(c.unlockTime / 60) + " minutes of seclusion"
-                        : ""
-                    font.family: Xian.serif
-                    font.pixelSize: 14 * xian.sc
-                    color: Xian.cinnabar
-                }
-            }
-
-            // Cultivation gained.
-            Column {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 6 * xian.sc
-                visible: xian.granted && xian.reward !== null
-                opacity: xian.rewardIn
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "修为 +" + Math.round((xian.reward ? xian.reward.total : 0) * Math.min(1, xian.rewardIn * 1.3))
-                    font.family: Xian.cjk
-                    font.weight: Font.Black
-                    font.pixelSize: 34 * xian.sc
-                    color: Xian.goldHi
-                }
-
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: Math.min(implicitWidth, promptArea.width)
-                    elide: Text.ElideRight
-                    text: xian.reward
-                        ? xian.reward.lines.map(l => l.label.toLowerCase() + " +" + l.xp).join("  ·  ")
-                          + (xian.reward.multiplier > 1 ? "  ·  streak ×" + xian.reward.multiplier.toFixed(2) : "")
-                        : ""
-                    font.family: Xian.serif
-                    font.italic: true
-                    font.pixelSize: 14 * xian.sc
-                    color: Xian.paperDim
-                }
-            }
         }
 
         // The cultivator, bottom centre.
         Row {
+            visible: !xian.compact
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 58 * xian.sc
@@ -740,7 +683,7 @@ Item {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 50 * xian.sc
             spacing: 14 * xian.sc
-            visible: xian.host.media.active
+            visible: xian.host.media.active && !xian.compact
             opacity: xian.uiIn
 
             Text {
@@ -816,7 +759,7 @@ Item {
             anchors.bottomMargin: 40 * xian.sc
             spacing: 18 * xian.sc
             opacity: xian.uiIn
-            visible: xian.host.capture.available && !xian.still
+            visible: xian.host.capture.available && !xian.still && !xian.compact
 
             Repeater {
                 model: [
@@ -883,6 +826,7 @@ Item {
 
         // Jade tokens, bottom right: hold to confirm.
         Row {
+            visible: !xian.compact
             id: jadeTokens
             anchors.right: parent.right
             anchors.rightMargin: xian.edge
@@ -971,7 +915,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             y: 36 * xian.sc
             spacing: 10 * xian.sc
-            visible: xian.granted
+            visible: xian.granted && !xian.compact
 
             Repeater {
                 model: xian.reward ? xian.reward.achievements.slice(0, 3) : []

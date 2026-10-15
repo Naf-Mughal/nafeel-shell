@@ -14,4 +14,58 @@ QtObject {
         const x = Math.max(0, Math.min(1, (p - from) / (to - from)));
         return 1 - Math.pow(1 - x, 3);
     }
+
+    // ── Seclusion: wrong incantations in rounds of three ──
+    // Each full round seals the formation a while, longer each time; the
+    // tenth is a day (pam_faillock holds that one itself: deny = 30,
+    // unlock_time = fail_interval = 86400). The lock and the polkit prompt
+    // both read it from faillock's tally, so they share one count.
+    readonly property int roundOf: 3
+    readonly property var seclusions: [10, 30, 300, 900, 1800, 3600, 10800, 21600, 43200, 86400]
+
+    // `faillock --user` output: the valid failures' times (epoch ms).
+    function failureTimes(text) {
+        const out = [];
+        const lines = text.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+            const m = lines[i].match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\s.*\s([VI])\s*$/);
+            if (m && m[7] === "V")
+                out.push(new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime());
+        }
+        return out;
+    }
+
+    // From the failures' times: { failures, lives (left this round), until
+    // (epoch ms the seal reopens, 0 = open), next (seconds the next full
+    // round would seal it) }.
+    function seclusion(times, now) {
+        const n = times.length;
+        const rounds = Math.floor(n / roundOf);
+        const latest = n > 0 ? Math.max.apply(null, times) : 0;
+        let until = 0;
+        if (rounds > 0 && n % roundOf === 0) {
+            const t = latest + seclusions[Math.min(rounds, seclusions.length) - 1] * 1000;
+            if (t > now)
+                until = t;
+        }
+        return {
+            failures: n,
+            lives: until > 0 ? 0 : roundOf - n % roundOf,
+            until: until,
+            next: seclusions[Math.min(rounds, seclusions.length - 1)]
+        };
+    }
+
+    // "10 seconds", "5 minutes", "1 hour".
+    function span(s) {
+        const u = s >= 3600 ? [3600, "hour"] : s >= 60 ? [60, "minute"] : [1, "second"];
+        const v = Math.round(s / u[0]);
+        return v + " " + u[1] + (v === 1 ? "" : "s");
+    }
+
+    // A countdown: "0:09", "4:59", "2:59:59".
+    function clock(s) {
+        const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s % 60;
+        return (h > 0 ? h + ":" + String(m).padStart(2, "0") : String(m)) + ":" + String(sec).padStart(2, "0");
+    }
 }
