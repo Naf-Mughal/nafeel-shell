@@ -6,6 +6,7 @@
 #include <QOpenGLFramebufferObject>
 #include <QPointer>
 #include <QQuickWindow>
+#include <QSGSimpleTextureNode>
 #include <QtGui/qguiapplication_platform.h>
 
 #include <clocale>
@@ -22,32 +23,55 @@ void *getProcAddress(void *, const char *name) {
     return ctx ? reinterpret_cast<void *>(ctx->getProcAddress(name)) : nullptr;
 }
 
-// Draws mpv's frame into the item's framebuffer, on the render thread.
-class MpvRenderer : public QQuickFramebufferObject::Renderer {
+// Draws mpv's frame into the item's own framebuffer, on the render thread,
+// and shows it. Qt's QQuickFramebufferObject did this, but its node asks the
+// window for another frame every time it's told to draw (scheduleRender):
+// each video frame cost two scene frames, the lock screen redrawing at 60
+// fps for a 30 fps video. Here a frame asked for (MpvVideo::present) is
+// drawn just before the scene that shows it (beforeRendering), and that's
+// all.
+class MpvNode : public QObject, public QSGSimpleTextureNode {
 public:
-    explicit MpvRenderer(const MpvVideo *item)
-        : m_item(const_cast<MpvVideo *>(item)), m_mpv(item->handle()), m_shared(item->shared()) {}
+    MpvNode(MpvVideo *item, QQuickWindow *window)
+        : m_item(item), m_window(window), m_mpv(item->handle()), m_shared(item->shared()) {
+        setOwnsTexture(true);
+        setFiltering(QSGTexture::Linear);
+        connect(window, &QQuickWindow::beforeRendering, this, &MpvNode::render, Qt::DirectConnection);
+    }
 
-    ~MpvRenderer() override {
+    ~MpvNode() override {
         // Before the handle can go (the item may already have).
         QMutexLocker lock(&m_shared->lock);
         if (m_ctx)
             mpv_render_context_free(m_ctx);
         m_shared->ctx = nullptr;
+        delete m_fbo;
     }
 
-    QOpenGLFramebufferObject *createFramebufferObject(const QSize &size) override {
+    // Sync (render thread, the GUI thread waiting): the framebuffer at the
+    // item's size, and whether a frame is to be drawn.
+    void sync(MpvVideo *item, QSize pixels, bool pending) {
         if (!m_ctx && m_mpv)
             init();
-        return new QOpenGLFramebufferObject(size);
+        pixels = pixels.expandedTo(QSize(1, 1));
+        if (!m_fbo || m_fbo->size() != pixels) {
+            delete m_fbo;
+            m_fbo = new QOpenGLFramebufferObject(pixels);
+            setTexture(QNativeInterface::QSGOpenGLTexture::fromNative(m_fbo->texture(), m_window, pixels));
+            pending = true;
+        }
+        setRect(item->boundingRect());
+        m_pending = m_pending || pending;
     }
 
-    void render() override {
-        if (!m_ctx)
+private:
+    void render() {
+        if (!m_pending || !m_ctx || !m_fbo)
             return;
+        m_pending = false;
         QMutexLocker lock(&m_shared->lock);
-        QOpenGLFramebufferObject *fbo = framebufferObject();
-        mpv_opengl_fbo target{static_cast<int>(fbo->handle()), fbo->width(), fbo->height(), 0};
+        m_window->beginExternalCommands();
+        mpv_opengl_fbo target{static_cast<int>(m_fbo->handle()), m_fbo->width(), m_fbo->height(), 0};
         int flip = 0;
         // Don't wait for the frame's display time: mpv's own pacing blocked
         // the render thread (~10 ms a frame), dragging everything sharing the
@@ -61,9 +85,10 @@ public:
             {MPV_RENDER_PARAM_INVALID, nullptr},
         };
         mpv_render_context_render(m_ctx, params);
+        m_window->endExternalCommands();
+        markDirty(QSGNode::DirtyMaterial);
     }
 
-private:
     void init() {
         mpv_opengl_init_params gl{getProcAddress, nullptr};
         // The Wayland display: mpv maps VAAPI frames into GL through it
@@ -91,7 +116,7 @@ private:
             m_shared->ctx = m_ctx;
         }
         // mpv has a new frame: the item schedules its draw (on its thread).
-        QPointer<MpvVideo> item = m_item;
+        m_itemRef = m_item;
         mpv_render_context_set_update_callback(
             m_ctx,
             [](void *data) {
@@ -100,15 +125,17 @@ private:
                     QMetaObject::invokeMethod(p->data(), "frameQueued", Qt::QueuedConnection);
             },
             &m_itemRef);
-        m_itemRef = item;
-        QMetaObject::invokeMethod(m_item, "contextReady", Qt::QueuedConnection);
+        QMetaObject::invokeMethod(m_item.data(), "contextReady", Qt::QueuedConnection);
     }
 
-    MpvVideo *m_item;
+    QPointer<MpvVideo> m_item;
     QPointer<MpvVideo> m_itemRef;
+    QQuickWindow *m_window;
     std::shared_ptr<mpv_handle> m_mpv;
     std::shared_ptr<MpvShared> m_shared;
     mpv_render_context *m_ctx = nullptr;
+    QOpenGLFramebufferObject *m_fbo = nullptr;
+    bool m_pending = false;
 };
 
 // Where in the refresh before its own a frame is drawn (of the period):
@@ -120,10 +147,11 @@ constexpr double kPhase = 0.6;
 
 } // namespace
 
-MpvVideo::MpvVideo(QQuickItem *parent) : QQuickFramebufferObject(parent) {
+MpvVideo::MpvVideo(QQuickItem *parent) : QQuickItem(parent) {
+    setFlag(ItemHasContents);
     m_due.setSingleShot(true);
     m_due.setTimerType(Qt::PreciseTimer);
-    connect(&m_due, &QTimer::timeout, this, [this]() { update(); });
+    connect(&m_due, &QTimer::timeout, this, [this]() { present(); });
     // libmpv refuses to start under a locale whose numbers aren't C's (it
     // parses its options with the C library). Qt and QML use their own
     // locale, so the C library's numeric one can be C.
@@ -199,8 +227,22 @@ MpvVideo::~MpvVideo() {
         mpv_set_wakeup_callback(m_mpv.get(), nullptr, nullptr);
 }
 
-QQuickFramebufferObject::Renderer *MpvVideo::createRenderer() const {
-    return new MpvRenderer(this);
+QSGNode *MpvVideo::updatePaintNode(QSGNode *old, UpdatePaintNodeData *) {
+    if (!window())
+        return old;
+    auto *node = static_cast<MpvNode *>(old);
+    if (!node)
+        node = new MpvNode(this, window());
+    const qreal dpr = window()->effectiveDevicePixelRatio();
+    node->sync(this, QSize(qRound(width() * dpr), qRound(height() * dpr)), takePending());
+    return node;
+}
+
+// A frame to show: drawn on the next scene frame (MpvNode::render).
+void MpvVideo::present() {
+    m_pending = true;
+    update();
+    emit frame();
 }
 
 void MpvVideo::setSource(const QString &source) {
@@ -282,7 +324,7 @@ void MpvVideo::frameQueued() {
     qint64 vblank = 0;
     if (!timed || !FramePacer::lastVblank(&vblank)) {
         m_due.stop();
-        update();
+        present();
         return;
     }
     timespec ts{};
@@ -297,7 +339,7 @@ void MpvVideo::frameQueued() {
     const qint64 wait = qint64(shown - period + phase * period) - now;
     if (wait < 1000) {
         m_due.stop();
-        update();
+        present();
         return;
     }
     m_due.start(int(std::min<qint64>(wait / 1000, 1000)));

@@ -624,11 +624,41 @@ Scope {
     property bool ambient: false
     property real ambientTime: 0
 
+    // A live wallpaper at 30 fps and the ambient motion at every other
+    // frame landed on different refreshes: the lock redrew at 60 fps for
+    // two 30 fps motions. While the video's frames come (videoFrame, from
+    // the theme), the ambient steps with them instead: one redraw for both.
+    property bool videoDriven: false
+    property double _lastVideo: 0
+    function videoFrame() {
+        if (!ambient || !awake)
+            return;
+        const now = Date.now();
+        if (_lastVideo > 0) {
+            // In whole refreshes (60 Hz), as the frame clock would step.
+            const dt = Math.round((now - _lastVideo) / (1000 / 60)) / 60;
+            ambientTime += Math.min(0.1, dt);
+        }
+        _lastVideo = now;
+        videoDriven = true;
+        videoQuiet.restart();
+    }
+    Timer {
+        id: videoQuiet
+
+        // No frame for a while (paused, ended): the frame clock again.
+        interval: 150
+        onTriggered: {
+            ctx.videoDriven = false;
+            ctx._lastVideo = 0;
+        }
+    }
+
     FrameAnimation {
         property int frames: 0
         property real pending: 0
 
-        running: ctx.ambient && ctx.awake
+        running: ctx.ambient && ctx.awake && !ctx.videoDriven
         onRunningChanged: {
             frames = 0;
             pending = 0;

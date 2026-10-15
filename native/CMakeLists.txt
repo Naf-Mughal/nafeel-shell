@@ -103,6 +103,7 @@ qt_add_qml_module(nafeelnative
         src/stillimage.h src/stillimage.cpp
         src/surfacefx.h src/surfacefx.cpp
         src/probe.h
+        src/quietsource.h
         src/fonts.h
         src/annotationcanvas.h src/annotationcanvas.cpp
         src/screensaver.h src/screensaver.cpp

@@ -480,6 +480,9 @@ Singleton {
         function itemsAt(window: int, x: real, y: real): string {
             return Probe.itemsAt(window, x, y);
         }
+        function dirtyLog(window: int, frames: int, path: string): void {
+            Probe.dirtyLog(window, frames, path);
+        }
         function pointer(window: int, action: string, x: real, y: real): void {
             Probe.pointer(window, action, x, y);
         }

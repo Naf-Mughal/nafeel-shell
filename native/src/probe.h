@@ -11,6 +11,11 @@
 #include <QtQml/qqml.h>
 #include <QtQml/qqmlregistration.h>
 #include <qpa/qwindowsysteminterface.h>
+#include <private/qquickwindow_p.h>
+#include <private/qquickitem_p.h>
+#include <private/qquickshadereffectsource_p.h>
+#include <QFile>
+#include <QTextStream>
 
 // Measuring without hands (IPC shell pointer): pointer events handed to one
 // of the shell's windows as if the compositor had sent them, so hovers,
@@ -62,6 +67,42 @@ public:
         };
         walk(qw->contentItem(), 0);
         return out;
+    }
+
+    // For `frames` scene frames of a window: which items are dirty when
+    // each is synced (what makes it draw), written to `path`.
+    Q_INVOKABLE void dirtyLog(int window, int frames, const QString &path) {
+        const auto all = QGuiApplication::topLevelWindows();
+        auto *qw = window >= 0 && window < all.size() ? qobject_cast<QQuickWindow *>(all[window]) : nullptr;
+        if (!qw)
+            return;
+        auto *file = new QFile(path);
+        file->open(QIODevice::WriteOnly | QIODevice::Truncate);
+        auto left = std::make_shared<int>(frames);
+        auto conn = std::make_shared<QMetaObject::Connection>();
+        *conn = connect(qw, &QQuickWindow::beforeSynchronizing, qw, [qw, file, left, conn]() {
+            QTextStream out(file);
+            out << "frame\n";
+            for (QQuickItem *it = QQuickWindowPrivate::get(qw)->dirtyItemList; it; it = QQuickItemPrivate::get(it)->nextDirtyItem) {
+                QString t = QString::fromLatin1(it->metaObject()->className());
+                const int q = t.indexOf(QLatin1String("_QML"));
+                if (q > 0) t.truncate(q);
+                const QString f = qmlContext(it) ? qmlContext(it)->baseUrl().fileName() : QString();
+                if (auto *ses = qobject_cast<QQuickShaderEffectSource *>(it); ses && ses->sourceItem()) {
+                    QQuickItem *src = ses->sourceItem();
+                    QString st = QString::fromLatin1(src->metaObject()->className());
+                    const int sq = st.indexOf(QLatin1String("_QML"));
+                    if (sq > 0) st.truncate(sq);
+                    out << "  (capturing " << st << ' ' << (qmlContext(src) ? qmlContext(src)->baseUrl().fileName() : QString()) << " parent " << (src->parentItem() && qmlContext(src->parentItem()) ? qmlContext(src->parentItem())->baseUrl().fileName() : QString()) << ")";
+                }
+                out << "  " << t << ' ' << f << " dirty=" << Qt::hex << QQuickItemPrivate::get(it)->dirtyAttributes << Qt::dec << '\n';
+            }
+            if (--*left <= 0) {
+                QObject::disconnect(*conn);
+                file->close();
+                file->deleteLater();
+            }
+        }, Qt::DirectConnection);
     }
 
     // action: enter | move | press | release | leave (left button), at

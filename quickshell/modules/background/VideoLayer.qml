@@ -30,6 +30,8 @@ Item {
 
     signal firstFrame
     signal broken
+    // A new frame into the scene (the in-scene player): see MpvVideo.frame.
+    signal frame
 
     function _first(): void {
         if (vl.started)
@@ -70,6 +72,7 @@ Item {
             startAt: vl.startAt
             onFirstFrame: vl._first()
             onBroken: vl.broken()
+            onFrame: vl.frame()
         }
     }
 }

@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Nafeel
 import qs.config
 import qs.services
 import qs.modules.background
@@ -44,6 +45,7 @@ QtObject {
             property url source
             property bool run: true
             signal firstFrame
+            signal frame
 
             VideoLayer {
                 anchors.fill: parent
@@ -53,8 +55,16 @@ QtObject {
                 }
                 run: lockPlayer.run
                 onFirstFrame: lockPlayer.firstFrame()
+                onFrame: lockPlayer.frame()
             }
         }
+    }
+
+    // A capture the theme draws from that mustn't draw frames of its own
+    // (Nafeel's QuietSource): the backdrop's, which redrew the lock twice
+    // for every step of its motion.
+    function quiet(item: Item): void {
+        QuietSource.quiet(item);
     }
 
     readonly property url avatar: CaveAbode.avatar

@@ -133,6 +133,9 @@ Item {
             const dt = Math.max(0, Math.min(0.1, t - xian._lastAmbient));
             xian._lastAmbient = t;
             xian.spin += dt * (xian.ctx.phase === "verifying" ? 75 : 7);
+            // The mist's capture with its step (not live: a live one drew a
+            // second frame after every step).
+            mistTex.scheduleUpdate();
         }
 
         function onPhaseChanged() {
@@ -194,6 +197,11 @@ Item {
 
             readonly property bool live: xian.host.wallpaperLive
             property bool liveReady: false
+            // The player says when its frames come (the shell's): the
+            // backdrop's capture then re-grabs once per video frame rather
+            // than live, which re-grabbed a refresh after every frame the
+            // player drew (60 redraws a second for a 30 fps video).
+            property bool frameDriven: false
             readonly property bool ready: live ? (liveReady || wallpaper.status === Image.Ready) : wallpaper.status === Image.Ready
 
             width: xian.width
@@ -220,6 +228,17 @@ Item {
                     item.source = Qt.binding(() => xian.host.wallpaper);
                     item.run = Qt.binding(() => xian.ctx.awake);
                     item.firstFrame.connect(() => wallItem.liveReady = true);
+                    // The ambient motion steps with the video's frames where
+                    // the host's player says when they come (one redraw for
+                    // both, not two out of phase).
+                    if (item.frame) {
+                        wallItem.frameDriven = true;
+                        item.frame.connect(() => {
+                            if (typeof xian.ctx.videoFrame === "function")
+                                xian.ctx.videoFrame();
+                            wallTex.scheduleUpdate();
+                        });
+                    }
                 }
             }
         }
@@ -228,8 +247,9 @@ Item {
         // softening (one tap, not nine), and the capture costs a quarter.
         ShaderEffectSource {
             id: wallTex
+            Component.onCompleted: if (typeof xian.host?.quiet === "function") xian.host.quiet(wallTex)
             sourceItem: wallItem
-            live: true
+            live: !(wallItem.frameDriven && wallItem.liveReady)
             hideSource: true
             textureSize: Qt.size(Math.max(1, Math.round(xian.width / 2)), Math.max(1, Math.round(xian.height / 2)))
             smooth: true
@@ -250,8 +270,9 @@ Item {
 
         ShaderEffectSource {
             id: mistTex
+            Component.onCompleted: if (typeof xian.host?.quiet === "function") xian.host.quiet(mistTex)
             sourceItem: mistField
-            live: true
+            live: false
             hideSource: true
             smooth: true
         }

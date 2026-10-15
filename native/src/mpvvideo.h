@@ -1,10 +1,11 @@
 #pragma once
 
 #include <QMutex>
-#include <QQuickFramebufferObject>
+#include <QQuickItem>
 #include <QTimer>
 #include <QtQml/qqmlregistration.h>
 #include <memory>
+#include <utility>
 
 struct mpv_handle;
 struct mpv_render_context;
@@ -27,7 +28,7 @@ struct MpvShared {
 // desktop and the lock screen. Looped and silent; it covers the item (crop).
 //
 //   MpvVideo { source: "file:///…"; playing: true; onFirstFrame: … }
-class MpvVideo : public QQuickFramebufferObject {
+class MpvVideo : public QQuickItem {
     Q_OBJECT
     QML_ELEMENT
 
@@ -45,7 +46,9 @@ public:
     explicit MpvVideo(QQuickItem *parent = nullptr);
     ~MpvVideo() override;
 
-    Renderer *createRenderer() const override;
+    // The renderer's side (MpvNode) takes a frame asked for (update()) on
+    // the frame that follows.
+    bool takePending() { return std::exchange(m_pending, false); }
 
     QString source() const { return m_source; }
     void setSource(const QString &source);
@@ -68,6 +71,9 @@ signals:
     void readyChanged();
     void firstFrame();
     void broken();
+    // A new video frame goes into the next scene frame (GUI thread): what
+    // else moves can step with it, so they share the frame.
+    void frame();
 
 public slots:
     // From the renderer, once a frame has been drawn.
@@ -81,8 +87,13 @@ public slots:
 private slots:
     void onEvents();
 
+protected:
+    QSGNode *updatePaintNode(QSGNode *old, UpdatePaintNodeData *) override;
+
 private:
     void load();
+    void present();
+    bool m_pending = false;
     void lockSpeed(double periodUs);
 
     std::shared_ptr<mpv_handle> m_mpv;

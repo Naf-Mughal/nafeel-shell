@@ -22,6 +22,9 @@ Item {
         anchors.fill: parent
         visible: false
         layer.enabled: true
+        // Its capture draws no frames of its own (the shell's host: the qi
+        // under it moves with the ambient motion, which redrew it twice).
+        Component.onCompleted: if (typeof Xian.host?.quiet === "function") Xian.host.quiet(cover)
 
         Paper {
             anchors.fill: parent
