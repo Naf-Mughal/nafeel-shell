@@ -80,13 +80,13 @@ Panel {
                     action: "lock",
                     icon: "lock",
                     label: "Lock",
-                    confirm: false
+                    confirm: true
                 },
                 {
                     action: "suspend",
                     icon: "bedtime",
                     label: "Suspend",
-                    confirm: false
+                    confirm: true
                 },
                 {
                     action: "logout",
@@ -116,7 +116,7 @@ Panel {
                 width: index === 4 ? root.width : (root.width - Tokens.spacing.small) / 2
                 icon: modelData.icon
                 label: modelData.label
-                // What can't be undone is held to confirm; the rest acts on a click.
+                // Every one is held to confirm (the user's call: lock and suspend too).
                 holdToConfirm: modelData.confirm
                 onClicked: {
                     if (modelData.confirm)
