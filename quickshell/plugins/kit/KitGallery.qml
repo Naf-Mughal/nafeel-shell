@@ -572,7 +572,7 @@ Item {
 
                 // ── Springs: one move, three characters ──
                 Spec {
-                    caption: "spring · calm / lively / snappy / crisp (Settings → Appearance)"
+                    caption: "spring · calm / natural / lively / snappy / crisp (Settings → Appearance)"
                     Column {
                         id: springs
 
@@ -587,7 +587,7 @@ Item {
 
                         Repeater {
                             // The shell's presets (Appearance → Panels' / Controls' spring).
-                            model: ["calm", "lively", "snappy", "crisp"].map(k => [k, Tokens.springPresets[k][0], Tokens.springPresets[k][1]])
+                            model: ["calm", "natural", "lively", "snappy", "crisp"].map(k => [k, Tokens.springPresets[k][0], Tokens.springPresets[k][1]])
 
                             Item {
                                 id: lane

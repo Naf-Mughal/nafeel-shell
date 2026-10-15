@@ -175,13 +175,18 @@ Singleton {
         SettingItem {
             key: "motion.panels"
             label: "Panels' spring"
-            description: "How panels open and close: calm settles softly, lively bounces past and back, snappy is quick with a little give, crisp lands dead on."
-            def: "calm"
+            description: "How panels open and close: calm glides in slowly, natural is the shell's own, lively bounces past and back, snappy is quick with a kick, crisp lands fast and dead on."
+            def: "natural"
             options: [
                 {
                     value: "calm",
                     icon: "waves",
                     label: "Calm"
+                },
+                {
+                    value: "natural",
+                    icon: "spa",
+                    label: "Natural"
                 },
                 {
                     value: "lively",
@@ -204,12 +209,17 @@ Singleton {
             key: "motion.controls"
             label: "Controls' spring"
             description: "The same, for the goo, switches, lists and the bar's pill: mix it with the panels' as you like."
-            def: "calm"
+            def: "natural"
             options: [
                 {
                     value: "calm",
                     icon: "waves",
                     label: "Calm"
+                },
+                {
+                    value: "natural",
+                    icon: "spa",
+                    label: "Natural"
                 },
                 {
                     value: "lively",
@@ -387,17 +397,19 @@ Singleton {
     // Spring presets for SpringAnimation (M3 Expressive physics): `spatial`
     // for things that travel or grow (drawers, pills), `bouncy` for small
     // playful ones (toggles, presses), `gentle` for large surfaces.
-    // Spring characters (stiffness, damping at the designed tempo): calm is
-    // the shell's own, lively bounces past and back, snappy is quick with a
-    // little give (between the two), crisp lands dead on.
+    // Spring characters (stiffness, damping at the designed tempo), measured
+    // on a 200 px move: calm ~550 ms, no overshoot; natural (the shell's own)
+    // ~250 ms, a slight settle; snappy ~250 ms, a 15% kick; lively ~500 ms,
+    // 33% over and back; crisp ~120 ms, dead on.
     readonly property var springPresets: ({
-            calm: [3.4, 0.3],
+            calm: [1.3, 0.3],
+            natural: [3.4, 0.3],
+            snappy: [9, 0.35],
             lively: [4.5, 0.15],
-            snappy: [6.2, 0.3],
-            crisp: [9, 0.85]
+            crisp: [16, 0.9]
         })
-    readonly property var panelPreset: springPresets[settings.v["motion.panels"]] ?? springPresets.calm
-    readonly property var controlPreset: springPresets[settings.v["motion.controls"]] ?? springPresets.calm
+    readonly property var panelPreset: springPresets[settings.v["motion.panels"]] ?? springPresets.natural
+    readonly property var controlPreset: springPresets[settings.v["motion.controls"]] ?? springPresets.natural
     // How a panel's sections arrive (Panel): together | stagger | ink.
     readonly property string contents: settings.v["motion.contents"] ?? "together"
 
