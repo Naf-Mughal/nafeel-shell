@@ -35,7 +35,8 @@ Panel {
             Row {
                 spacing: Tokens.spacing.small
 
-                StyledText {
+                // Rolls as the charge moves (a percent at a time, now and then).
+                RollText {
                     text: `${Math.round(Power.level * 100)}%`
                     color: hero.ink
                     font.family: Tokens.font.serif

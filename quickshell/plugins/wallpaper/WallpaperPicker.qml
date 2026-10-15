@@ -518,30 +518,34 @@ Item {
             Repeater {
                 model: 13
 
-                Rectangle {
+                Swatch {
                     id: sw
 
                     required property int index
                     readonly property int bucket: index < 12 ? index : 99
                     readonly property int selectedColour: root.store ? (root.studio?.wallhaven.colour ?? -1) : Wallpapers.filterColour
-                    readonly property bool on: selectedColour === bucket
 
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 14
-                    height: 22
-                    radius: Tokens.rounding.small / 2
-                    color: index < 12 ? root.swatches[index] : "transparent"
-                    border.width: on ? 2 : index === 12 ? 1 : 0
-                    border.color: Colours.palette.m3onSurface
-                    opacity: on || swMouse.containsMouse || selectedColour === -1 ? 1 : 0.4
-                    scale: on ? 1.15 : 1
+                    implicitWidth: 14
+                    implicitHeight: 22
+                    colour: index < 12 ? root.swatches[index] : Colours.palette.m3surfaceContainerHighest
+                    picked: selectedColour === bucket
+                    // Picking one quiets the rest (Ryoku's "colour as data").
+                    opacity: picked || hovered || selectedColour === -1 ? 1 : 0.4
+                    outlined: index === 12
+                    onClicked: {
+                        if (root.store)
+                            root.studio.wallhaven.colour = picked ? -1 : bucket;
+                        else
+                            Wallpapers.filterColour = picked ? -1 : bucket;
+                    }
 
                     // Black and white: half and half.
                     Rectangle {
                         visible: sw.index === 12
                         anchors.fill: parent
                         anchors.margins: 2
-                        radius: parent.radius
+                        radius: sw.radius
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
                             GradientStop {
@@ -552,26 +556,6 @@ Item {
                                 position: 0.51
                                 color: "#eeeeee"
                             }
-                        }
-                    }
-
-                    Behavior on scale {
-                        Anim {
-                            duration: Tokens.anim.fast
-                        }
-                    }
-
-                    MouseArea {
-                        id: swMouse
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (root.store)
-                                root.studio.wallhaven.colour = sw.on ? -1 : sw.bucket;
-                            else
-                                Wallpapers.filterColour = sw.on ? -1 : sw.bucket;
                         }
                     }
                 }

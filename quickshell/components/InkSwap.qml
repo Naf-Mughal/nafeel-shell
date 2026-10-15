@@ -22,8 +22,16 @@ Item {
     implicitWidth: Math.max(now.implicitWidth, p < 1 ? old.implicitWidth : 0)
     implicitHeight: now.implicitHeight
 
+    // Changes in quick succession (a slider dragged under a subtitle) just
+    // show the latest: a brush sweeping at every step would only flicker.
+    property double _last: 0
     onTextChanged: {
-        if (!Tokens.reduceMotion && _was !== "" && _was !== text) {
+        const now = Date.now(), rapid = now - _last < 450;
+        _last = now;
+        if (rapid) {
+            sweep.stop();
+            p = 1;
+        } else if (!Tokens.reduceMotion && _was !== "" && _was !== text) {
             old.text = _was;
             sweep.restart();
         }

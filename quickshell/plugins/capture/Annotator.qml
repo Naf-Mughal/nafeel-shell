@@ -434,36 +434,21 @@ Scope {
                             id: sw
 
                             required property string modelData
-                            readonly property bool on: root.toolColor.toLowerCase() === modelData
 
                             anchors.verticalCenter: parent.verticalCenter
                             width: 26
                             height: 40
                             opacity: root.usesColor ? 1 : 0.35
 
-                            Rectangle {
+                            Swatch {
                                 anchors.centerIn: parent
-                                width: sw.on ? 22 : 18
-                                height: width
-                                radius: width / 2
-                                color: sw.modelData
-                                border.width: sw.on ? 2 : Tokens.hairline
-                                border.color: sw.on ? Colours.palette.m3onSurface : Qt.alpha(Colours.palette.m3onSurface, 0.3)
-
-                                Behavior on width {
-                                    Anim {
-                                        duration: Tokens.anim.fast
-                                    }
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
+                                size: 18
+                                colour: sw.modelData
+                                picked: root.toolColor.toLowerCase() === sw.modelData
+                                outlined: true
                                 enabled: root.usesColor
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
                                 onClicked: root.setToolPref("colors", sw.modelData)
-                                onContainsMouseChanged: win.hint = containsMouse ? "Colour" : ""
+                                onHoveredChanged: win.hint = hovered ? "Colour" : ""
                             }
                         }
                     }

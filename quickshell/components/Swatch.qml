@@ -33,8 +33,8 @@ Surface {
     // The ring, round the swatch with a gap: it grows out from the edge.
     StyledRect {
         anchors.centerIn: parent
-        width: root.size + 8 * root.ring
-        height: width
+        width: root.width + 8 * root.ring
+        height: root.height + 8 * root.ring
         // The swatch's own corners (the rounding setting), plus the gap.
         radius: root.radius + 4 * root.ring
         visible: root.ring > 0.01

@@ -103,9 +103,26 @@ Panel {
                     onClicked: modelData.connected ? modelData.disconnect() : modelData.connect()
 
                     IconButton {
+                        id: forgetButton
+
                         icon: "delete"
                         size: 32
-                        onClicked: dev.modelData.forget()
+                        onClicked: forget.show()
+
+                        Tooltip {
+                            text: "Forget"
+                        }
+                        // Forgetting can't be undone from here: ask first.
+                        Dialog {
+                            id: forget
+
+                            from: forgetButton
+                            title: `Forget ${dev.modelData.name}?`
+                            text: "You'll need to pair it again to use it."
+                            confirmText: "Forget"
+                            danger: true
+                            onAccepted: dev.modelData.forget()
+                        }
                     }
                 }
             }
