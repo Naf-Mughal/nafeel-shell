@@ -50,38 +50,23 @@ Item {
         }
     }
 
-    // Only the pointer's own moves switch: a switch can resize the panel
-    // and slide the tabs under a still pointer onto the next one, which
-    // then switched back, and so on (ping-pong between two tabs).
-    // The hover, worked out here with dead zones: it moves to a segment
-    // only when the pointer itself moves and is well inside it (10 px from
-    // its edges); on an edge, in a gap, or with the layout sliding under a
-    // still pointer, it stays where it was.
-    property Item hoverSeg: null
-    property point lastScene: Qt.point(-999, -999)
-    readonly property real deadZone: 10
-
-    HoverHandler {
+    // The hover, with dead zones and only the pointer's own moves
+    // (HoverTracker): a switch can resize the panel and slide the tabs under
+    // a still pointer onto the next one, which switched back (ping-pong).
+    HoverTracker {
         id: pointer
 
-        onHoveredChanged: if (!hovered)
-            root.hoverSeg = null
-        onPointChanged: {
-            const sp = point.scenePosition;
-            if (Math.abs(sp.x - root.lastScene.x) < 1 && Math.abs(sp.y - root.lastScene.y) < 1)
-                return;
-            root.lastScene = sp;
-            const p = point.position;
-            for (let i = 0; i < segs.count; i++) {
-                const s = segs.itemAt(i);
-                if (s && p.x > s.x + root.deadZone && p.x < s.x + s.width - root.deadZone && p.y > s.y && p.y < s.y + s.height) {
-                    root.hoverSeg = s;
-                    return;
-                }
-            }
+        anchors.fill: parent
+        deadZone: 10
+        items: {
+            void root._items;
+            const out = [];
+            for (let i = 0; i < segs.count; i++)
+                out.push(segs.itemAt(i));
+            return out;
         }
     }
-    property point switchedAt: Qt.point(-999, -999)
+    readonly property Item hoverSeg: pointer.current
     property double switchedTime: 0
 
     Timer {
@@ -92,11 +77,8 @@ Item {
             const s = root.hoverSeg;
             if (!s || s.modelData.value === root.current)
                 return;
-            const p = pointer.point.scenePosition;
-            const moved = Math.hypot(p.x - root.switchedAt.x, p.y - root.switchedAt.y) > 6;
-            if (!moved || Date.now() - root.switchedTime < 250)
+            if (Date.now() - root.switchedTime < 250)
                 return;
-            root.switchedAt = p;
             root.switchedTime = Date.now();
             root.selected(s.modelData.value);
         }

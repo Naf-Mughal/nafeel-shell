@@ -43,17 +43,23 @@ Item {
         anchors.fill: flow
         // Read again as the items arrive (itemAt and count say nothing then).
         selected: root._items >= 0 ? chips.itemAt(root.model.findIndex(m => m.value === root.current)) : null
-        hovered: {
-            void root._items;
-            for (let i = 0; i < chips.count; i++) {
-                const c = chips.itemAt(i);
-                if (c?.hovered)
-                    return c;
-            }
-            return null;
-        }
+        hovered: chipHover.current
         fill: Colours.roleFill("secondary", "soft", 0)
         radius: Tokens.rounding.morph
+    }
+
+    // The hover with dead zones, the pointer's own moves only.
+    HoverTracker {
+        id: chipHover
+
+        anchors.fill: flow
+        items: {
+            void root._items;
+            const out = [];
+            for (let i = 0; i < chips.count; i++)
+                out.push(chips.itemAt(i));
+            return out;
+        }
     }
 
     Row {

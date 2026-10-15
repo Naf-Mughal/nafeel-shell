@@ -15,32 +15,6 @@ Item {
     // A tab rested on opens (crossing the list doesn't flick through them);
     // only the pointer's own moves switch (a layout shift under a still
     // pointer doesn't).
-    // The hover with dead zones (as ButtonGroup): only the pointer's own
-    // moves, and only well inside a tab (8 px from its top and bottom).
-    property Item hoverTab: null
-    property point lastScene: Qt.point(-999, -999)
-
-    HoverHandler {
-        id: pointer
-
-        onHoveredChanged: if (!hovered)
-            root.hoverTab = null
-        onPointChanged: {
-            const sp = point.scenePosition;
-            if (Math.abs(sp.x - root.lastScene.x) < 1 && Math.abs(sp.y - root.lastScene.y) < 1)
-                return;
-            root.lastScene = sp;
-            const p = column.mapFromItem(root, point.position.x, point.position.y);
-            for (let i = 0; i < tabsRep.count; i++) {
-                const t = tabsRep.itemAt(i);
-                if (t && p.y > t.y + 8 && p.y < t.y + t.height - 8) {
-                    root.hoverTab = t;
-                    return;
-                }
-            }
-        }
-    }
-    property point switchedAt: Qt.point(-999, -999)
     property double switchedTime: 0
 
     Timer {
@@ -48,13 +22,9 @@ Item {
 
         interval: 90
         onTriggered: {
-            const t = root.hoverTab;
-            if (!t || ShellState.ccTab === t.modelData.id)
+            const t = goo.hovered;
+            if (!t || ShellState.ccTab === t.modelData.id || Date.now() - root.switchedTime < 250)
                 return;
-            const p = pointer.point.scenePosition;
-            if (Math.hypot(p.x - root.switchedAt.x, p.y - root.switchedAt.y) <= 6 || Date.now() - root.switchedTime < 250)
-                return;
-            root.switchedAt = p;
             root.switchedTime = Date.now();
             ShellState.ccTab = t.modelData.id;
         }
@@ -66,7 +36,6 @@ Item {
         anchors.fill: column
         container: column
         radius: Tokens.rounding.small
-        hovered: root.hoverTab
         onHoveredChanged: dwell.restart()
     }
 
