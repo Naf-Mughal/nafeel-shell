@@ -28,6 +28,11 @@ Panel {
             value: "performance",
             icon: "speed",
             label: "Performance"
+        },
+        {
+            value: "weather",
+            icon: "cloud",
+            label: "Weather"
         }
     ]
 
@@ -64,8 +69,8 @@ Panel {
         width: parent.width
         // (Layouts compute their own implicit height, so the heights live
         // here.)
-        height: ShellState.dashTab === "media" ? 270 : ShellState.dashTab === "performance" ? 330 : 420
-        sourceComponent: ShellState.dashTab === "media" ? media : ShellState.dashTab === "performance" ? performance : dash
+        height: ShellState.dashTab === "media" ? 270 : ShellState.dashTab === "performance" ? 330 : ShellState.dashTab === "weather" ? 460 : 420
+        sourceComponent: ShellState.dashTab === "media" ? media : ShellState.dashTab === "performance" ? performance : ShellState.dashTab === "weather" ? weather : dash
     }
 
     Component {
@@ -84,6 +89,21 @@ Panel {
         id: performance
 
         PerformanceTab {}
+    }
+
+    // The weather tab stays (only the weather card went, into the user card).
+    Component {
+        id: weather
+
+        Surface {
+            level: 2
+            implicitHeight: 460
+
+            WeatherTab {
+                anchors.fill: parent
+                anchors.margins: Tokens.spacing.large
+            }
+        }
     }
 
 }
