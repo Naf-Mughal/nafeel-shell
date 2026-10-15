@@ -568,11 +568,11 @@ Item {
             Entry {
                 num: "21"
                 name: "Motion feel"
-                note: "press play on each and pick what feels right"
+                note: "press play; pick them in Settings → Appearance (Panels' / Controls' spring, Contents)"
 
                 // ── Springs: one move, three characters ──
                 Spec {
-                    caption: "spring · calm / natural / lively / snappy / crisp (Settings → Appearance)"
+                    caption: "springs"
                     Column {
                         id: springs
 
@@ -636,7 +636,7 @@ Item {
 
                 // ── A panel's contents arriving: together, staggered, inked ──
                 Spec {
-                    caption: "contents · together / stagger / ink (Settings → Appearance → Contents)"
+                    caption: "contents"
                     Row {
                         id: arrive
 
