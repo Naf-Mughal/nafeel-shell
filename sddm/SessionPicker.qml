@@ -2,136 +2,193 @@ import QtQuick
 import "modules/lock"
 import "modules/lock/themes/xianxia"
 
-// The login screen's session (desktop) picker, bottom left on the lock's
-// paper: 道 and the session's name; a click opens the installed sessions
-// above it, a click on one picks it (ctx.sessionIndex, what SDDM logs into).
+// The login screen's session (desktop) picker, bottom left: a carousel on
+// one card, made like the cultivator's (the paper, the cover's ink fade, a
+// seal with the session's initial, its name large). Scroll, swipe up or
+// down, or click to flip; the card in front is what SDDM logs into
+// (ctx.sessionIndex); dots on the right say where you are.
 Item {
     id: root
 
     property real sc: 1
     property real edge: 60
     property var ctx: null
-    property bool open: false
+
+    readonly property int count: names.count
+    readonly property int index: ctx ? ctx.sessionIndex : 0
+    // Which way the last flip went (the new card comes from there).
+    property int dir: 1
 
     function nameAt(i) {
-        let n = "";
-        for (let k = 0; k < rows.count; k++)
-            if (rows.itemAt(k)?.index === i)
-                n = rows.itemAt(k).name;
-        return n;
+        // (count: read again as the names arrive.)
+        const item = names.count > 0 ? names.itemAt(i) : null;
+        return item ? item.name : "";
     }
 
-    // The sessions, above the button.
-    Paper {
-        id: list
+    function flip(step) {
+        if (!ctx || count < 2)
+            return;
+        dir = step;
+        ctx.sessionIndex = (index + step + count) % count;
+        ctx.poke();
+    }
 
-        x: root.edge
-        anchors.bottom: button.top
-        anchors.bottomMargin: 10 * root.sc
-        width: 280 * root.sc
-        height: col.implicitHeight + 12 * root.sc
-        visible: opacity > 0.01
-        opacity: root.open ? 1 : 0
+    // The sessions' names (not drawn).
+    Repeater {
+        id: names
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Xian.d(160)
-            }
-        }
+        model: sessionModel
 
-        Column {
-            id: col
-
-            x: 6 * root.sc
-            y: 6 * root.sc
-            width: parent.width - 12 * root.sc
-
-            Repeater {
-                id: rows
-
-                model: sessionModel
-
-                Rectangle {
-                    id: row
-
-                    required property int index
-                    required property string name
-                    readonly property bool current: root.ctx && root.ctx.sessionIndex === index
-
-                    width: col.width
-                    height: 38 * root.sc
-                    radius: Xian.radiusSmall
-                    color: rowArea.containsMouse ? Xian.alpha(Xian.gold, 0.14) : current ? Xian.alpha(Xian.gold, 0.08) : "transparent"
-
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: 12 * root.sc
-                        text: row.name
-                        font.family: Xian.serif
-                        font.pixelSize: 15 * root.sc
-                        color: row.current ? Xian.goldHi : Xian.paper
-                    }
-
-                    MouseArea {
-                        id: rowArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            root.ctx.sessionIndex = row.index;
-                            root.open = false;
-                            root.ctx.poke();
-                        }
-                    }
-                }
-            }
+        Item {
+            required property string name
         }
     }
 
-    // The button: 道 and the session.
-    Paper {
-        id: button
+    Item {
+        id: card
 
         x: root.edge
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 44 * root.sc
-        width: row.implicitWidth + 28 * root.sc
-        height: 50 * root.sc
-        radius: area.pressed ? Xian.radiusMorph : Xian.radiusNormal
-        border.color: area.containsMouse || root.open ? Xian.alpha(Xian.gold, 0.5) : Xian.alpha(Xian.paper, 0.08)
+        width: 300 * root.sc
+        height: 100 * root.sc
 
-        Row {
-            id: row
+        Paper {
+            anchors.fill: parent
+            border.color: area.containsMouse ? Xian.alpha(Xian.gold, 0.4) : Xian.alpha(Xian.paper, 0.08)
 
-            anchors.centerIn: parent
-            spacing: 12 * root.sc
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "道"
-                font.family: Xian.cjk
-                font.weight: Font.Black
-                font.pixelSize: 20 * root.sc
-                color: Xian.gold
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: parent.radius
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: Xian.alpha(Xian.ink, 0.55) }
+                    GradientStop { position: 1; color: Xian.alpha(Xian.ink, 0.1) }
+                }
             }
+        }
 
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
+        // The front card, swapped with a short rise (or fall) and a fade.
+        Item {
+            id: front
 
-                Text {
-                    text: root.nameAt(root.ctx ? root.ctx.sessionIndex : 0) || "Session"
-                    font.family: Xian.serif
-                    font.pixelSize: 15 * root.sc
-                    color: Xian.paper
+            property real t: 1
+
+            anchors.fill: parent
+            clip: true
+
+            Row {
+                x: 18 * root.sc
+                y: (parent.height - height) / 2 + (1 - front.t) * 16 * root.sc * root.dir
+                opacity: front.t
+                spacing: 16 * root.sc
+
+                // The session's initial, a seal as the cultivator's face.
+                Item {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 62 * root.sc
+                    height: width
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: Xian.alpha(Xian.ink, 0.6)
+                        border.width: 1
+                        border.color: Xian.alpha(Xian.gold, 0.55)
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 4 * root.sc
+                        radius: width / 2
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Xian.alpha(Xian.gold, 0.25)
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.nameAt(root.index).charAt(0).toUpperCase()
+                        font.family: Xian.serif
+                        font.pixelSize: 28 * root.sc
+                        color: Xian.goldHi
+                    }
                 }
 
-                Text {
-                    text: "Session"
-                    font.family: Xian.serif
-                    font.italic: true
-                    font.pixelSize: 11 * root.sc
-                    color: Xian.paperDim
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 3 * root.sc
+
+                    Row {
+                        spacing: 8 * root.sc
+
+                        Text {
+                            id: sessionName
+
+                            width: Math.min(implicitWidth, 150 * root.sc)
+                            elide: Text.ElideRight
+                            text: root.nameAt(root.index) || "Session"
+                            font.family: Xian.serif
+                            font.pixelSize: 21 * root.sc
+                            color: Xian.paper
+                        }
+
+                        Text {
+                            anchors.baseline: sessionName.baseline
+                            text: "道"
+                            font.family: Xian.cjk
+                            font.pixelSize: 13 * root.sc
+                            color: Xian.gold
+                        }
+                    }
+
+                    Text {
+                        text: ("Session · " + (root.index + 1) + " / " + Math.max(1, root.count)).toUpperCase()
+                        font.family: Xian.serif
+                        font.pixelSize: 10 * root.sc
+                        font.letterSpacing: 1.5 * root.sc
+                        color: Xian.paperDim
+                    }
+                }
+            }
+
+            NumberAnimation {
+                id: arrive
+
+                target: front
+                property: "t"
+                from: 0
+                to: 1
+                duration: Xian.d(320)
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        // Where you are.
+        Column {
+            anchors.right: parent.right
+            anchors.rightMargin: 14 * root.sc
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4 * root.sc
+            visible: root.count > 1
+
+            Repeater {
+                model: root.count
+
+                Rectangle {
+                    required property int index
+
+                    width: 5 * root.sc
+                    height: index === root.index ? 14 * root.sc : 5 * root.sc
+                    radius: width / 2
+                    color: index === root.index ? Xian.gold : Xian.alpha(Xian.paper, 0.3)
+
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: Xian.d(160)
+                        }
+                    }
                 }
             }
         }
@@ -139,13 +196,23 @@ Item {
         MouseArea {
             id: area
 
+            property real pressY: 0
+
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                root.open = !root.open;
-                root.ctx.poke();
+            onPressed: e => pressY = e.y
+            onReleased: e => {
+                const dy = e.y - pressY;
+                root.flip(Math.abs(dy) > 24 ? (dy < 0 ? 1 : -1) : 1);
+            }
+            onWheel: e => {
+                if (Math.abs(e.angleDelta.y) >= 60)
+                    root.flip(e.angleDelta.y > 0 ? -1 : 1);
             }
         }
     }
+
+    onIndexChanged: if (Xian.motion > 0)
+        arrive.restart()
 }
