@@ -28,11 +28,11 @@ Item {
         width: parent.width
         spacing: Tokens.spacing.normal
 
-        StyledRect {
+        Surface {
             width: parent.width
             height: 120
-            radius: Tokens.rounding.large
-            color: Colours.palette.m3primaryContainer
+            role: "primary"
+            shape: "large"
 
             MaterialIcon {
                 id: now
@@ -128,7 +128,7 @@ Item {
             Repeater {
                 model: Weather.days.slice(0, 7)
 
-                StyledRect {
+                Surface {
                     id: dayCard
 
                     required property var modelData
@@ -136,8 +136,8 @@ Item {
 
                     width: (root.width - Tokens.spacing.small * 6) / 7
                     height: 108
-                    radius: Tokens.rounding.normal
-                    color: index === 0 ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHigh
+                    // Today in the secondary role, the rest on paper.
+                    role: index === 0 ? "secondary" : "paper"
 
                     Column {
                         anchors.centerIn: parent

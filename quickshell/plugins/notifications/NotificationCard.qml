@@ -152,42 +152,26 @@ StyledRect {
             Repeater {
                 model: root.view.actions
 
-                StyledRect {
+                Surface {
                     id: button
 
                     required property var modelData
 
-                    width: label.implicitWidth + Tokens.spacing.large * 2
-                    height: 30
-                    radius: Tokens.rounding.small
-                    color: Colours.palette.m3secondaryContainer
-
-                    StateLayer {
-                        hovered: hover.hovered
-                        pressed: actTap.pressed
-                        ink: Colours.palette.m3onSecondaryContainer
-                    }
+                    implicitWidth: label.implicitWidth + Tokens.spacing.large * 2
+                    implicitHeight: 30
+                    role: "secondary"
+                    shape: "small"
+                    interactive: true
+                    onClicked: Notifs.invoke(root.entry, button.modelData.identifier)
 
                     StyledText {
                         id: label
 
                         anchors.centerIn: parent
                         text: button.modelData.text
-                        color: Colours.palette.m3onSecondaryContainer
+                        color: button.ink
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
-                    }
-
-                    HoverHandler {
-                        id: hover
-
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        id: actTap
-
-                        onTapped: Notifs.invoke(root.entry, button.modelData.identifier)
                     }
                 }
             }

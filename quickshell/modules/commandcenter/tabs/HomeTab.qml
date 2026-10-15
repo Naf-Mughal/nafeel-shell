@@ -59,11 +59,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Tokens.spacing.large
 
-            StyledRect {
+            Surface {
                 width: 72
                 height: 72
-                radius: Tokens.rounding.large
-                color: Colours.palette.m3primary
+                role: "primary"
+                emphasis: "strong"
+                shape: "large"
 
                 StyledText {
                     anchors.centerIn: parent

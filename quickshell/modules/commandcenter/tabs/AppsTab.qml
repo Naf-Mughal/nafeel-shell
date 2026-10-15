@@ -15,12 +15,12 @@ Item {
     required property var cc
 
     // ">" and "=": one row describing what Enter does.
-    StyledRect {
+    Surface {
         visible: root.cc.mode !== "apps"
         width: parent.width
         height: 72
-        radius: Tokens.rounding.large
-        color: Colours.palette.m3secondaryContainer
+        role: "secondary"
+        shape: "large"
 
         MaterialIcon {
             id: modeIcon

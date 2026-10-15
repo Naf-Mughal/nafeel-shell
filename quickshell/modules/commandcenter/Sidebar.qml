@@ -5,11 +5,33 @@ import qs.config
 import qs.services
 import qs.components
 
-// The command center's tabs, with an active pill that springs between them.
+// The command center's tabs: the goo rests on the open one and follows the
+// hover (ListGoo); a tab rested on a moment opens (tabs switch on hover).
 Item {
     id: root
 
     required property var tabs // [{ id, icon, label }]
+
+    // A tab rested on opens (crossing the list doesn't flick through them).
+    Timer {
+        id: dwell
+
+        interval: 90
+        onTriggered: {
+            const t = goo.hovered;
+            if (t && ShellState.ccTab !== t.modelData.id)
+                ShellState.ccTab = t.modelData.id;
+        }
+    }
+
+    ListGoo {
+        id: goo
+
+        anchors.fill: column
+        container: column
+        radius: Tokens.rounding.small
+        onHoveredChanged: dwell.restart()
+    }
 
     Column {
         id: column
@@ -20,46 +42,47 @@ Item {
         Repeater {
             model: root.tabs
 
-            Item {
+            Surface {
                 id: tab
 
                 required property var modelData
                 readonly property bool current: ShellState.ccTab === modelData.id
+                // A goo row: the goo rests on the open tab.
+                property Item goo: goo
+                readonly property bool picked: current
+                readonly property bool inked: goo.covers(tab)
 
                 width: column.width
                 height: 40
+                emphasis: "ghost"
+                interactive: true
+                hoverLayer: false
+                pressDepth: 1
+                morph: false
+                shape: "small"
+                baseInk: inked ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")
+                baseSubInk: inked ? Colours.roleSubInk("secondary", "soft") : Colours.roleSubInk("paper", "soft")
+                onClicked: ShellState.ccTab = modelData.id
 
                 Row {
                     anchors.left: parent.left
                     anchors.leftMargin: Tokens.spacing.normal
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.spacing.normal
-                    z: 1
 
                     MaterialIcon {
                         text: tab.modelData.icon
-                        fill: tab.current ? 1 : 0
-                        color: tab.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                        fill: tab.inked ? 1 : 0
+                        color: tab.inked ? tab.ink : tab.subInk
                         size: 20
                     }
 
                     StyledText {
                         anchors.verticalCenter: parent.verticalCenter
                         text: tab.modelData.label
-                        color: tab.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                        color: tab.ink
                         font.pixelSize: 13
                         font.weight: tab.current ? Font.DemiBold : Font.Normal
-                    }
-                }
-
-                StyledRect {
-                    anchors.fill: parent
-                    radius: Tokens.rounding.small
-
-                    StateLayer {
-                        hovered: hover.hovered && !tab.current
-                        pressed: tabTap.pressed
-                        ink: Colours.palette.m3onSurface
                     }
                 }
 
@@ -68,48 +91,13 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: Tokens.spacing.normal
                     anchors.verticalCenter: parent.verticalCenter
-                    z: 1
                     text: tab.modelData.gloss ?? Xian.gloss[tab.modelData.id] ?? ""
-                    color: tab.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3outline
-                    opacity: tab.current ? 0.9 : 0.7
+                    color: tab.inked ? tab.ink : Colours.palette.m3outline
+                    opacity: tab.inked ? 0.9 : 0.7
                     font.family: Tokens.font.cjk
                     font.pixelSize: Tokens.font.row
                     font.letterSpacing: 1
                 }
-
-                HoverHandler {
-                    id: hover
-
-                    cursorShape: Qt.PointingHandCursor
-                }
-
-                TapHandler {
-                    id: tabTap
-
-                    onTapped: ShellState.ccTab = tab.modelData.id
-                }
-            }
-        }
-    }
-
-    StyledRect {
-        id: pill
-
-        readonly property int index: root.tabs.findIndex(t => t.id === ShellState.ccTab)
-
-        z: -1
-        width: parent.width
-        height: 40
-        y: Math.max(0, index) * 42
-        radius: Tokens.rounding.small
-        color: Colours.palette.m3secondaryContainer
-        opacity: index >= 0 ? 1 : 0
-
-        Behavior on y {
-            SpringAnimation {
-                spring: Tokens.springK(4)
-                damping: Tokens.dampK(0.32)
-                epsilon: 0.25
             }
         }
     }
