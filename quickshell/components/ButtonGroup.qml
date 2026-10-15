@@ -53,8 +53,33 @@ Item {
     // Only the pointer's own moves switch: a switch can resize the panel
     // and slide the tabs under a still pointer onto the next one, which
     // then switched back, and so on (ping-pong between two tabs).
+    // The hover, worked out here with dead zones: it moves to a segment
+    // only when the pointer itself moves and is well inside it (10 px from
+    // its edges); on an edge, in a gap, or with the layout sliding under a
+    // still pointer, it stays where it was.
+    property Item hoverSeg: null
+    property point lastScene: Qt.point(-999, -999)
+    readonly property real deadZone: 10
+
     HoverHandler {
         id: pointer
+
+        onHoveredChanged: if (!hovered)
+            root.hoverSeg = null
+        onPointChanged: {
+            const sp = point.scenePosition;
+            if (Math.abs(sp.x - root.lastScene.x) < 1 && Math.abs(sp.y - root.lastScene.y) < 1)
+                return;
+            root.lastScene = sp;
+            const p = point.position;
+            for (let i = 0; i < segs.count; i++) {
+                const s = segs.itemAt(i);
+                if (s && p.x > s.x + root.deadZone && p.x < s.x + s.width - root.deadZone && p.y > s.y && p.y < s.y + s.height) {
+                    root.hoverSeg = s;
+                    return;
+                }
+            }
+        }
     }
     property point switchedAt: Qt.point(-999, -999)
     property double switchedTime: 0
@@ -64,7 +89,7 @@ Item {
 
         interval: 90
         onTriggered: {
-            const s = goo.hovered;
+            const s = root.hoverSeg;
             if (!s || s.modelData.value === root.current)
                 return;
             const p = pointer.point.scenePosition;
@@ -86,15 +111,7 @@ Item {
         anchors.fill: parent
         // Read again as the items arrive (itemAt and count say nothing then).
         selected: root._items >= 0 ? segs.itemAt(root.model.findIndex(m => m.value === root.current)) : null
-        hovered: {
-            void root._items;
-            for (let i = 0; i < segs.count; i++) {
-                const s = segs.itemAt(i);
-                if (s?.hovered)
-                    return s;
-            }
-            return null;
-        }
+        hovered: root.hoverSeg
         fill: Colours.roleFill("secondary", "strong", 0)
         radius: Tokens.rounding.morph
     }
