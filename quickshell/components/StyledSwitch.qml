@@ -7,6 +7,7 @@ import "keynav.js" as KeyNav
 // out sideways while it moves (no tilt), and the track soaks with colour up
 // to where the drop is, so turning it on reads as ink running into the
 // paper. Hover swells the drop; Space or Enter toggles it from the keyboard.
+// Its corners follow Appearance → Corner rounding (a pill only on Generous).
 Item {
     id: root
 
@@ -57,7 +58,7 @@ Item {
         id: track
 
         anchors.fill: parent
-        radius: height / 2
+        radius: Math.min(height / 2, Tokens.rounding.morph)
         color: Colours.palette.m3surfaceContainerHighest
         border.width: root.activeFocus && root.focusByKey ? 2 : Tokens.hairline * 2
         border.color: root.activeFocus && root.focusByKey ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3outline, 1 - root.pos)
@@ -67,7 +68,7 @@ Item {
             // sliver left behind at the start).
             width: Math.max(height, drop.x + drop.width + root.pad)
             height: parent.height
-            radius: height / 2
+            radius: Math.min(height / 2, Tokens.rounding.morph)
             color: Colours.palette.m3primary
             opacity: Math.min(1, root.pos * 1.6)
         }
@@ -83,7 +84,7 @@ Item {
         x: root.pad + (22 - root.dropSize) / 2 + root.pos * root.travel - (root.checked ? stretch : 0)
         width: root.dropSize + stretch
         height: root.dropSize
-        radius: height / 2
+        radius: Math.min(height / 2, Tokens.rounding.morph)
         color: root.pos > 0.5 ? Colours.palette.m3onPrimary : Colours.palette.m3outline
 
         Behavior on height {
