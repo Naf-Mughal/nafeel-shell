@@ -3,20 +3,10 @@
   "name": "Authentication",
   "gloss": "授权",
   "icon": "admin_panel_settings",
-  "description": "The shell's polkit agent: password prompts for admin actions, as the lock's formation on the shell's paper, grown out of the bottom edge to cover the screen (type the incantation, Enter, Esc to leave). Off: no agent, so such actions can't ask.",
+  "description": "The shell's polkit agent: password prompts for admin actions, as the lock itself (the desktop soaking into ink, the formation turning) inside the frame; type the incantation, Enter, Esc to leave. Off: no agent, so such actions can't ask.",
   "default": true,
   "root": "Plugin.qml",
-  "drawers": [
-    {
-      "name": "polkit",
-      "entry": "PolkitPrompt.qml",
-      "edge": "bottom",
-      "width": "fill",
-      "height": "fill",
-      "padding": 0,
-      "keyboard": true,
-      "openWhen": "active",
-      "modal": true
-    }
+  "overlays": [
+    "Seal.qml"
   ]
 }

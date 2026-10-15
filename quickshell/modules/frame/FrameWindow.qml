@@ -192,7 +192,7 @@ PanelWindow {
             kbRelease.restart();
         }
     }
-    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (grabbingHere && !ShellState.grabPreview)
+    readonly property bool wantsFocus: modalHere || pinnedHere || editingHere || (grabbingHere && !ShellState.grabPreview) || (ShellState.takeover !== "" && ShellState.takeover === (screen?.name ?? ""))
     readonly property bool grabbingHere: ShellState.grabbing !== "" && !ShellState.rehearsal && ShellState.screen === (screen?.name ?? "")
     // Let go of the keyboard once a closing panel has settled, not as it
     // starts: handing focus back makes the compositor re-arrange its layers
@@ -585,6 +585,9 @@ PanelWindow {
 
             parent: win.contentItem
             anchors.fill: parent
+            // Its own z: below 0 is under the frame and the bars (the polkit
+            // prompt, merging with them).
+            z: item?.z ?? 0
             active: Plugins.isEnabled(modelData.plugin)
             source: modelData.url
             onLoaded: {

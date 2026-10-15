@@ -264,6 +264,9 @@ Singleton {
 
     // The panel about to open (keyboard taken, motion not started).
     property string grabbing: ""
+    // A plugin's overlay holding a screen's keyboard and pointer (the
+    // polkit prompt): that screen's name, or "".
+    property string takeover: ""
     // ...or only rehearsing: once after the warm-up, each panel's content is
     // drawn a few frames clipped to nothing (no keyboard, no motion), so its
     // glyphs, textures and pipelines exist before its first real open.

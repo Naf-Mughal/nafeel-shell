@@ -37,20 +37,17 @@ Item {
     property bool shown: true
     property bool still: false
     property real minScale: 0.7
-    // Compact (the polkit prompt): the formation, its prompt and its seals
-    // floating over the desktop on a pool of ink; no backdrop, no desktop
-    // dissolve, no title, hour, cultivator, music, tokens or insights. Esc
+    // Compact (the polkit prompt): the lock as it is (the desktop soaking
+    // into ink, the backdrop, formation, prompt, seals and choreography)
+    // without the title, hour, cultivator, music, tokens or insights. Esc
     // leaves (ctx.leave()).
     property bool compact: false
-    // Compact: the pool of ink under it (off where it sits on the shell's
-    // paper, the polkit panel).
-    property bool pool: true
     // The prompt's idle line (compact: what's asking).
     property string idleLine: "Recite the incantation to break the seal"
 
     readonly property real sc: Math.max(minScale, Math.min(2, Math.min(width / 1920, height / 1080)))
     readonly property real edge: 60 * sc
-    readonly property real formationY: compact ? height * 0.45 : height * 0.42
+    readonly property real formationY: height * 0.42
 
     // Choreography.
     property real draw: 0
@@ -158,27 +155,10 @@ Item {
     // ── The ink world ────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        visible: !xian.compact
         color: Xian.ink
     }
 
-    // Compact: a pool of ink under the formation and its prompt, fading
-    // out to the desktop (no veil over the rest of it).
-    ShaderEffect {
-        visible: xian.compact && xian.pool
-        x: xian.width / 2 - width / 2
-        y: xian.formationY + 70 * xian.sc - height / 2
-        width: 1250 * xian.sc
-        height: width
-        opacity: LockTheme.seg(xian.draw, 0, 0.6) * (1 - xian.burst)
-        property color inkColor: Xian.ink
-        property real strength: 0.9
-
-        fragmentShader: Qt.resolvedUrl("../../../../shaders/ink_pool.frag.qsb")
-    }
-
     Item {
-        visible: !xian.compact
         width: 0
         height: 0
         clip: true
@@ -200,7 +180,7 @@ Item {
                 id: wallpaper
                 anchors.fill: parent
                 // A live wallpaper's still until its first frames.
-                source: xian.compact ? "" : xian.host.wallpaperStill
+                source: xian.host.wallpaperStill
                 sourceSize: Qt.size(Math.max(1, xian.width), Math.max(1, xian.height))
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
@@ -209,7 +189,7 @@ Item {
 
             Loader {
                 anchors.fill: parent
-                active: wallItem.live && xian.host.liveComponent !== null && !xian.compact
+                active: wallItem.live && xian.host.liveComponent !== null
                 sourceComponent: xian.host.liveComponent
                 // The host's player: the live file, playing until the screen
                 // dims (as the rest of the motion).
@@ -256,7 +236,7 @@ Item {
 
     ShaderEffect {
         anchors.fill: parent
-        visible: wallItem.ready && !xian.compact && !xian.debugOff.includes("backdrop")
+        visible: wallItem.ready && !xian.debugOff.includes("backdrop")
 
         property variant wall: wallTex
         property variant mist: mistTex
@@ -287,7 +267,7 @@ Item {
 
     ShaderEffect {
         anchors.fill: parent
-        visible: capture.ready && xian.dissolve < 1 && !xian.compact
+        visible: capture.ready && xian.dissolve < 1
 
         property variant source: capture.image
         property real itemWidth: width
@@ -305,7 +285,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: "black"
-        visible: !capture.ready && opacity > 0 && !xian.compact
+        visible: !capture.ready && opacity > 0
         opacity: 1 - xian.dissolve
     }
 
