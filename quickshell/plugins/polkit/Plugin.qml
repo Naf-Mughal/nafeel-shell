@@ -15,7 +15,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import Quickshell.Services.Polkit
 import qs.services
 import "../lock"
@@ -25,6 +24,8 @@ Scope {
     id: root
 
     readonly property alias agent: agent
+    // The lock's context the panel's surface reads (PolkitPrompt).
+    readonly property alias ctx: lockCtx
     readonly property var flow: agent.flow
     // A pretend request (IPC preview).
     property bool preview: false
@@ -126,40 +127,4 @@ Scope {
         }
     }
 
-    // The theme's colours from the shell.
-    ShellLockHost {
-        id: lockHost
-    }
-
-    // On the focused screen while it's up.
-    Variants {
-        model: root.showing ? Quickshell.screens.filter(s => s.name === Umbriel.focusedOutput || (Umbriel.focusedOutput === "" && s === Quickshell.screens[0])).slice(0, 1) : []
-
-        PanelWindow {
-            required property ShellScreen modelData
-
-            screen: modelData
-            anchors {
-                top: true
-                bottom: true
-                left: true
-                right: true
-            }
-            color: "transparent"
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            // Not "nafeel-shell…": the frosted-paper rule would blur behind
-            // the ink pool, edged where it turns 5% opaque.
-            WlrLayershell.namespace: "nafeel-polkit"
-            WlrLayershell.keyboardFocus: lockCtx.phase === "exiting" ? WlrKeyboardFocus.None : WlrKeyboardFocus.Exclusive
-
-            XianxiaSurface {
-                anchors.fill: parent
-                compact: true
-                idleLine: root.preview ? "A pretend request: “wrong” is refused, anything else granted" : (root.flow?.message ?? "") + ((root.flow?.identities?.length ?? 0) > 1 ? `  ·  as ${root.flow.selectedIdentity?.displayName || root.flow.selectedIdentity?.name || ""}` : "")
-                ctx: lockCtx
-                host: lockHost
-            }
-        }
-    }
 }

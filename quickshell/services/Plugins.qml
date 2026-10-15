@@ -11,8 +11,9 @@ pragma Singleton
 //       "root": "Plugin.qml",  made while the plugin is on (instance(id)):
 //                              its services, settings page and IPC
 //       "drawers": [{ "name", "entry", "edge", "along", "corner",
-//                     "width" / "height": a number (capped to the screen)
-//                       or "content" (the entry's implicit size),
+//                     "width" / "height": a number (capped to the screen),
+//                       "content" (the entry's implicit size) or "fill"
+//                       (the whole screen between the bars),
 //                     "keyboard", "hoverZone", "zoneLength", "padding",
 //                     "warm" (default true: once opened, its content stays
 //                       made while closed; false for a heavy one),

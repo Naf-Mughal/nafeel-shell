@@ -1024,8 +1024,10 @@ PanelWindow {
             // for; "content" height follows the entry, springing as it
             // changes (a dashboard tab, say).
             // At least as long as the pill it grows out of.
-            panelWidth: Math.max(vertical ? at.length : 0, modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.innerWidth - 160))
-            panelHeight: Math.max(vertical ? 0 : at.length, modelData.height === "content" ? (pdLoader.item?.implicitHeight ?? 300) + pad * 2 : Math.min(modelData.height ?? 300, win.height - 120))
+            // "fill": the whole screen between the bars (the paper merges
+            // with them).
+            panelWidth: Math.max(vertical ? at.length : 0, modelData.width === "fill" ? win.innerWidth : modelData.width === "content" ? (pdLoader.item?.implicitWidth ?? 200) + pad * 2 : Math.min(modelData.width ?? 400, win.innerWidth - 160))
+            panelHeight: Math.max(vertical ? 0 : at.length, modelData.height === "fill" ? win.height - win.tTop - win.tBottom + thickness : modelData.height === "content" ? (pdLoader.item?.implicitHeight ?? 300) + pad * 2 : Math.min(modelData.height ?? 300, win.height - 120))
 
             Behavior on panelHeight {
                 enabled: pd.active && pd.modelData.height === "content"

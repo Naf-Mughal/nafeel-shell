@@ -42,6 +42,9 @@ Item {
     // dissolve, no title, hour, cultivator, music, tokens or insights. Esc
     // leaves (ctx.leave()).
     property bool compact: false
+    // Compact: the pool of ink under it (off where it sits on the shell's
+    // paper, the polkit panel).
+    property bool pool: true
     // The prompt's idle line (compact: what's asking).
     property string idleLine: "Recite the incantation to break the seal"
 
@@ -162,7 +165,7 @@ Item {
     // Compact: a pool of ink under the formation and its prompt, fading
     // out to the desktop (no veil over the rest of it).
     ShaderEffect {
-        visible: xian.compact
+        visible: xian.compact && xian.pool
         x: xian.width / 2 - width / 2
         y: xian.formationY + 70 * xian.sc - height / 2
         width: 1250 * xian.sc
