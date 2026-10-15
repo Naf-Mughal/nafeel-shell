@@ -4,10 +4,10 @@ import QtQuick
 import qs.config
 import qs.services
 
-// A password as seals: each key presses in a cinnabar seal stamped with a
-// character, which then morphs into a plain dot (square to circle, the
-// stamp's character fading, cinnabar to ink), as the Pixel's PIN shapes melt
-// into dots. Stays inside its field: the row slides so the newest is in view.
+// A password as seals: each key presses in a seal's character in cinnabar
+// (no ground), which then melts into a plain dot (the character shrinking
+// and fading as the dot rounds out of it, cinnabar to ink), as the Pixel's
+// PIN shapes melt into dots. Stays inside its field: the row slides so the newest is in view.
 //   PasswordSeals { anchors.fill: parent; count: input.text.length }
 Item {
     id: root
@@ -61,27 +61,38 @@ Item {
                 width: stamp.size
                 height: 18
 
-                Rectangle {
+                // The stamp's character in cinnabar, no ground, melting into
+                // the dot: it shrinks and fades as the dot rounds out of it.
+                Item {
                     id: stamp
 
                     anchors.centerIn: parent
-                    readonly property real size: 16 - 8 * slot.melt
+                    readonly property real size: 14 - 6 * slot.melt
 
                     width: size
                     height: size
-                    radius: 2 + (size / 2 - 2) * slot.melt
                     rotation: (slot.index % 2 ? 5 : -6) * (1 - slot.melt)
-                    // Cinnabar never themes (components/Seal), melting to ink.
-                    color: Qt.tint("#c8372d", Qt.alpha(root.dot, slot.melt))
-                    scale: 1
 
                     StyledText {
                         anchors.centerIn: parent
                         text: root.glyphs.charAt(slot.index % root.glyphs.length)
-                        color: "#f3e6cf"
+                        // Cinnabar never themes (components/Seal).
+                        color: "#c8372d"
                         font.family: Tokens.font.cjk
-                        font.pixelSize: 11
-                        opacity: 1 - slot.melt * 2.5
+                        font.pixelSize: 15
+                        font.weight: Font.Bold
+                        opacity: 1 - slot.melt
+                        scale: 1 - 0.6 * slot.melt
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 8
+                        height: 8
+                        radius: 4
+                        color: Qt.tint("#c8372d", Qt.alpha(root.dot, slot.melt))
+                        opacity: slot.melt
+                        scale: 0.3 + 0.7 * slot.melt
                     }
                 }
 

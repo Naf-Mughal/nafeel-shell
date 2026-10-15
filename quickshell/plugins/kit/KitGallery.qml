@@ -520,45 +520,11 @@ Item {
                 note: "the same typing styles: Enter, Ctrl+arrows, Home/End or a click to cut"
 
                 Spec {
-                    caption: "type, jump around"
-                    Surface {
-                        level: 2
+                    caption: "grows with its text, then scrolls"
+                    TextArea {
                         width: 520
-                        height: 150
-
-                        TextEdit {
-                            id: area
-
-                            anchors.fill: parent
-                            anchors.margins: Tokens.spacing.normal
-                            wrapMode: TextEdit.Wrap
-                            color: Colours.palette.m3onSurface
-                            selectionColor: Colours.palette.m3primary
-                            selectedTextColor: Colours.palette.m3onPrimary
-                            font.pixelSize: Tokens.font.row
-                            text: "The brush moves before the thought.\nClick anywhere, or press Enter, Home, End,\nCtrl+Left / Ctrl+Right to watch the caret cut across."
-
-                            cursorDelegate: Tokens.typing.indexOf("goo") >= 0 && !Tokens.reduceMotion ? areaGoo : null
-
-                            Component {
-                                id: areaGoo
-
-                                GooCaret {}
-                            }
-                            CaretTrail {
-                                target: area
-                                enabled: Tokens.typing.indexOf("trail") >= 0
-                            }
-                            TypingInk {
-                                target: area
-                                enabled: Tokens.typing.indexOf("ink") >= 0
-                                paper: Colours.roleFill("paper", "soft", 2)
-                            }
-                            TypingBrush {
-                                target: area
-                                enabled: Tokens.typing.indexOf("brush") >= 0
-                            }
-                        }
+                        placeholder: "Write anything"
+                        text: "The brush moves before the thought.\nClick anywhere, or press Enter, Home, End,\nCtrl+Left / Ctrl+Right to watch the caret cut across."
                     }
                 }
             }
