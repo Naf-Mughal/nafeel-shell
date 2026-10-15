@@ -466,6 +466,62 @@ Item {
             }
 
             Entry {
+                num: "17"
+                name: "Typing"
+                note: "pick the one inputs should use; click a field and type"
+
+                Spec {
+                    caption: "plain"
+                    TextField {
+                        width: 240
+                        placeholder: "Type here"
+                        typing: "plain"
+                    }
+                }
+                Spec {
+                    caption: "ink · letters soak in"
+                    TextField {
+                        id: tfInk
+
+                        width: 240
+                        placeholder: "Type here"
+                        typing: "ink"
+                    }
+                }
+                Spec {
+                    caption: "goo caret"
+                    TextField {
+                        id: tfGoo
+
+                        width: 240
+                        placeholder: "Type here"
+                        typing: "goo"
+                    }
+                }
+                Spec {
+                    caption: "brush underline"
+                    TextField {
+                        id: tfBrush
+
+                        width: 240
+                        placeholder: "Type here"
+                        typing: "brush"
+                    }
+                }
+                Spec {
+                    caption: "password · seals"
+                    TextField {
+                        id: tfSeal
+
+                        width: 240
+                        placeholder: "Password"
+                        echoMode: TextInput.Password
+                        seals: true
+                    }
+                }
+            }
+
+            Entry {
                 num: "16"
                 name: "Text area · caret trail"
                 note: "the cut when the caret jumps: Enter, Ctrl+arrows, Home/End, a click"
