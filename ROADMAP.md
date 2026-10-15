@@ -892,6 +892,11 @@ every control and state on, then the controls, then moving panels onto them, mot
   Tooltip, Dialog on Floating (hosts.js: floats inside its panel's body, unfolding from where it
   opened; a press outside closes it), ReorderList (grip drag, rows make room, goo marks the
   landing). Not wired into panels yet (K6), nor the picker's/annotator's swatches.
+- [x] **K6a The desktop's menu** (2026-10-15, the user's ask, after Ryoku's): a right-click on
+  the empty desktop (the wallpaper's surface) opens quick settings as chips that stay open
+  (awake, night light, do not disturb, dark) and the desktop's actions (change / shuffle the
+  wallpaper, edit the bar, Settings, the kit, reload). The surface takes the keyboard only while
+  it's open.
 - [ ] **K6 Panels onto the primitives**: the ~71 hand-made rectangles (not the lock theme's own
   drawing, Capture's big buttons, progress tracks, workspace miniatures), and the command
   center tabs, action center and OSD onto Panel/Sheet.

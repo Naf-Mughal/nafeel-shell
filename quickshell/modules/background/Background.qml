@@ -63,7 +63,8 @@ Variants {
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Background
         WlrLayershell.namespace: "nafeel-wallpaper"
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        // The keyboard only while the desktop's menu is open (Esc, arrows).
+        WlrLayershell.keyboardFocus: deskMenu.open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
 
         Rectangle {
@@ -181,6 +182,30 @@ Variants {
             onQuickWindowChanged: {
                 if (quickWindow)
                     FramePacer.attachWallpaper(quickWindow);
+            }
+        }
+
+        // A right-click on the empty desktop: its menu, where it landed.
+        Item {
+            id: desk
+
+            anchors.fill: parent
+
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: p => deskMenu.popup(desk, p.position)
+            }
+        }
+
+        DesktopMenu {
+            id: deskMenu
+
+            screenName: win.modelData.name
+
+            function popup(item: Item, point: point): void {
+                from = item;
+                at = point;
+                show();
             }
         }
     }
