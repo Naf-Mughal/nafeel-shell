@@ -405,8 +405,10 @@ Singleton {
 
         interval: 1500
         onTriggered: {
-            if (root.still && root.resting)
+            if (root.still && root.resting) {
                 gc();
+                Memory.trim();
+            }
             else if (root.still)
                 restart();
         }
@@ -432,6 +434,12 @@ Singleton {
                 FramePacer.startLog(path);
             else
                 FramePacer.stopLog();
+        }
+
+        // Collect garbage and hand freed memory back now (measuring).
+        function trim(): void {
+            gc();
+            Memory.trim();
         }
 
         function toggle(drawer: string): void {

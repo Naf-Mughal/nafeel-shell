@@ -16,22 +16,27 @@ Item {
     anchors.fill: parent
     z: 100000
 
-    ShaderEffectSource {
+    // Only while a change runs: kept, it held a window-sized texture (8 MB
+    // of VRAM for a 1080p screen) per window between changes, for nothing.
+    Loader {
         id: still
 
         anchors.fill: parent
-        sourceItem: root.target
-        live: false
-        recursive: true
-        hideSource: false
-        visible: false
+        active: Ink.capturing || Ink.frozen
+        sourceComponent: ShaderEffectSource {
+            sourceItem: root.target
+            live: false
+            recursive: true
+            hideSource: false
+            visible: false
+        }
     }
 
     Connections {
         target: Ink
 
         function onCapture(): void {
-            still.scheduleUpdate();
+            still.item?.scheduleUpdate();
         }
     }
 
@@ -40,7 +45,7 @@ Item {
         // In the scene while the still is taken (clear: progress is 1 then)
         // so it renders, and while it shows.
         visible: Ink.frozen || Ink.capturing
-        property var source: still
+        property var source: still.item
         property real progress: Ink.progress
         property point origin: Ink.origin
         property size size: Qt.size(width, height)

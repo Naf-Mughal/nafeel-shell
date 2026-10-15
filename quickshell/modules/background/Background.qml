@@ -121,8 +121,20 @@ Variants {
         // Once a change has landed, the slot it came from lets go of its
         // picture (above all a video: two decoders at once stall).
         function release(): void {
-            if (spare.path && spare.path !== shows)
+            if (spare.path && spare.path !== shows) {
                 spare.path = "";
+                trimLater.restart();
+            }
+        }
+
+        // What the old wallpaper's decoder freed goes back to the system
+        // once it has stopped (glibc kept it: a live-to-picture change left
+        // the shell ~60 MB heavier than one started on the picture).
+        Timer {
+            id: trimLater
+
+            interval: 3000
+            onTriggered: Memory.trim()
         }
 
         Subscribe {

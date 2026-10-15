@@ -61,15 +61,23 @@ Item {
     }
 
     // A live wallpaper's still frame under the player: shown while it
-    // starts (no black flash) and while the player is let go.
+    // starts (no black flash) and while the player is let go. Decoded, it's
+    // enough to change to: a hidden slot's player doesn't decode (the
+    // direct engine shows nothing it can't put on screen), so waiting for
+    // its first frame held every live change until the theme gave up (8 s).
+    // The video then takes over from the still once it's going.
     Image {
         anchors.fill: parent
         visible: root.isVideo && !root.clear
-        source: root.isVideo ? "file://" + Wallpapers.stillOf(root.path) : ""
+        source: root.isVideo && Wallpapers.stillOf(root.path) ? "file://" + Wallpapers.stillOf(root.path) : ""
         sourceSize: root.decode
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
+        onStatusChanged: {
+            if (status === Image.Ready && root.isVideo)
+                root._done(true);
+        }
     }
 
     // A live wallpaper (one player at a time: two decoders at once stalled,
