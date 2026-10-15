@@ -5,6 +5,7 @@
 #   Keyboard      the modifiers held right now (the switcher's Alt release)
 #   Memory        freed memory handed back to the system (malloc_trim)
 #   image://still pictures held only as textures (StillProvider)
+#   SurfaceFx     a Surface's interaction (hover, press, ripple, bounce, fades)
 #   BlobGroup, BlobRect, BlobInvertedRect
 #                 the frame as SDF blobs that merge (Ryoku's engine, GPL-3.0)
 #   NightLight    warmer colour temperature (Noctalia's gamma service, MIT)
@@ -100,6 +101,8 @@ qt_add_qml_module(nafeelnative
         src/keyboard.h
         src/memory.h
         src/stillimage.h src/stillimage.cpp
+        src/surfacefx.h src/surfacefx.cpp
+        src/probe.h
         src/fonts.h
         src/annotationcanvas.h src/annotationcanvas.cpp
         src/screensaver.h src/screensaver.cpp

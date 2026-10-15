@@ -1,6 +1,7 @@
 import QtQuick
 import qs.config
 import qs.services
+import Nafeel
 import "keynav.js" as KeyNav
 
 // The one container every panel and control is built from. It's made of a
@@ -13,10 +14,10 @@ import "keynav.js" as KeyNav
 //
 // Children read `ink` / `subInk` for their text and icons.
 //
-// Only an interactive one carries the interaction: its state layer, press
-// bounce, handlers and the animations of its fill, radius and scale are made
-// with it (a Loader); a still card is just its rectangle. (Every Surface made
-// them all: ~2500 surfaces, each a dozen objects, most never touched.)
+// Only an interactive one carries the interaction, and natively (SurfaceFx,
+// in the Nafeel module): a still card is just its rectangle and one inert
+// item. (In QML every interactive surface made ~25 objects for it: ~40 MB
+// over the warm panels.)
 StyledRect {
     id: root
 
@@ -41,13 +42,13 @@ StyledRect {
     property color baseSubInk: Colours.roleSubInk(role, emphasis)
     property color ink: baseInk
     property color subInk: baseSubInk
-    readonly property bool hovered: interaction.item?.hovered ?? false
+    readonly property bool hovered: fx.hovered
     // Where the pointer is on it while hovered (HoverTracker's dead zones).
-    readonly property point hoverAt: interaction.item?.hoverAt ?? Qt.point(-1, -1)
+    readonly property point hoverAt: fx.hoverAt
     // The pointer in the window, as the event had it (no item's transform in
     // it: a drawer squashing as it resizes doesn't make a still pointer move).
-    readonly property point hoverScene: interaction.item?.hoverScene ?? Qt.point(-1, -1)
-    readonly property bool pressed: interaction.item?.pressed ?? false
+    readonly property point hoverScene: fx.hoverScene
+    readonly property bool pressed: fx.pressed
     // Where the last press landed (a toggle's ink fill spreads from here).
     property point pressPoint: Qt.point(width / 2, height / 2)
     readonly property real restRadius: shape === "full" ? Math.min(width, height) / 2 : shape === "small" ? Tokens.rounding.small : shape === "large" ? Tokens.rounding.large : Tokens.rounding.normal
@@ -73,49 +74,6 @@ StyledRect {
     property bool hinting: false
     // Covered by the hold's ink (its ink should turn).
     readonly property bool holding: hold > 0.5
-
-    onPressedChanged: {
-        if (!holdToConfirm)
-            return;
-        if (pressed) {
-            holdDrain.stop();
-            holdFill.duration = holdMs * (1 - hold);
-            holdFill.restart();
-        } else if (hold < 1) {
-            holdFill.stop();
-            holdDrain.restart();
-        }
-    }
-    onClicked: if (holdToConfirm) {
-        hinting = true;
-        holdHint.restart();
-    }
-    NumberAnimation {
-        id: holdFill
-
-        target: root
-        property: "hold"
-        to: 1
-        onFinished: {
-            root.hold = 0;
-            root.confirmed();
-        }
-    }
-    NumberAnimation {
-        id: holdDrain
-
-        target: root
-        property: "hold"
-        to: 0
-        duration: Tokens.anim.normal
-        easing.type: Easing.OutCubic
-    }
-    Timer {
-        id: holdHint
-
-        interval: 1600
-        onTriggered: root.hinting = false
-    }
 
     color: fill
     radius: shapeRadius
@@ -160,171 +118,13 @@ StyledRect {
         event.accepted = true;
     }
 
-    // The hold's ink, under the content.
-    InkSpread {
-        visible: root.holdToConfirm && p > 0.001
-        color: Colours.roleFill("primary", "strong", 0)
-        origin: Qt.point(root.width / 2, root.height / 2)
-        p: root.hold
-        r1: root.radius
-    }
-
-    Loader {
-        id: interaction
-
-        anchors.fill: parent
-        active: root.interactive
-        sourceComponent: Item {
-            id: ix
-
-            readonly property bool hovered: hover.hovered
-            readonly property point hoverAt: hover.point.position
-            readonly property point hoverScene: hover.point.scenePosition
-            readonly property bool pressed: tap.pressed
-
-            // The fill fades between states (checked, selected, …).
-            property color fill: root.fill
-            Behavior on fill {
-                CAnim {}
-            }
-            Binding {
-                target: root
-                property: "color"
-                value: ix.fill
-                restoreMode: Binding.RestoreBindingOrValue
-            }
-
-            // Its ink, in step with the fill (text snapping to the new state
-            // while the fill still faded briefly lost its contrast).
-            property color ink: root.baseInk
-            property color subInk: root.baseSubInk
-            Behavior on ink {
-                CAnim {}
-            }
-            Behavior on subInk {
-                CAnim {}
-            }
-            Binding {
-                target: root
-                property: "ink"
-                value: ix.ink
-                restoreMode: Binding.RestoreBindingOrValue
-            }
-            Binding {
-                target: root
-                property: "subInk"
-                value: ix.subInk
-                restoreMode: Binding.RestoreBindingOrValue
-            }
-
-            // The shape, animated (the Expressive morph while pressed).
-            property real shapeRadius: root.shapeRadius
-            Behavior on shapeRadius {
-                Anim {
-                    duration: Tokens.anim.fast
-                    easing.bezierCurve: Tokens.anim.expressiveFastSpatial
-                }
-            }
-            Binding {
-                target: root
-                property: "radius"
-                value: ix.shapeRadius
-                restoreMode: Binding.RestoreBindingOrValue
-            }
-
-            // Press physics: a squash that springs back past rest.
-            property real bounce: pressed ? root.pressDepth : 1
-            Behavior on bounce {
-                SpringAnimation {
-                    spring: Tokens.spring.bouncy.spring
-                    damping: Tokens.spring.bouncy.damping
-                    epsilon: 0.002
-                }
-            }
-            Binding {
-                target: root
-                property: "scale"
-                value: ix.bounce
-                restoreMode: Binding.RestoreBindingOrValue
-            }
-
-            // The press: ink spreading from where it landed, fading on release.
-            InkSpread {
-                id: ripple
-
-                color: root.ink
-                opacity: 0
-                origin: root.pressPoint
-                r1: root.radius
-
-                Connections {
-                    target: ix
-
-                    function onPressedChanged(): void {
-                        if (ix.pressed) {
-                            fade.stop();
-                            ripple.opacity = 0.14;
-                            spread.restart();
-                        } else {
-                            fade.restart();
-                        }
-                    }
-                }
-                NumberAnimation {
-                    id: spread
-
-                    target: ripple
-                    property: "p"
-                    from: 0
-                    to: 1
-                    duration: Tokens.anim.normal
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Tokens.anim.emphasizedDecel
-                }
-                NumberAnimation {
-                    id: fade
-
-                    target: ripple
-                    property: "opacity"
-                    to: 0
-                    duration: Tokens.anim.normal
-                    easing.type: Easing.OutQuad
-                }
-            }
-
-            StateLayer {
-                hovered: (ix.hovered && root.hoverLayer) || root.keyFocused
-                pressed: false
-                ink: root.ink
-                // The surface's shape (its parent here is this holder).
-                radius: root.radius
-                topLeftRadius: root.topLeftRadius
-                topRightRadius: root.topRightRadius
-                bottomLeftRadius: root.bottomLeftRadius
-                bottomRightRadius: root.bottomRightRadius
-            }
-
-            HoverHandler {
-                id: hover
-
-                cursorShape: Qt.PointingHandCursor
-            }
-
-            TapHandler {
-                id: tap
-
-                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                onPressedChanged: if (pressed)
-                    root.pressPoint = point.position
-                onTapped: (eventPoint, button) => {
-                    if (button === Qt.RightButton)
-                        root.rightClicked();
-                    else if (button === Qt.MiddleButton)
-                        root.middleClicked();
-                    else
-                        root.clicked();
-                }
-            }
-        }
+    // The interaction, native (Nafeel's SurfaceFx): an interactive one's
+    // state layer, press ripple and bounce, the shape morph, its fill and
+    // ink fading between states, hold to confirm; it owns the surface's
+    // color, ink, subInk, radius and scale while interactive (as Bindings
+    // would), and is one inert item on a still card. In QML that was ~25
+    // objects a surface, ~40 MB over the warm panels.
+    SurfaceFx {
+        id: fx
     }
 }

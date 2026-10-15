@@ -471,6 +471,18 @@ Singleton {
         function census(path: string): void {
             Memory.census(path);
         }
+        // Pointer events into one of the shell's windows (measuring hovers
+        // without hands): `windows` lists them; action enter|move|press|
+        // release|leave at (x, y) in that window.
+        function windows(): string {
+            return Probe.windows();
+        }
+        function itemsAt(window: int, x: real, y: real): string {
+            return Probe.itemsAt(window, x, y);
+        }
+        function pointer(window: int, action: string, x: real, y: real): void {
+            Probe.pointer(window, action, x, y);
+        }
         // A jemalloc heap profile (MALLOC_CONF=prof:true at start).
         function heapDump(path: string): void {
             Memory.heapDump(path);
