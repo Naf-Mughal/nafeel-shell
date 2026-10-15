@@ -424,16 +424,35 @@ Item {
                 selectedTextColor: Colours.palette.m3onPrimary
                 font.pixelSize: Tokens.font.row
                 textFormat: TextEdit.PlainText
+                cursorDelegate: Tokens.typing.indexOf("goo") >= 0 && !Tokens.reduceMotion ? gooCaret : null
                 onCursorRectangleChanged: flick.ensureVisible(cursorRectangle)
+
+                Component {
+                    id: gooCaret
+
+                    GooCaret {}
+                }
                 onTextChanged: {
                     if (root.loaded)
                         save.restart();
                 }
                 Keys.onPressed: event => root.keys(event)
 
-                // The caret's cut when it jumps (Kitty's cursor trail).
+                // Typing as Appearance → Typing says: the goo caret (the
+                // delegate above), the cut when the caret jumps, ink letters,
+                // the brush line.
                 CaretTrail {
                     target: edit
+                    enabled: Tokens.typing.indexOf("trail") >= 0
+                }
+                TypingInk {
+                    target: edit
+                    enabled: Tokens.typing.indexOf("ink") >= 0
+                    paper: "transparent"
+                }
+                TypingBrush {
+                    target: edit
+                    enabled: Tokens.typing.indexOf("brush") >= 0
                 }
 
                 StyledText {

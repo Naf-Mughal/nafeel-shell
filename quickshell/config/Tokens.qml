@@ -121,6 +121,35 @@ Singleton {
             ]
         }
         SettingItem {
+            key: "typing"
+            kind: "multi"
+            label: "Typing"
+            description: "How text fields and areas answer as you type. Pick any together."
+            def: ["goo", "trail"]
+            options: [
+                {
+                    value: "goo",
+                    icon: "water_drop",
+                    label: "Goo caret"
+                },
+                {
+                    value: "trail",
+                    icon: "swipe_right_alt",
+                    label: "Caret trail"
+                },
+                {
+                    value: "ink",
+                    icon: "ink_pen",
+                    label: "Ink letters"
+                },
+                {
+                    value: "brush",
+                    icon: "brush",
+                    label: "Brush line"
+                }
+            ]
+        }
+        SettingItem {
             key: "motion"
             label: "Motion"
             description: "The tempo of every animation."
@@ -234,6 +263,8 @@ Singleton {
 
     // ── Motion ────────────────────────────────────────────────────────────
     readonly property bool reduceMotion: settings.v.motion === "reduced"
+    // The typing styles on (Appearance → Typing): goo, trail, ink, brush.
+    readonly property var typing: settings.v.typing ?? []
     // How long motion takes, as a multiple of the designed timing: normal at
     // the designed speed (1), brisk quicker (0.7).
     readonly property real tempo: settings.v.motion === "brisk" ? 0.7 : 1

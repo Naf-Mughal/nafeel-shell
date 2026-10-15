@@ -468,52 +468,45 @@ Item {
             Entry {
                 num: "17"
                 name: "Typing"
-                note: "pick the one inputs should use; click a field and type"
+                note: "pick any together (the shell's setting, Appearance → Typing); click a field, type, jump around"
 
                 Spec {
-                    caption: "plain"
-                    TextField {
-                        width: 240
-                        placeholder: "Type here"
-                        typing: "plain"
+                    caption: "styles on"
+                    Row {
+                        spacing: Tokens.spacing.small
+
+                        Repeater {
+                            model: [["goo", "Goo caret", "water_drop"], ["trail", "Caret trail", "swipe_right_alt"], ["ink", "Ink letters", "ink_pen"], ["brush", "Brush line", "brush"]]
+
+                            Chip {
+                                required property var modelData
+
+                                text: modelData[1]
+                                icon: modelData[2]
+                                selected: Tokens.typing.indexOf(modelData[0]) >= 0
+                                onClicked: {
+                                    const on = Tokens.typing.filter(v => v !== modelData[0]);
+                                    Settings.set("typing", selected ? on : on.concat([modelData[0]]));
+                                }
+                            }
+                        }
                     }
                 }
                 Spec {
-                    caption: "ink · letters soak in"
+                    caption: "field"
                     TextField {
-                        id: tfInk
+                        id: tfDemo
 
-                        width: 240
+                        width: 300
                         placeholder: "Type here"
-                        typing: "ink"
                     }
                 }
                 Spec {
-                    caption: "goo caret"
-                    TextField {
-                        id: tfGoo
-
-                        width: 240
-                        placeholder: "Type here"
-                        typing: "goo"
-                    }
-                }
-                Spec {
-                    caption: "brush underline"
-                    TextField {
-                        id: tfBrush
-
-                        width: 240
-                        placeholder: "Type here"
-                        typing: "brush"
-                    }
-                }
-                Spec {
-                    caption: "password · seals"
+                    caption: "password · seals melting into dots"
                     TextField {
                         id: tfSeal
 
-                        width: 240
+                        width: 260
                         placeholder: "Password"
                         echoMode: TextInput.Password
                         seals: true
@@ -523,8 +516,8 @@ Item {
 
             Entry {
                 num: "16"
-                name: "Text area · caret trail"
-                note: "the cut when the caret jumps: Enter, Ctrl+arrows, Home/End, a click"
+                name: "Text area"
+                note: "the same typing styles: Enter, Ctrl+arrows, Home/End or a click to cut"
 
                 Spec {
                     caption: "type, jump around"
@@ -545,8 +538,25 @@ Item {
                             font.pixelSize: Tokens.font.row
                             text: "The brush moves before the thought.\nClick anywhere, or press Enter, Home, End,\nCtrl+Left / Ctrl+Right to watch the caret cut across."
 
+                            cursorDelegate: Tokens.typing.indexOf("goo") >= 0 && !Tokens.reduceMotion ? areaGoo : null
+
+                            Component {
+                                id: areaGoo
+
+                                GooCaret {}
+                            }
                             CaretTrail {
                                 target: area
+                                enabled: Tokens.typing.indexOf("trail") >= 0
+                            }
+                            TypingInk {
+                                target: area
+                                enabled: Tokens.typing.indexOf("ink") >= 0
+                                paper: Colours.roleFill("paper", "soft", 2)
+                            }
+                            TypingBrush {
+                                target: area
+                                enabled: Tokens.typing.indexOf("brush") >= 0
                             }
                         }
                     }

@@ -31,7 +31,7 @@ Shape {
     property rect last: Qt.rect(0, 0, 0, 0)
 
     anchors.fill: parent
-    visible: run.running
+    visible: run.running && enabled
     preferredRendererType: Shape.CurveRenderer
 
     function cornersOf(r: rect): var {
@@ -49,7 +49,7 @@ Shape {
             const r = Qt.rect(c.x, c.y, c.width, c.height);
             const was = Qt.rect(root.last.x, root.last.y, root.last.width, root.last.height);
             root.last = r;
-            if (Tokens.reduceMotion || !root.target.activeFocus || was.height === 0)
+            if (!root.enabled || Tokens.reduceMotion || !root.target.activeFocus || was.height === 0)
                 return;
             const dx = r.x - was.x;
             const dy = r.y - was.y;
