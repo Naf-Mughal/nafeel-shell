@@ -42,6 +42,8 @@ StyledRect {
     property color ink: baseInk
     property color subInk: baseSubInk
     readonly property bool hovered: interaction.item?.hovered ?? false
+    // Where the pointer is on it while hovered (HoverTracker's dead zones).
+    readonly property point hoverAt: interaction.item?.hoverAt ?? Qt.point(-1, -1)
     readonly property bool pressed: interaction.item?.pressed ?? false
     // Where the last press landed (a toggle's ink fill spreads from here).
     property point pressPoint: Qt.point(width / 2, height / 2)
@@ -173,6 +175,7 @@ StyledRect {
             id: ix
 
             readonly property bool hovered: hover.hovered
+            readonly property point hoverAt: hover.point.position
             readonly property bool pressed: tap.pressed
 
             // The fill fades between states (checked, selected, …).

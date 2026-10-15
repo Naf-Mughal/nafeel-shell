@@ -56,7 +56,6 @@ Item {
     HoverTracker {
         id: pointer
 
-        anchors.fill: parent
         deadZone: 10
         items: {
             void root._items;

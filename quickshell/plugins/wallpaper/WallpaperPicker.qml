@@ -484,13 +484,11 @@ Item {
             anchors.rightMargin: Tokens.spacing.normal
             height: parent.height
             spacing: Tokens.spacing.small
-            // Library: folders. Store: Wallhaven's filters, each a toggle or a
-            // cycle ({ text, on, act }).
-            model: root.rotating ? root.rotationChips : root.store ? root.storeChips : ["", ...Wallpapers.folders].map(f => ({
-                        text: f ? f.charAt(0).toUpperCase() + f.slice(1) : "All",
-                        on: Wallpapers.filterFolder === f,
-                        act: () => Wallpapers.filterFolder = f
-                    }))
+            // Rotation's settings and the store's filters, each a toggle or a
+            // cycle ({ text, on, act }); the library's folders are a goo group
+            // (one pick) below.
+            visible: root.rotating || root.store
+            model: root.rotating ? root.rotationChips : root.store ? root.storeChips : []
 
             delegate: Chip {
                 required property var modelData
@@ -502,6 +500,34 @@ Item {
                     if (!modelData.disabled)
                         modelData.act();
                 }
+            }
+        }
+
+        // The library's folders: pick one, the goo flows to it (scrolls
+        // sideways when they outgrow the row).
+        Flickable {
+            id: folderStrip
+
+            visible: !root.rotating && !root.store
+            anchors.left: parent.left
+            anchors.right: colourRow.visible ? colourRow.left : parent.right
+            anchors.rightMargin: Tokens.spacing.normal
+            height: parent.height
+            clip: true
+            contentWidth: folderChips.implicitWidth
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.HorizontalFlick
+
+            ChipGroup {
+                id: folderChips
+
+                anchors.verticalCenter: parent.verticalCenter
+                current: Wallpapers.filterFolder
+                model: ["", ...Wallpapers.folders].map(f => ({
+                            value: f,
+                            label: f ? f.charAt(0).toUpperCase() + f.slice(1) : "All"
+                        }))
+                onSelected: v => Wallpapers.filterFolder = v
             }
         }
 

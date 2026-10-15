@@ -48,16 +48,9 @@ GooIndicator {
     // sliding under a still pointer doesn't move it).
     hovered: tracker.current
 
-    // Beside the container, over its area (inside, a Column would lay it
-    // out as a row; a list's content moves it with the scroll).
     HoverTracker {
         id: tracker
 
-        parent: root.container?.parent ?? null
-        x: root.container?.x ?? 0
-        y: root.container?.y ?? 0
-        width: root.container?.width ?? 0
-        height: root.container?.height ?? 0
         items: root.rows
     }
     fill: Colours.roleFill("secondary", "soft", 0)

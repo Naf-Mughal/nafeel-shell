@@ -52,7 +52,6 @@ Item {
     HoverTracker {
         id: chipHover
 
-        anchors.fill: flow
         items: {
             void root._items;
             const out = [];

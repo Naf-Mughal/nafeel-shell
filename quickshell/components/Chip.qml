@@ -51,11 +51,14 @@ Surface {
         anchors.centerIn: parent
         spacing: Tokens.spacing.small
 
-        // A check where there's no icon, sliding in while selected.
+        // A check where there's no icon, sliding in while selected; not in a
+        // goo group (there `selected` follows the goo, and a chip widening
+        // under it moved the goo, which unselected it: a loop that spun the
+        // GUI thread at 100%).
         Item {
-            visible: root.icon === "" && width > 0.5
+            visible: root.icon === "" && root.inkFill && width > 0.5
             anchors.verticalCenter: parent.verticalCenter
-            width: root.selected ? 16 : 0
+            width: root.selected && root.inkFill ? 16 : 0
             height: 16
             clip: true
 
@@ -87,7 +90,8 @@ Surface {
             text: root.text
             color: root.selected ? root.ink : root.subInk
             font.pixelSize: Tokens.font.small
-            font.weight: root.selected ? Font.DemiBold : Font.Normal
+            // One weight in a goo group (a bolder label is wider: the same loop).
+            font.weight: root.selected && root.inkFill ? Font.DemiBold : Font.Normal
         }
     }
 }
