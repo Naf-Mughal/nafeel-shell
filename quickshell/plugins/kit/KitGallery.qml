@@ -566,6 +566,184 @@ Item {
             }
 
             Entry {
+                num: "21"
+                name: "Motion feel"
+                note: "press play on each and pick what feels right"
+
+                // ── Springs: one move, three characters ──
+                Spec {
+                    caption: "spring · calm (now) / lively / crisp"
+                    Column {
+                        id: springs
+
+                        property bool across: false
+
+                        spacing: Tokens.spacing.small
+
+                        IconButton {
+                            icon: "play_arrow"
+                            onClicked: springs.across = !springs.across
+                        }
+
+                        Repeater {
+                            model: [["calm", 3.4, 0.3], ["lively", 4.5, 0.17], ["crisp", 6.5, 0.62]]
+
+                            Item {
+                                id: lane
+
+                                required property var modelData
+
+                                width: 300
+                                height: 34
+
+                                MicroLabel {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: lane.modelData[0]
+                                }
+
+                                StyledRect {
+                                    x: 60
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 236
+                                    height: 4
+                                    radius: 2
+                                    color: Colours.roleFill("paper", "soft", 4)
+                                }
+
+                                Surface {
+                                    property real pos: springs.across ? 1 : 0
+
+                                    x: 60 + pos * 206
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 30
+                                    height: 30
+                                    role: "primary"
+                                    emphasis: "strong"
+
+                                    Behavior on pos {
+                                        SpringAnimation {
+                                            spring: Tokens.springK(lane.modelData[1])
+                                            damping: Tokens.dampK(lane.modelData[2])
+                                            epsilon: 0.002
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── A panel's contents arriving: together, staggered, inked ──
+                Spec {
+                    caption: "contents · together (now) / stagger / ink"
+                    Row {
+                        id: arrive
+
+                        // Bumped to play all three again.
+                        property int run: 0
+
+                        spacing: Tokens.spacing.normal
+
+                        IconButton {
+                            icon: "play_arrow"
+                            onClicked: arrive.run++
+                        }
+
+                        Repeater {
+                            model: ["together", "stagger", "ink"]
+
+                            Surface {
+                                id: mock
+
+                                required property string modelData
+                                // 0 → 1 over the opening.
+                                property real t: 1
+
+                                width: 170
+                                height: 190
+                                level: 2
+                                outlined: true
+
+                                Connections {
+                                    target: arrive
+
+                                    function onRunChanged(): void {
+                                        play.restart();
+                                    }
+                                }
+                                NumberAnimation {
+                                    id: play
+
+                                    target: mock
+                                    property: "t"
+                                    from: 0
+                                    to: 1
+                                    duration: Tokens.dur(mock.modelData === "together" ? 320 : 620)
+                                }
+
+                                Column {
+                                    x: 10
+                                    y: 10
+                                    width: parent.width - 20
+                                    spacing: 6
+                                    // Together: the whole panel soaks in at once.
+                                    opacity: mock.modelData === "together" ? Math.min(1, mock.t * 1.4) : 1
+                                    scale: mock.modelData === "together" ? 0.97 + 0.03 * mock.t : 1
+
+                                    MicroLabel {
+                                        text: mock.modelData
+                                    }
+
+                                    Repeater {
+                                        model: 5
+
+                                        Item {
+                                            id: rowItem
+
+                                            required property int index
+                                            // This row's own progress (staggered by 45 ms a row).
+                                            readonly property real local: Math.max(0, Math.min(1, (mock.t * 620 - index * 45) / 300))
+                                            readonly property real eased: 1 - Math.pow(1 - local, 3)
+
+                                            width: parent.width
+                                            height: 26
+
+                                            Item {
+                                                height: parent.height
+                                                clip: mock.modelData === "ink"
+                                                // Ink: brushed in from the left.
+                                                width: mock.modelData === "ink" ? parent.width * rowItem.eased : parent.width
+
+                                                StyledRect {
+                                                    width: rowItem.width
+                                                    height: rowItem.height
+                                                    radius: Tokens.rounding.small
+                                                    color: Colours.roleFill(rowItem.index === 0 ? "secondary" : "paper", "soft", 4)
+                                                    // Stagger: each row rises in after the last.
+                                                    opacity: mock.modelData === "stagger" ? rowItem.eased : 1
+                                                    y: mock.modelData === "stagger" ? (1 - rowItem.eased) * 10 : 0
+
+                                                    StyledRect {
+                                                        x: 8
+                                                        anchors.verticalCenter: parent.verticalCenter
+                                                        width: 40 + (rowItem.index * 23) % 50
+                                                        height: 6
+                                                        radius: 3
+                                                        color: Colours.roleSubInk("paper", "soft")
+                                                        opacity: 0.6
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Entry {
                 num: "20"
                 name: "Reorder"
                 note: "drag a row by its grip; the others make room, goo marks where it lands"
