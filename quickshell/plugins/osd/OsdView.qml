@@ -4,8 +4,8 @@ import qs.services
 import qs.components
 
 // The OSD's content, a pill out of the top bar: for a level (volume,
-// microphone, brightness) the panels' M3 slider with the percentage on its icon
-// button, or an icon and a label for a toggle.
+// microphone, brightness) its icon (mute), the panels' M3 slider and the level
+// as a rolling number, or an icon and a label for a toggle.
 Item {
     id: root
 
@@ -20,7 +20,10 @@ Item {
     // The label's room, past which it elides.
     property int labelWidth: 520
 
-    implicitWidth: level ? buttonSize + Tokens.spacing.small + sliderWidth + pad * 2 : toggleRow.implicitWidth + pad * 2
+    // The number's room beside the slider ("100%" in the value size).
+    readonly property int numberWidth: 52
+
+    implicitWidth: level ? buttonSize + Tokens.spacing.small * 2 + sliderWidth + numberWidth + pad * 2 : toggleRow.implicitWidth + pad * 2
     implicitHeight: 56
 
     // A level: the M3 slider (as in the panels), its icon button carrying the
@@ -37,7 +40,6 @@ Item {
             filled: true
             fillColour: root.osd?.kind === "mic" ? Colours.palette.m3tertiaryContainer : Colours.palette.m3secondaryContainer
             inkColour: root.osd?.kind === "mic" ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSecondaryContainer
-            caption: Math.round(root.osd?.value * 100)
             onClicked: {
                 if (root.osd?.kind === "volume")
                     Audio.toggleMute();
@@ -57,6 +59,23 @@ Item {
                     Brightness.set(v);
                 else if (root.osd?.kind === "volume")
                     Audio.setVolume(v);
+            }
+        }
+
+        // The level, large, rolling as it changes.
+        Item {
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.numberWidth
+            height: number.implicitHeight
+
+            RollText {
+                id: number
+
+                anchors.right: parent.right
+                text: Math.round((root.osd?.value ?? 0) * 100) + "%"
+                color: root.osd?.value > 1 ? Colours.palette.m3error : Colours.palette.m3onSurface
+                font.family: Tokens.font.serif
+                font.pixelSize: Tokens.font.value
             }
         }
     }
