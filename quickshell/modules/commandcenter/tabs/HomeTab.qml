@@ -158,7 +158,7 @@ Item {
 
                     StyledText {
                         width: parent.width
-                        text: Media.title || "Nothing playing"
+                        text: Media.title || Media.active?.identity || "Nothing playing"
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
@@ -166,7 +166,7 @@ Item {
 
                     StyledText {
                         width: parent.width
-                        text: Media.artist
+                        text: Media.title ? Media.artist : Media.active ? (Media.active.isPlaying ? "Playing" : "Paused") : ""
                         visible: text !== ""
                         color: Colours.palette.m3onSurfaceVariant
                         font.pixelSize: 12
@@ -375,7 +375,8 @@ Item {
                 width: parent.cell
                 height: parent.cellHeight
                 icon: (notifs?.dnd ?? false) ? "notifications_off" : "notifications"
-                label: "Do not disturb"
+                // "Quiet": "Do not disturb" was cut short in the tile (the desktop menu says Quiet too).
+                label: "Quiet"
                 sublabel: (notifs?.dnd ?? false) ? "On" : "Off"
                 checked: notifs?.dnd ?? false
                 onClicked: notifs.toggleDnd()

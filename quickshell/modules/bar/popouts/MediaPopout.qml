@@ -84,11 +84,17 @@ Panel {
         radius: Tokens.rounding.large
         color: Colours.palette.m3surfaceContainerHigh
 
+        // A player with no track (a browser tab) sends its own icon as the
+        // art: shown as an icon, in the middle, not cropped across the card.
         Image {
-            anchors.fill: parent
+            readonly property bool bare: !(root.player?.trackTitle)
+
+            anchors.centerIn: parent
+            width: bare ? 96 : parent.width
+            height: bare ? 96 : parent.height
             source: root.player?.trackArtUrl ?? ""
-            sourceSize: Qt.size(640, 360)
-            fillMode: Image.PreserveAspectCrop
+            sourceSize: bare ? Qt.size(192, 192) : Qt.size(640, 360)
+            fillMode: bare ? Image.PreserveAspectFit : Image.PreserveAspectCrop
             asynchronous: true
         }
 
@@ -108,7 +114,7 @@ Panel {
         // The track's name brushed over when the song changes.
         InkSwap {
             width: parent.width
-            text: root.player?.trackTitle || "Nothing playing"
+            text: root.player?.trackTitle || root.player?.identity || "Nothing playing"
             font.pixelSize: 16
             font.weight: Font.DemiBold
             elide: Text.ElideRight
@@ -116,7 +122,7 @@ Panel {
 
         StyledText {
             width: parent.width
-            text: root.player?.trackArtist ?? ""
+            text: root.player?.trackArtist || (root.player && !root.player.trackTitle ? (root.player.isPlaying ? "Playing" : "Paused") : "")
             color: Colours.palette.m3onSurfaceVariant
             font.pixelSize: 12
             elide: Text.ElideRight
@@ -125,7 +131,8 @@ Panel {
 
     Column {
         width: parent.width
-        visible: root.player?.lengthSupported ?? false
+        // Only with a length to show (a page playing has none).
+        visible: (root.player?.lengthSupported ?? false) && (root.player?.length ?? 0) > 0
         spacing: 2
 
         StyledSlider {
