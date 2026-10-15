@@ -6,6 +6,7 @@
 #   Memory        freed memory handed back to the system (malloc_trim)
 #   image://still pictures held only as textures (StillProvider)
 #   SurfaceFx     a Surface's interaction (hover, press, ripple, bounce, fades)
+#   SceneVideo    a video as a texture in the scene (VAAPI frames as EGLImages)
 #   BlobGroup, BlobRect, BlobInvertedRect
 #                 the frame as SDF blobs that merge (Ryoku's engine, GPL-3.0)
 #   NightLight    warmer colour temperature (Noctalia's gamma service, MIT)
@@ -104,6 +105,7 @@ qt_add_qml_module(nafeelnative
         src/surfacefx.h src/surfacefx.cpp
         src/probe.h
         src/quietsource.h
+        src/scenevideo.h src/scenevideo.cpp
         src/fonts.h
         src/annotationcanvas.h src/annotationcanvas.cpp
         src/screensaver.h src/screensaver.cpp

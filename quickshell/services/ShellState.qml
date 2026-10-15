@@ -407,6 +407,13 @@ Singleton {
             idleCollect.stop();
     }
 
+    // After an unlock: the lock let go of its screen capture and pictures,
+    // which stay held until a collection (an 8 MB grab, its images).
+    onLockedChanged: {
+        if (!locked)
+            idleCollect.restart();
+    }
+
     Connections {
         target: Prewarm
 

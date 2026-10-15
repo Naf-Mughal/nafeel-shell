@@ -35,7 +35,9 @@ QtObject {
     readonly property string wallpaperPath: CaveAbode.wallpaperPath
     readonly property url wallpaper: CaveAbode.wallpaper
     readonly property bool wallpaperLive: Wallpapers.isVideo(wallpaperPath)
-    readonly property url wallpaperStill: wallpaperLive ? "file://" + Wallpapers.stillOf(wallpaperPath) : wallpaper
+    // As a texture only (image://still): its decoded copy let go once it's
+    // on the GPU (the backdrop and every card's cover at their sizes).
+    readonly property url wallpaperStill: Wallpapers.still(wallpaperLive ? Wallpapers.stillOf(wallpaperPath) : wallpaper.toString(), true)
     // The theme sets `source` (the wallpaper) and `run`; the player takes
     // the lock's copy of it (Wallpapers.lockPlayOf).
     readonly property Component liveComponent: Component {
@@ -47,15 +49,38 @@ QtObject {
             signal firstFrame
             signal frame
 
-            VideoLayer {
+            readonly property string file: {
+                const s = lockPlayer.source.toString();
+                return s ? "file://" + Wallpapers.lockPlayOf(s.startsWith("file://") ? s.slice(7) : s) : "";
+            }
+            property bool fellBack: false
+
+            // The GPU's frames as textures, at the half resolution the theme
+            // paints the wallpaper at (no libmpv: ~40 MB of memory and ~75
+            // MB of video memory less); libmpv only if that can't run here.
+            SceneVideo {
                 anchors.fill: parent
-                source: {
-                    const s = lockPlayer.source.toString();
-                    return s ? "file://" + Wallpapers.lockPlayOf(s.startsWith("file://") ? s.slice(7) : s) : "";
-                }
-                run: lockPlayer.run
+                visible: !lockPlayer.fellBack
+                resolution: 0.5
+                source: lockPlayer.fellBack ? "" : lockPlayer.file
+                playing: lockPlayer.run
                 onFirstFrame: lockPlayer.firstFrame()
                 onFrame: lockPlayer.frame()
+                onBroken: {
+                    console.warn("lock: the in-scene video engine can't run here; libmpv instead");
+                    lockPlayer.fellBack = true;
+                }
+            }
+
+            Loader {
+                anchors.fill: parent
+                active: lockPlayer.fellBack
+                sourceComponent: VideoLayer {
+                    source: lockPlayer.file
+                    run: lockPlayer.run
+                    onFirstFrame: lockPlayer.firstFrame()
+                    onFrame: lockPlayer.frame()
+                }
             }
         }
     }

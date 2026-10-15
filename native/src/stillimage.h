@@ -1,6 +1,11 @@
 #pragma once
 
+#include <QHash>
+#include <QJSValue>
+#include <QMutex>
 #include <QQuickAsyncImageProvider>
+#include <QQuickItem>
+#include <QtQml/qqmlregistration.h>
 #include <QQuickTextureFactory>
 #include <QThreadPool>
 
@@ -22,6 +27,11 @@ public:
     // Decode `path` for `requested` (see above).
     static QImage load(const QString &path, QSize requested, bool crop);
 
+    // "image://still/mem/<key>": a picture in memory (StillGrab), taken out
+    // of here by the one Image that shows it, and gone once on the GPU.
+    static void put(const QString &key, const QImage &image);
+    static QImage take(const QString &key);
+
 private:
     QThreadPool m_pool;
 };
@@ -41,4 +51,20 @@ private:
     QSize m_requested;
     bool m_crop;
     QSize m_size;
+};
+
+// A picture of an item (a screen's capture) as image://still/mem/…: one
+// copy, let go once it's a texture. Item.grabToImage keeps two (the result
+// and the URL's converted copy) until the JS engine collects the result:
+// the lock screen's capture of the desktop held 16 MB for the whole lock.
+//
+//   StillGrab.grab(item, "screen-eDP-1", url => shot = url)
+class StillGrab : public QObject {
+    Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
+
+public:
+    using QObject::QObject;
+    Q_INVOKABLE void grab(QQuickItem *item, const QString &key, const QJSValue &done);
 };

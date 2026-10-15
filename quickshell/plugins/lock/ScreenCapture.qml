@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Nafeel
 
 // Grabs every screen before a lock (or a preview) covers it, so its first
 // frame can be identical to the desktop. Once the session is locked the
@@ -23,8 +24,7 @@ Scope {
     signal finished
 
     function urlFor(screen) {
-        const result = screen ? shots[screen.name] : undefined;
-        return result ? result.url : "";
+        return (screen ? shots[screen.name] : "") ?? "";
     }
 
     function finish() {
@@ -78,7 +78,9 @@ Scope {
                 captureSource: grabber.modelData
                 onHasContentChanged: {
                     if (hasContent)
-                        Qt.callLater(() => view.grabToImage(result => cap._keep(grabber.modelData.name, result)));
+                        // One copy, a texture once shown (StillGrab): grabToImage
+                        // held two for the whole lock.
+                        Qt.callLater(() => StillGrab.grab(view, grabber.modelData.name, url => cap._keep(grabber.modelData.name, url)));
                 }
             }
         }
