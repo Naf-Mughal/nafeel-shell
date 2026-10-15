@@ -793,14 +793,18 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   timers ran; all gated on `visible` now (idle CPU 6% with music playing). Memory is flat: ~492 MB
   warm at start, ~505 MB after the whole soak (every panel once keeps 14 MB). Over the 350 MB idle
   budget by design of the warm choice; O5 is where the rest can come from.
-- [ ] **O3 Images (first plan, folded into the above)** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
+- [x] **O3 Images (first plan, folded into the above; closed 2026-10-15, the user: fine as it sits, ~350 MB; the picker's thumbnails went `cache: false` the same day)** (~-60..-90 MB after use): the studio's thumbnails `cache: false`, sized to the
   card, gone on close; a sourceSize on every Image; notification, clipboard, album and avatar
   images at their shown size, uncached; the wallpaper decoded at screen size.
-- [ ] **O4 Unload closed panels**: every drawer's content destroyed when closed (the studio,
+- [x] **O4 Unload closed panels** (closed 2026-10-15, the user: warm panels stay, as chosen): every drawer's content destroyed when closed (the studio,
   notifications, the action center, Settings pages); gc() after a close.
-- [ ] **O5 Outside the heap** (~250 MB): measure, then try the basic render loop, windows made
-  only when needed (overview keys, idle fade, picker), smaller thread pools, live window previews
-  only while visible and at preview size.
+- [x] **O5 Outside the heap** (closed 2026-10-15, the user: only the safe part). Live window
+  previews were already only-while-visible at drawn size (native WindowThumb: captures while
+  shown, a frame only when the window changed, pixels at the drawn size, the last small frame
+  kept). Threads: ~50, nearly all the libraries' (Mesa's shader/submit/disk-cache queues per
+  core, the video decoder's helpers), each only its touched stack: ~2-3 MB in all, not worth
+  thinning. Not done, by choice: the basic render loop (the threaded loop + vblank pacer is the
+  smoothness) and windows made on demand (first-open stutter, which the prewarm removed).
 - [x] **O6 reverted the same day** (the user: mpvpaper grew to ~174 MB PSS / 228 MB RSS and 7.6%
   CPU, so nothing was saved overall; its idle inhibitor (mpv's stop-screensaver) kept the session
   from ever going idle; battery got worse; the built-in engine also renders on the lock screen).
@@ -819,7 +823,11 @@ it; the budget is every panel once keeping <= 90 MB, measured after a 35 s settl
   for the desktop: fresh 552 -> 291 MB, idle after the soak 643 -> 370 MB (mpvpaper itself ~50 MB);
   every panel once keeps 67 MB. Left: the lock screen still plays the video in the shell
   (VideoLayer through ShellLockHost.liveComponent) while locked.
-- [ ] **O7 Allocator** (MALLOC_ARENA_MAX, trimming): last; the trim test freed nothing.
+- [x] **O7 Allocator** (closed 2026-10-15): the shell runs jemalloc, already tuned in
+  bin/shell-env (background purge at 500 ms, one arena, small tcache: ~-175 MB when set), so
+  the glibc knobs planned here (MALLOC_ARENA_MAX, MALLOC_MMAP_THRESHOLD_, malloc_trim) do
+  nothing; that's why the trim test freed nothing. Further jemalloc tweaks were worth a few MB
+  at most (tcache off would cost hot paths).
   (2026-10-14: measured; nothing to win, see above.)
 - [x] **O8 Second pass** (2026-10-14): **fresh 479 -> 393 MB, after the soak 531 -> 432**.
   - Live quality "screen" for the user (1080p copy on a 1080p screen; their call): -60 MB,
