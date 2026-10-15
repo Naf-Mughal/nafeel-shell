@@ -10,6 +10,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QImage>
 #include <QMetaObject>
 #include <QPointer>
 #include <QTimer>
@@ -321,6 +322,14 @@ void Clipboard::togglePin(int index) {
     });
 }
 
+void Clipboard::movePin(int from, int to) {
+    post([from, to](Worker &w) {
+        if (from >= 0 && to >= 0)
+            w.clipboard.movePinned(std::size_t(from), std::size_t(to));
+        w.publish();
+    });
+}
+
 void Clipboard::remove(int index) {
     post([index](Worker &w) {
         if (index >= 0)
@@ -430,6 +439,50 @@ QString Clipboard::imageFile(int index) {
         w.previewPath = path;
         return path;
     }, QString());
+}
+
+QString Clipboard::thumbFile(int index, int size) {
+    if (index < 0 || index >= m_entries.size())
+        return {};
+    const QVariantMap m = m_entries.at(index).toMap();
+    if (!m.value(QStringLiteral("image")).toBool())
+        return {};
+    // An entry not yet stored is known by when it was copied.
+    const QString sid = m.value(QStringLiteral("id")).toString();
+    const QString id = sid.isEmpty() ? QStringLiteral("t") + QString::number(qint64(m.value(QStringLiteral("time")).toDouble())) : sid;
+    const QString dir = previewDir() + QStringLiteral("/thumbs");
+    const QString path = dir + QStringLiteral("/") + id + QStringLiteral("-") + QString::number(size) + QStringLiteral(".png");
+    if (QFile::exists(path))
+        return path;
+    QPointer<Clipboard> o = this;
+    post([index, size, dir, path, o](Worker &w) {
+        if (QFile::exists(path))
+            return;
+        const auto &h = w.clipboard.history();
+        if (std::size_t(index) >= h.size() || !h[std::size_t(index)].isImage())
+            return;
+        const auto &e = h[std::size_t(index)];
+        const bool wasLoaded = e.payloadLoaded;
+        if (!w.clipboard.ensureEntryLoaded(std::size_t(index)))
+            return;
+        const QImage img = QImage::fromData(reinterpret_cast<const uchar *>(e.data.data()), int(e.data.size()));
+        if (!wasLoaded)
+            w.clipboard.evictEntryPayload(std::size_t(index));
+        if (img.isNull())
+            return;
+        QDir().mkpath(dir);
+        QFile::setPermissions(dir, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        if (!img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation).save(path, "PNG"))
+            return;
+        QFile::setPermissions(path, QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+        QMetaObject::invokeMethod(o.data(), [o] {
+            if (o) {
+                ++o->m_thumbsRevision;
+                emit o->thumbsChanged();
+            }
+        }, Qt::QueuedConnection);
+    });
+    return {};
 }
 
 void Clipboard::clearPreview() {

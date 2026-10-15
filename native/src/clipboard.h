@@ -32,6 +32,8 @@ class Clipboard : public QObject {
     // | "locked" | "missing-key" | "recovery" | "error".
     Q_PROPERTY(QString state READ state NOTIFY stateChanged)
     Q_PROPERTY(bool available READ available NOTIFY stateChanged)
+    // Bumped as thumbnails are made (rows read thumbFile again).
+    Q_PROPERTY(int thumbsRevision READ thumbsRevision NOTIFY thumbsChanged)
 
 public:
     explicit Clipboard(QObject *parent = nullptr);
@@ -49,6 +51,8 @@ public:
     // to whatever has the keyboard now.
     Q_INVOKABLE void pasteShortcut(bool image);
     Q_INVOKABLE void togglePin(int index);
+    // A pin moved to another place among the pins (the user's order).
+    Q_INVOKABLE void movePin(int from, int to);
     Q_INVOKABLE void remove(int index);
     Q_INVOKABLE void clearUnpinned();
     Q_INVOKABLE void clearAll();
@@ -67,11 +71,18 @@ public:
     // decode at its size; the previous preview's file is removed and the
     // payload let go. "" if it can't be.
     Q_INVOKABLE QString imageFile(int index);
+    // An image entry's thumbnail (`size` px) as a private file in
+    // $XDG_RUNTIME_DIR, made once per entry and kept for the session (rows
+    // show it). Never waits: "" until it's made, on the clipboard's thread
+    // (decoding a big image there, not on a frame), then thumbsChanged.
+    Q_INVOKABLE QString thumbFile(int index, int size = 96);
+    int thumbsRevision() const { return m_thumbsRevision; }
     // Remove the preview file (the popout closed).
     Q_INVOKABLE void clearPreview();
 
 signals:
     void entriesChanged();
+    void thumbsChanged();
     void stateChanged();
 
 private:
@@ -86,4 +97,5 @@ private:
     QVariantList m_entries;
     QString m_state = QStringLiteral("opening");
     bool m_available = false;
+    int m_thumbsRevision = 0;
 };

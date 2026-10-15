@@ -941,6 +941,25 @@ bool ClipboardService::setEntryPinned(std::size_t index, bool pinned) {
   return true;
 }
 
+// nafeel: pins keep the order they're dragged into (the history's front
+// block is the pins, in order, and it's persisted that way).
+bool ClipboardService::movePinned(std::size_t from, std::size_t to) {
+  const std::size_t pins = pinnedCount();
+  if (from >= pins || to >= pins) {
+    return false;
+  }
+  if (from == to) {
+    return true;
+  }
+  ClipboardEntry entry = std::move(m_history[from]);
+  m_history.erase(m_history.begin() + static_cast<std::ptrdiff_t>(from));
+  m_history.insert(m_history.begin() + static_cast<std::ptrdiff_t>(to), std::move(entry));
+  ++m_changeSerial;
+  persistHistory();
+  notifyChanged();
+  return true;
+}
+
 bool ClipboardService::removeHistoryEntry(std::size_t index) {
   if (index >= m_history.size()) {
     return false;

@@ -131,6 +131,8 @@ public:
   bool copyEntry(const ClipboardEntry& entry);
   bool promoteEntry(std::size_t index);
   bool setEntryPinned(std::size_t index, bool pinned);
+  // nafeel: a pin moved within the pinned block (the user's order).
+  bool movePinned(std::size_t from, std::size_t to);
   bool removeHistoryEntry(std::size_t index);
   void clearUnpinnedHistory();
   void clearHistory();

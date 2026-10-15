@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Widgets
 import Nafeel
 import qs.config
 import qs.services
@@ -29,6 +30,27 @@ Panel {
         return out;
     }
     property int sel: 0
+
+    // Dragging a pin into a new place among the pins (their icon is the
+    // grip; not while searching: the list is filtered then). The others
+    // make room; on release it's moved (Clipboard.movePin).
+    readonly property int pins: query.trim() === "" ? Clipboard.entries.filter(e => e.pinned).length : 0
+    property int pinFrom: -1
+    property int pinTo: -1
+    property real pinY: 0
+    readonly property real rowPitch: 48 + 2
+
+    function pinSlot(i: int): int {
+        if (pinFrom < 0 || i >= pins)
+            return i;
+        if (i === pinFrom)
+            return pinTo;
+        if (pinFrom < pinTo && i > pinFrom && i <= pinTo)
+            return i - 1;
+        if (pinFrom > pinTo && i >= pinTo && i < pinFrom)
+            return i + 1;
+        return i;
+    }
     readonly property int index: shown[Math.min(sel, shown.length - 1)] ?? -1
     readonly property var entry: index >= 0 ? Clipboard.entries[index] : null
     // A destructive action waiting for its second press: "delete" | "clear".
@@ -218,6 +240,23 @@ Panel {
                 readonly property bool picked: selected
                 readonly property bool inked: entriesGoo.covers(row)
 
+                // Making room for a pin being dragged, or riding the finger.
+                readonly property bool lifted: root.pinFrom === index
+                property real shift: lifted ? root.pinY - index * root.rowPitch : (root.pinSlot(index) - index) * root.rowPitch
+                Behavior on shift {
+                    enabled: !row.lifted && !Tokens.reduceMotion
+                    SpringAnimation {
+                        spring: Tokens.spring.control.spring
+                        damping: Tokens.spring.control.damping
+                        epsilon: 0.3
+                    }
+                }
+                transform: Translate {
+                    y: row.shift
+                }
+                z: lifted ? 10 : 0
+                outlined: lifted
+
                 width: list.width
                 height: 48
                 emphasis: "ghost"
@@ -236,16 +275,97 @@ Panel {
                     onDoubleTapped: root.paste()
                 }
 
-                MaterialIcon {
+                // The entry's kind (an image: its thumbnail), and for a pin
+                // the grip it's dragged by.
+                Item {
                     id: kind
 
                     anchors.left: parent.left
-                    anchors.leftMargin: Tokens.spacing.normal
+                    anchors.leftMargin: Tokens.spacing.small
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.e.pinned ? "push_pin" : row.e.image ? "image" : "notes"
-                    fill: row.e.pinned ? 1 : 0
-                    color: row.inked ? row.ink : row.subInk
-                    size: 18
+                    width: 36
+                    height: 36
+
+                    ClippingRectangle {
+                        anchors.fill: parent
+                        visible: thumb.status === Image.Ready
+                        radius: Tokens.rounding.small
+                        color: "transparent"
+
+                        Image {
+                            id: thumb
+
+                            anchors.fill: parent
+                            // Made once per entry, as rows come into view (off
+                            // the GUI thread: "" until it's ready).
+                            source: {
+                                Clipboard.thumbsRevision;
+                                const f = row.e.image ? Clipboard.thumbFile(row.modelData) : "";
+                                return f ? "file://" + f : "";
+                            }
+                            sourceSize: Qt.size(72, 72)
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: false
+                        }
+                    }
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        visible: thumb.status !== Image.Ready || row.e.pinned
+                        text: row.e.pinned ? (pinHover.hovered || row.lifted ? "drag_indicator" : "push_pin") : row.e.image ? "image" : "notes"
+                        fill: row.e.pinned ? 1 : 0
+                        color: row.inked ? row.ink : row.subInk
+                        size: 18
+
+                        // Over a thumbnail, on a disc so it reads.
+                        Rectangle {
+                            visible: thumb.status === Image.Ready
+                            z: -1
+                            anchors.centerIn: parent
+                            width: 22
+                            height: 22
+                            radius: 11
+                            color: Qt.alpha(Colours.palette.m3surface, 0.75)
+                        }
+                    }
+
+                    HoverHandler {
+                        id: pinHover
+
+                        enabled: row.index < root.pins
+                        cursorShape: row.lifted ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    }
+
+                    DragHandler {
+                        enabled: row.index < root.pins && root.pins > 1
+                        target: null
+                        xAxis.enabled: false
+                        property real startY: 0
+
+                        onActiveChanged: {
+                            if (active) {
+                                startY = row.index * root.rowPitch;
+                                root.pinY = startY;
+                                root.pinTo = row.index;
+                                root.pinFrom = row.index;
+                            } else if (root.pinFrom >= 0) {
+                                const from = root.pinFrom, to = root.pinTo;
+                                root.pinFrom = -1;
+                                root.pinTo = -1;
+                                if (from !== to) {
+                                    Clipboard.movePin(from, to);
+                                    root.sel = to;
+                                }
+                            }
+                        }
+                        onTranslationChanged: {
+                            if (!active)
+                                return;
+                            root.pinY = Math.max(0, Math.min((root.pins - 1) * root.rowPitch, startY + translation.y));
+                            root.pinTo = Math.round(root.pinY / root.rowPitch);
+                        }
+                    }
                 }
 
                 Column {
