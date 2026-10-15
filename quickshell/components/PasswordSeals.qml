@@ -63,7 +63,7 @@ Item {
                 width: stamp.size
                 height: 18
 
-                // The stamp's character in cinnabar, no ground, melting into
+                // The seal's character in the theme's colour, no ground, melting into
                 // the dot: it shrinks and fades as the dot rounds out of it.
                 Item {
                     id: stamp
