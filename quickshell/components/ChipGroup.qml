@@ -36,8 +36,11 @@ Item {
     }
 
     GooIndicator {
+        id: goo
+
         anchors.fill: flow
-        selected: chips.itemAt(root.model.findIndex(m => m.value === root.current))
+        // Read again once the items exist (itemAt says nothing when they arrive).
+        selected: chips.count > 0 ? chips.itemAt(root.model.findIndex(m => m.value === root.current)) : null
         hovered: {
             for (let i = 0; i < chips.count; i++) {
                 const c = chips.itemAt(i);
@@ -62,11 +65,14 @@ Item {
             model: root.model
 
             Chip {
+                id: chip
+
                 required property var modelData
 
                 text: modelData.label
                 icon: modelData.icon ?? ""
-                selected: modelData.value === root.current
+                // Under the fill right now (the ink turns with the goo).
+                selected: goo.covers(chip)
                 fill: "transparent"
                 hoverLayer: false
                 baseInk: selected ? Colours.roleInk("secondary", "soft") : Colours.roleInk("paper", "soft")

@@ -45,8 +45,11 @@ Item {
     }
 
     GooIndicator {
+        id: goo
+
         anchors.fill: parent
-        selected: segs.itemAt(root.model.findIndex(m => m.value === root.current))
+        // Read again once the items exist (itemAt says nothing when they arrive).
+        selected: segs.count > 0 ? segs.itemAt(root.model.findIndex(m => m.value === root.current)) : null
         hovered: {
             for (let i = 0; i < segs.count; i++) {
                 const s = segs.itemAt(i);
@@ -71,6 +74,8 @@ Item {
             required property var modelData
             required property int index
             readonly property bool on: modelData.value === root.current
+            // Under the fill right now (the ink turns with the goo).
+            readonly property bool inked: goo.covers(seg)
 
             emphasis: "ghost"
             interactive: true
@@ -81,8 +86,8 @@ Item {
             x: index * (root.segWidth + root.spacing)
             width: root.segWidth
             height: root.height
-            baseInk: on ? Colours.roleInk("secondary", "strong") : Colours.roleInk("paper", "soft")
-            baseSubInk: on ? baseInk : Colours.roleSubInk("paper", "soft")
+            baseInk: inked ? Colours.roleInk("secondary", "strong") : Colours.roleInk("paper", "soft")
+            baseSubInk: inked ? baseInk : Colours.roleSubInk("paper", "soft")
             onClicked: root.selected(seg.modelData.value)
 
             Column {
@@ -92,7 +97,7 @@ Item {
                 MaterialIcon {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: seg.modelData.icon
-                    fill: seg.on ? 1 : 0
+                    fill: seg.inked ? 1 : 0
                     color: seg.ink
                     size: 18
                 }
@@ -100,7 +105,7 @@ Item {
                 StyledText {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: seg.modelData.label
-                    color: seg.on ? seg.ink : seg.subInk
+                    color: seg.inked ? seg.ink : seg.subInk
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                 }

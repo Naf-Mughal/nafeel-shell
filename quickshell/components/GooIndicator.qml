@@ -28,6 +28,18 @@ Item {
     // Shrinks each blob inside its item.
     property real inset: 0
 
+    // Whether the selection blob, where it is right now, covers most of `it`:
+    // labels take the selected ink from this, so they turn as the fill
+    // arrives and leaves (not when the choice changes: white on white).
+    function covers(it: Item): bool {
+        if (!it || !selection.at)
+            return false;
+        const r = rectOf(it);
+        const ox = Math.max(0, Math.min(r.x + r.width, selection.bx + selection.bw) - Math.max(r.x, selection.bx));
+        const oy = Math.max(0, Math.min(r.y + r.height, selection.by + selection.bh) - Math.max(r.y, selection.by));
+        return ox * oy > r.width * r.height * 0.5;
+    }
+
     // An item's rectangle here (its geometry read, so the binding follows it).
     function rectOf(it: Item): rect {
         if (!it)
@@ -65,7 +77,7 @@ Item {
             if (!at)
                 return;
             if (glide && Tokens.goo.enabled && bw > 1)
-                tail.leave(bx, by, bw, bh);
+                tail.leave(bx, by, bw, bh, target);
             place();
             glide = true;
         }
@@ -85,62 +97,50 @@ Item {
             smoothing: 10
         }
 
-        // The tail left where it was.
+        // The tail left where it was: pulled after the blob, it thins into
+        // a neck toward where the blob went and lets go, the edge facing
+        // the blob staying put (ink parting, not a box shrinking).
         BlobRect {
             id: tail
 
-            group: width > 1 && height > 1 ? ink : null
+            property rect from
+            // Which way the blob went: +1 / -1 along x (sideways) or y.
+            property bool sideways: true
+            property int dir: 1
+            // 0 at the start, 1 gone.
+            property real p: 1
+
+            readonly property real lw: sideways ? from.width * (1 - p) : from.width * (1 - 0.7 * p)
+            readonly property real lh: sideways ? from.height * (1 - 0.7 * p) : from.height * (1 - p)
+
+            group: p < 1 && width > 2 && height > 2 ? ink : null
+            x: sideways ? (dir > 0 ? from.x + from.width - lw : from.x) : from.x + (from.width - lw) / 2
+            y: sideways ? from.y + (from.height - lh) / 2 : (dir > 0 ? from.y + from.height - lh : from.y)
+            width: lw
+            height: lh
             radius: root.radius >= 0 ? Math.min(root.radius, Math.min(width, height) / 2) : Math.min(width, height) / 2
             deformScale: 0
 
-            function leave(lx: real, ly: real, lw: real, lh: real): void {
+            function leave(lx: real, ly: real, lw: real, lh: real, to: rect): void {
                 shrink.stop();
-                x = lx;
-                y = ly;
-                width = lw;
-                height = lh;
-                shrinkX.to = lx + lw / 2;
-                shrinkY.to = ly + lh / 2;
+                from = Qt.rect(lx, ly, lw, lh);
+                const dx = (to.x + to.width / 2) - (lx + lw / 2);
+                const dy = (to.y + to.height / 2) - (ly + lh / 2);
+                sideways = Math.abs(dx) >= Math.abs(dy);
+                dir = (sideways ? dx : dy) >= 0 ? 1 : -1;
+                p = 0;
                 shrink.start();
             }
 
-            ParallelAnimation {
+            NumberAnimation {
                 id: shrink
 
-                NumberAnimation {
-                    target: tail
-                    property: "width"
-                    to: 0
-                    duration: Tokens.anim.slow
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Tokens.anim.emphasizedAccel
-                }
-                NumberAnimation {
-                    target: tail
-                    property: "height"
-                    to: 0
-                    duration: Tokens.anim.slow
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Tokens.anim.emphasizedAccel
-                }
-                NumberAnimation {
-                    id: shrinkX
-
-                    target: tail
-                    property: "x"
-                    duration: Tokens.anim.slow
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Tokens.anim.emphasizedAccel
-                }
-                NumberAnimation {
-                    id: shrinkY
-
-                    target: tail
-                    property: "y"
-                    duration: Tokens.anim.slow
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Tokens.anim.emphasizedAccel
-                }
+                target: tail
+                property: "p"
+                to: 1
+                duration: Tokens.anim.normal
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Tokens.anim.emphasizedAccel
             }
         }
 
@@ -155,8 +155,8 @@ Item {
             radius: root.radius >= 0 ? Math.min(root.radius, Math.min(width, height) / 2) : Math.min(width, height) / 2
             stiffness: Tokens.goo.stiffness
             damping: Tokens.goo.damping
-            deformScale: Tokens.goo.enabled ? Tokens.goo.scale * 3.5 : 0
-            maxStretch: 0.3
+            // No stretch or tilt along the travel (the user's call: calm ink).
+            deformScale: 0
         }
 
         Behavior on bx {
@@ -217,6 +217,8 @@ Item {
     }
 
     Mover {
+        id: selection
+
         colour: root.fill
         at: root.selected
     }
