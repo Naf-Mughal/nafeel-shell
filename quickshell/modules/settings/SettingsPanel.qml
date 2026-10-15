@@ -43,7 +43,7 @@ Panel {
         ShellState.settingsPage = page.name;
         flashKey = "";
         flashKey = item.key;
-        search.text = "";
+        searchInput.text = "";
     }
 
     // A number as its setting reads it.
@@ -66,63 +66,105 @@ Panel {
     gloss: "设置"
     subtitle: page?.description ?? ""
 
-    // Its own keys, from the moment it opens: Up / Down go through the
-    // pages, Page Up / Down and Home / End scroll the page, Tab walks into
-    // its controls (and on through them), Esc closes (the frame).
+    // Its own keys, from the moment it opens: typing searches (the search
+    // has the keyboard); with nothing typed, Up / Down go through the pages,
+    // Page Up / Down and Home / End scroll the page, Tab walks into its
+    // controls (and on through them); Esc closes (the frame).
     Connections {
         target: ShellState
 
         function onKeyboardGranted(req: var): void {
             if (ShellState.current(ShellState.screen) === "settings") {
-                keys.forceActiveFocus();
+                searchInput.forceActiveFocus();
                 req.taken = true;
             }
         }
     }
 
+    // The pages' keys (the search's too, while it's empty).
+    function navigate(event: var): void {
+        const pages = Settings.pages;
+        const i = Math.max(0, pages.indexOf(root.page));
+        if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
+            const next = pages[Math.max(0, Math.min(pages.length - 1, i + (event.key === Qt.Key_Down ? 1 : -1)))];
+            if (next)
+                ShellState.settingsPage = next.name;
+        } else if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+            flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * flick.height * 0.8));
+        } else if (event.key === Qt.Key_Home || event.key === Qt.Key_End) {
+            flick.contentY = event.key === Qt.Key_Home ? 0 : Math.max(0, flick.contentHeight - flick.height);
+        } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+            if (!KeyNav.enter(KeyNav.scopeOf(keys), keys, event.key === Qt.Key_Tab))
+                return;
+        } else {
+            return;
+        }
+        event.accepted = true;
+    }
+
     Item {
         width: parent.width
-        height: 480
+        height: 480 + search.height + Tokens.spacing.normal
 
         Item {
             id: keys
 
             width: 0
             height: 0
-            Keys.onPressed: event => {
-                const pages = Settings.pages;
-                const i = Math.max(0, pages.indexOf(root.page));
-                if (event.key === Qt.Key_Down || event.key === Qt.Key_Up) {
-                    const next = pages[Math.max(0, Math.min(pages.length - 1, i + (event.key === Qt.Key_Down ? 1 : -1)))];
-                    if (next)
-                        ShellState.settingsPage = next.name;
-                } else if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
-                    flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + (event.key === Qt.Key_PageDown ? 1 : -1) * flick.height * 0.8));
-                } else if (event.key === Qt.Key_Home || event.key === Qt.Key_End) {
-                    flick.contentY = event.key === Qt.Key_Home ? 0 : Math.max(0, flick.contentHeight - flick.height);
-                } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-                    if (!KeyNav.enter(KeyNav.scopeOf(keys), keys, event.key === Qt.Key_Tab))
-                        return;
-                } else {
-                    return;
-                }
-                event.accepted = true;
-            }
+            Keys.onPressed: event => root.navigate(event)
         }
 
 
-        // ── Search over every page ──
-        TextField {
+        // ── Search over every page, the command center's big bar ──
+        StyledRect {
             id: search
 
-            width: 200
-            implicitHeight: 36
-            placeholder: "Search settings"
-            onTextChanged: root.query = text
-            keyFilter: event => {
-                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.matches.length) {
-                    root.reveal(root.matches[0].page, root.matches[0].item);
-                    event.accepted = true;
+            width: parent.width
+            height: 52
+            radius: Tokens.rounding.normal
+            color: Colours.palette.m3surfaceContainerHigh
+            border.width: searchInput.activeFocus ? 2 : 0
+            border.color: Colours.palette.m3primary
+
+            MaterialIcon {
+                id: searchIcon
+
+                anchors.left: parent.left
+                anchors.leftMargin: Tokens.spacing.large
+                anchors.verticalCenter: parent.verticalCenter
+                text: "search"
+                color: Colours.palette.m3onSurfaceVariant
+            }
+
+            TextInput {
+                id: searchInput
+
+                anchors.left: searchIcon.right
+                anchors.leftMargin: Tokens.spacing.normal
+                anchors.right: parent.right
+                anchors.rightMargin: Tokens.spacing.large
+                anchors.verticalCenter: parent.verticalCenter
+                color: Colours.palette.m3onSurface
+                selectionColor: Colours.palette.m3primary
+                selectedTextColor: Colours.palette.m3onPrimary
+                font.pixelSize: 15
+                clip: true
+                onTextChanged: root.query = text
+                Keys.onPressed: event => {
+                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.matches.length) {
+                        root.reveal(root.matches[0].page, root.matches[0].item);
+                        event.accepted = true;
+                    } else if (text === "") {
+                        root.navigate(event);
+                    }
+                }
+
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: searchInput.text === ""
+                    text: "Search settings"
+                    color: Colours.palette.m3onSurfaceVariant
+                    font.pixelSize: 15
                 }
             }
         }
@@ -132,9 +174,9 @@ Panel {
             id: results
 
             anchors.top: search.bottom
-            anchors.topMargin: Tokens.spacing.small
+            anchors.topMargin: Tokens.spacing.normal
             width: 200
-            height: parent.height - search.height - Tokens.spacing.small
+            height: parent.height - search.height - Tokens.spacing.normal
             visible: root.query.trim() !== ""
             orientation: ListView.Vertical
             spacing: Tokens.spacing.tiny
@@ -167,9 +209,9 @@ Panel {
             id: list
 
             anchors.top: search.bottom
-            anchors.topMargin: Tokens.spacing.small
+            anchors.topMargin: Tokens.spacing.normal
             width: 200
-            height: parent.height - search.height - Tokens.spacing.small
+            height: parent.height - search.height - Tokens.spacing.normal
             visible: root.query.trim() === ""
             orientation: ListView.Vertical
             spacing: Tokens.spacing.tiny
@@ -205,8 +247,9 @@ Panel {
 
             anchors.left: list.right
             anchors.leftMargin: Tokens.spacing.large
+            anchors.top: list.top
             vertical: true
-            height: parent.height
+            height: list.height
         }
 
         // ── The page ──
@@ -216,7 +259,8 @@ Panel {
             anchors.left: rule.right
             anchors.leftMargin: Tokens.spacing.large
             anchors.right: parent.right
-            height: parent.height
+            anchors.top: list.top
+            height: list.height
             // The shown page's height.
             contentHeight: pagesHost.shownHeight
             clip: true
