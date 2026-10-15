@@ -33,7 +33,8 @@ Item {
         anchors.bottomMargin: 44 * root.sc
         visible: mp !== null
         level: 2
-        width: 420 * root.sc
+        // As wide as the session's three buttons across the cultivator.
+        width: (3 * 100 + 2 * 10) * root.sc
         height: 100 * root.sc
         // The panels' paper (fibre and wash), not a flat fill.
         fill: "transparent"
@@ -124,18 +125,18 @@ Item {
 
         Column {
             anchors.left: art.right
-            anchors.leftMargin: 16 * root.sc
-            anchors.right: controls.left
-            anchors.rightMargin: 12 * root.sc
+            anchors.leftMargin: 14 * root.sc
+            anchors.right: parent.right
+            anchors.rightMargin: 14 * root.sc
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 3
+            spacing: 2
 
             StyledText {
                 width: parent.width
                 elide: Text.ElideRight
                 text: Media.title || player.mp?.identity || ""
                 font.family: Tokens.font.serif
-                font.pixelSize: 18 * root.sc
+                font.pixelSize: 16 * root.sc
             }
 
             MicroLabel {
@@ -143,44 +144,48 @@ Item {
                 elide: Text.ElideRight
                 text: Media.artist || (Media.playing ? "Playing" : "Paused")
             }
+
+            Item {
+                width: 1
+                height: 4
+            }
+
+            // The controls, under the title.
+            Row {
+                id: controls
+
+                spacing: Tokens.spacing.small
+
+                IconButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "skip_previous"
+                    size: 30
+                    onClicked: {
+                        root.ctx?.poke();
+                        Media.previous();
+                    }
+                }
+                IconButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: Media.playing ? "pause" : "play_arrow"
+                    size: 34
+                    filled: true
+                    onClicked: {
+                        root.ctx?.poke();
+                        Media.playPause();
+                    }
+                }
+                IconButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "skip_next"
+                    size: 30
+                    onClicked: {
+                        root.ctx?.poke();
+                        Media.next();
+                    }
+                }
+            }
         }
 
-        Row {
-            id: controls
-
-            anchors.right: parent.right
-            anchors.rightMargin: 16 * root.sc
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Tokens.spacing.small
-
-            IconButton {
-                anchors.verticalCenter: parent.verticalCenter
-                icon: "skip_previous"
-                size: 34
-                onClicked: {
-                    root.ctx?.poke();
-                    Media.previous();
-                }
-            }
-            IconButton {
-                anchors.verticalCenter: parent.verticalCenter
-                icon: Media.playing ? "pause" : "play_arrow"
-                size: 42
-                filled: true
-                onClicked: {
-                    root.ctx?.poke();
-                    Media.playPause();
-                }
-            }
-            IconButton {
-                anchors.verticalCenter: parent.verticalCenter
-                icon: "skip_next"
-                size: 34
-                onClicked: {
-                    root.ctx?.poke();
-                    Media.next();
-                }
-            }
-        }
     }
 }
