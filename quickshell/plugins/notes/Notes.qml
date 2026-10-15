@@ -35,6 +35,28 @@ Item {
     property bool armed: false
     readonly property int words: edit.text.trim() ? edit.text.trim().split(/\s+/).length : 0
 
+    // Dragging a pinned note into a new place among the pins (its icon is
+    // the grip; not while searching). Pins sit right after the scratchpad.
+    readonly property int pinFirst: shown.length && shown[0].scratch ? 1 : 0
+    readonly property int pinCount: query.trim() === "" ? shown.filter(n => n.pinned && !n.scratch).length : 0
+    property int pinFrom: -1
+    property int pinTo: -1
+    property real pinY: 0
+    readonly property real rowPitch: 50 + 2
+
+    function pinSlot(i: int): int {
+        const a = i - pinFirst;
+        if (pinFrom < 0 || a < 0 || a >= pinCount)
+            return i;
+        if (a === pinFrom)
+            return pinTo + pinFirst;
+        if (pinFrom < pinTo && a > pinFrom && a <= pinTo)
+            return i - 1;
+        if (pinFrom > pinTo && a >= pinTo && a < pinFrom)
+            return i + 1;
+        return i;
+    }
+
     function focusEditor(): void {
         if (preview)
             return;
@@ -260,12 +282,31 @@ Item {
                 id: row
 
                 required property var modelData
+                required property int index
                 readonly property bool on: modelData.name === root.current
                 // A goo row: the list's goo rests on the on one and follows
                 // the hover; the ink turns while it's under the row.
                 property Item goo: notesGoo
                 readonly property bool picked: on
                 readonly property bool inked: notesGoo.covers(row)
+
+                readonly property int pinIndex: index - root.pinFirst
+                readonly property bool draggable: !modelData.scratch && modelData.pinned && pinIndex >= 0 && pinIndex < root.pinCount
+                readonly property bool lifted: root.pinFrom >= 0 && root.pinFrom === pinIndex && draggable
+                property real shift: lifted ? root.pinY - pinIndex * root.rowPitch : (root.pinSlot(index) - index) * root.rowPitch
+                Behavior on shift {
+                    enabled: !row.lifted && !Tokens.reduceMotion
+                    SpringAnimation {
+                        spring: Tokens.spring.control.spring
+                        damping: Tokens.spring.control.damping
+                        epsilon: 0.3
+                    }
+                }
+                transform: Translate {
+                    y: row.shift
+                }
+                z: lifted ? 10 : 0
+                outlined: lifted
 
                 width: list.width
                 height: 50
@@ -278,16 +319,52 @@ Item {
                 morph: false
                 onClicked: root.openNote(modelData.name)
 
+                // The note's kind; a pin's is its grip.
                 MaterialIcon {
                     id: kind
 
                     anchors.left: parent.left
                     anchors.leftMargin: Tokens.spacing.normal
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.modelData.scratch ? "edit_note" : row.modelData.pinned ? "push_pin" : "description"
+                    text: row.modelData.scratch ? "edit_note" : row.modelData.pinned ? (gripHover.hovered || row.lifted ? "drag_indicator" : "push_pin") : "description"
                     fill: row.modelData.pinned ? 1 : 0
                     color: row.inked ? row.ink : row.subInk
                     size: 18
+
+                    HoverHandler {
+                        id: gripHover
+
+                        enabled: row.draggable && root.pinCount > 1
+                        cursorShape: row.lifted ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    }
+                    DragHandler {
+                        enabled: row.draggable && root.pinCount > 1
+                        target: null
+                        xAxis.enabled: false
+                        property real startY: 0
+
+                        onActiveChanged: {
+                            if (active) {
+                                startY = row.pinIndex * root.rowPitch;
+                                root.pinY = startY;
+                                root.pinTo = row.pinIndex;
+                                root.pinFrom = row.pinIndex;
+                            } else if (root.pinFrom >= 0) {
+                                const pins = root.shown.filter(n => n.pinned && !n.scratch);
+                                const from = pins[root.pinFrom]?.name, to = pins[root.pinTo]?.name;
+                                root.pinFrom = -1;
+                                root.pinTo = -1;
+                                if (from && to && from !== to)
+                                    root.store.movePin(from, to);
+                            }
+                        }
+                        onTranslationChanged: {
+                            if (!active)
+                                return;
+                            root.pinY = Math.max(0, Math.min((root.pinCount - 1) * root.rowPitch, startY + translation.y));
+                            root.pinTo = Math.round(root.pinY / root.rowPitch);
+                        }
+                    }
                 }
 
                 Column {
@@ -305,9 +382,10 @@ Item {
                         elide: Text.ElideRight
                     }
 
+                    // Its words, then the first line.
                     MicroLabel {
                         width: parent.width
-                        text: row.modelData.preview || "empty"
+                        text: `${row.modelData.words ?? 0} ${(row.modelData.words ?? 0) === 1 ? "word" : "words"} · ${row.modelData.preview || "empty"}`
                         elide: Text.ElideRight
                     }
                 }

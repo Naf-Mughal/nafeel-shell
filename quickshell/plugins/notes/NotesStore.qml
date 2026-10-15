@@ -102,6 +102,18 @@ Scope {
         _saveState();
     }
 
+    // A pin moved to another place among the pins (their order is `pinned`'s).
+    function movePin(from: string, to: string): void {
+        const i = pinned.indexOf(from), j = pinned.indexOf(to);
+        if (i < 0 || j < 0 || i === j)
+            return;
+        const p = pinned.slice();
+        p.splice(j, 0, p.splice(i, 1)[0]);
+        pinned = p;
+        _saveState();
+        _sort(notes);
+    }
+
     function togglePin(name: string): void {
         if (name === scratchName)
             return;
@@ -136,7 +148,7 @@ Scope {
     function _sort(list: var): void {
         notes = list.map(n => Object.assign({}, n, {
                 pinned: n.scratch || pinned.includes(n.name)
-            })).sort((a, b) => (b.scratch - a.scratch) || (b.pinned - a.pinned) || (b.mtime - a.mtime));
+            })).sort((a, b) => (b.scratch - a.scratch) || (b.pinned - a.pinned) || (a.pinned && b.pinned ? pinned.indexOf(a.name) - pinned.indexOf(b.name) : b.mtime - a.mtime));
     }
 
     function _saveState(): void {
@@ -161,16 +173,18 @@ Scope {
     Process {
         id: lister
 
-        command: ["sh", "-c", 'mkdir -p "$1"; [ -e "$1/$2.md" ] || { [ -s "$3" ] && cp "$3" "$1/$2.md" || : > "$1/$2.md"; }; for f in "$1"/*.md; do [ -f "$f" ] || continue; n=$(basename "$f" .md); m=$(stat -c %Y "$f"); l=$(grep -m1 -v "^\\s*$" "$f" | cut -c1-120); printf "%s\\t%s\\t%s\\n" "$n" "$m" "$l"; done', "sh", root.dir, root.scratchName, root.oldPad]
+        command: ["sh", "-c", 'mkdir -p "$1"; [ -e "$1/$2.md" ] || { [ -s "$3" ] && cp "$3" "$1/$2.md" || : > "$1/$2.md"; }; for f in "$1"/*.md; do [ -f "$f" ] || continue; n=$(basename "$f" .md); m=$(stat -c %Y "$f"); l=$(grep -m1 -v "^\\s*$" "$f" | cut -c1-120); w=$(wc -w < "$f"); printf "%s\\t%s\\t%s\\t%s\\n" "$n" "$m" "$w" "$l"; done', "sh", root.dir, root.scratchName, root.oldPad]
         stdout: StdioCollector {
             onStreamFinished: {
                 const list = text.split("\n").filter(l => l).map(l => {
-                    const [name, mtime, preview] = l.split("\t");
+                    const [name, mtime, words, ...rest] = l.split("\t");
+                    const preview = rest.join("\t");
                     return {
                         name,
                         path: root.pathOf(name),
                         mtime: parseInt(mtime) || 0,
                         scratch: name === root.scratchName,
+                        words: parseInt(words) || 0,
                         preview: (preview ?? "").replace(/^#+\s*/, "")
                     };
                 });
