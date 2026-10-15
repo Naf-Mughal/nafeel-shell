@@ -170,7 +170,8 @@ Item {
                 Layout.fillHeight: true
             }
 
-            StyledText {
+            // The track's name brushed over when the song changes.
+            InkSwap {
                 Layout.fillWidth: true
                 text: root.player?.trackTitle || "Unknown title"
                 color: Colours.roleInk("paper", "soft")

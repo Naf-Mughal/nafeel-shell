@@ -897,9 +897,8 @@ every control and state on, then the controls, then moving panels onto them, mot
   (awake, night light, do not disturb, dark) and the desktop's actions (change / shuffle the
   wallpaper, edit the bar, Settings, the kit, reload). The surface takes the keyboard only while
   it's open.
-- [ ] **K6 Panels onto the primitives**: the ~71 hand-made rectangles (not the lock theme's own
-  drawing, Capture's big buttons, progress tracks, workspace miniatures), and the command
-  center tabs, action center and OSD onto Panel/Sheet.
+- [x] **K6 Panels onto the primitives** (2026-10-15; the cards and buttons that were hand-made are
+  Surfaces, the lists and tabs on the goo, text motion where it fits; drawing left as drawing)
 - [ ] **K7 Motion feel**: spring presets, open/close choreography (staggered contents),
   press and hover ink, blobs: variants shown in the gallery for the user to choose.
 

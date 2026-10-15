@@ -102,7 +102,8 @@ Surface {
             width: parent.width
             spacing: 2
 
-            StyledText {
+            // The track's name brushed over when the song changes.
+            InkSwap {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: Media.title || "Nothing playing"
