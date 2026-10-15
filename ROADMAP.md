@@ -887,8 +887,11 @@ every control and state on, then the controls, then moving panels onto them, mot
 - [ ] **K4 Controls upgraded** into the ink-and-paper language (roles, not raw M3 colours):
   Switch, Slider, TextField (label, leading/trailing icon, clear, helper/error, focus ring),
   Chip, ButtonGroup; a shared focus ring.
-- [ ] **K5 New primitives**: Checkbox, Radio + RadioGroup, Select (dropdown) on a Menu,
-  Menu/ContextMenu, Tooltip, Stepper, Dialog/Confirm, a drag-reorder list.
+- [x] **K5 New primitives** (2026-10-15, kit entries 19-20): Checkbox (ink fill, a brushed tick),
+  RadioGroup (the dot as goo), Stepper (rolling value, hold to run), Swatch, Select, Menu,
+  Tooltip, Dialog on Floating (hosts.js: floats inside its panel's body, unfolding from where it
+  opened; a press outside closes it), ReorderList (grip drag, rows make room, goo marks the
+  landing). Not wired into panels yet (K6), nor the picker's/annotator's swatches.
 - [ ] **K6 Panels onto the primitives**: the ~71 hand-made rectangles (not the lock theme's own
   drawing, Capture's big buttons, progress tracks, workspace miniatures), and the command
   center tabs, action center and OSD onto Panel/Sheet.

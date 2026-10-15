@@ -566,6 +566,39 @@ Item {
             }
 
             Entry {
+                num: "20"
+                name: "Reorder"
+                note: "drag a row by its grip; the others make room, goo marks where it lands"
+
+                Spec {
+                    caption: "pinned"
+                    ReorderList {
+                        id: reorder
+
+                        width: 320
+                        model: ["Wi-Fi password", "ssh key path", "Meeting link", "Address", "Recipe"]
+                        delegate: Component {
+                            ListRow {
+                                property var modelData
+                                property int index
+
+                                icon: "push_pin"
+                                iconFill: 1
+                                title: modelData ?? ""
+                                subtitle: "pinned " + ((index ?? 0) + 1)
+                                hoverLayer: false
+                            }
+                        }
+                        onMoved: (a, b) => {
+                            const m = model.slice();
+                            m.splice(b, 0, m.splice(a, 1)[0]);
+                            model = m;
+                        }
+                    }
+                }
+            }
+
+            Entry {
                 num: "19"
                 name: "New controls"
                 note: "checkbox, radio, stepper, swatch, select, menu, tooltip, dialog"
