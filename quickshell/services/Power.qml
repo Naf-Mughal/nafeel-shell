@@ -103,9 +103,9 @@ Singleton {
 
     // ── Profile on battery ──
     readonly property string batteryMode: settings.v["power.battery"] ?? "boost"
-    readonly property bool onBattery: ready && !charging
+    readonly property bool unplugged: ready && !charging
     readonly property bool lowBattery: percent < settings.v["power.saverBelow"]
-    readonly property string autoProfile: !ready ? "" : !onBattery ? "balanced" : batteryMode === "saver" ? "saver" : batteryMode === "boost" ? (busy ? "balanced" : "saver") : (lowBattery ? "saver" : "balanced")
+    readonly property string autoProfile: !ready ? "" : !unplugged ? "balanced" : batteryMode === "saver" ? "saver" : batteryMode === "boost" ? (busy ? "balanced" : "saver") : (lowBattery ? "saver" : "balanced")
     // The last automatic choice, and whether a profile picked by hand holds
     // it off (until the next plug or unplug).
     property string lastAuto: ""
@@ -113,7 +113,7 @@ Singleton {
     property int setByUs: -1
 
     onAutoProfileChanged: Qt.callLater(applyAuto)
-    onOnBatteryChanged: {
+    onUnpluggedChanged: {
         handPicked = false;
         Qt.callLater(applyAuto);
     }
@@ -134,10 +134,11 @@ Singleton {
         lastAuto = autoProfile;
         setByUs = autoProfile === "saver" ? PowerProfile.PowerSaver : PowerProfile.Balanced;
         PowerProfiles.profile = setByUs;
+        console.info(`power: ${autoProfile} (battery ${unplugged}, busy ${busy}, load ${Math.round(load * 100)}%)`);
         // Only the low-battery switch says so; boosts come and go quietly.
-        if (batteryMode === "balanced" && onBattery && autoProfile === "saver")
+        if (batteryMode === "balanced" && unplugged && autoProfile === "saver")
             notify("normal", "battery-low", "Battery saver turned on", `Battery at ${percent}%. Plug in to go back to Balanced.`);
-        else if (batteryMode === "balanced" && before === "saver" && !onBattery)
+        else if (batteryMode === "balanced" && before === "saver" && !unplugged)
             notify("normal", "battery-good-charging", "Battery saver turned off", "Back to Balanced.");
     }
 
@@ -152,7 +153,7 @@ Singleton {
     property int _cold: 0
 
     Timer {
-        running: root.onBattery && root.batteryMode === "boost"
+        running: root.unplugged && root.batteryMode === "boost"
         interval: 5000
         repeat: true
         triggeredOnStart: true
@@ -206,6 +207,27 @@ Singleton {
             notify("critical", "battery-caution", "Battery critically low", `${percent}% left. Plug in now.`);
         else if (lowAt > 0 && before >= lowAt && percent < lowAt)
             notify("normal", "battery-low", "Battery low", `${percent}% left. Plug in soon.`);
+    }
+
+    //   qs -p <shell> ipc call power state
+    IpcHandler {
+        target: "power"
+
+        function state(): string {
+            return JSON.stringify({
+                ready: root.ready,
+                state: root.battery?.state ?? -1,
+                unplugged: root.unplugged,
+                charging: root.charging,
+                mode: root.batteryMode,
+                busy: root.busy,
+                load: Math.round(root.load * 100),
+                auto: root.autoProfile,
+                lastAuto: root.lastAuto,
+                handPicked: root.handPicked,
+                profile: PowerProfile.toString(PowerProfiles.profile)
+            });
+        }
     }
 
     function notify(urgency: string, icon: string, title: string, body: string): void {

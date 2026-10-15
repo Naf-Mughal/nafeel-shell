@@ -38,13 +38,13 @@ Variants {
         // windows cover nine tenths of it and the covered rule holds it
         // ("auto": on battery only; each frame shown costs the whole screen
         // recomposited, ~17% of this GPU). `held` (IPC) holds it for a measure.
-        readonly property bool onBattery: Power.hasBattery && !Power.charging
+        readonly property bool unplugged: Power.hasBattery && !Power.charging
         readonly property string coveredRule: Wallpapers.settings.v.liveCovered ?? "auto"
-        readonly property bool holdCovered: coveredRule === "pause" || (coveredRule === "auto" && onBattery)
+        readonly property bool holdCovered: coveredRule === "pause" || (coveredRule === "auto" && unplugged)
         readonly property bool covered: holdCovered && Umbriel.coverageOn(modelData.name, modelData.width, modelData.height) >= 0.9
         // Plays through panels opening and closing: held for them, the
         // wallpaper visibly stuttered.
-        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !onBattery) && !covered && !Wallpapers.held
+        readonly property bool live: !ShellState.locked && !Umbriel.fullscreenOn(modelData.name, modelData.width, modelData.height) && (Wallpapers.settings.v.liveOnBattery || !unplugged) && !covered && !Wallpapers.held
 
         function url(path: string): string {
             return path ? "file://" + path : "";
@@ -77,7 +77,7 @@ Variants {
 
             anchors.fill: parent
             decode: win.decode
-            maxFps: win.onBattery ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
+            maxFps: win.unplugged ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
             visible: win.front === 0
             playing: visible && win.live
             onSettled: win.loaded(a)
@@ -88,7 +88,7 @@ Variants {
 
             anchors.fill: parent
             decode: win.decode
-            maxFps: win.onBattery ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
+            maxFps: win.unplugged ? (Wallpapers.settings.v.liveBatteryFps ?? 0) : 0
             visible: win.front === 1
             playing: visible && win.live
             onSettled: win.loaded(b)
