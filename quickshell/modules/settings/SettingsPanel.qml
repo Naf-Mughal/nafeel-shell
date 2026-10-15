@@ -20,6 +20,32 @@ Panel {
 
     readonly property var page: Settings.pages.find(p => p.name === ShellState.settingsPage) ?? Settings.pages[0] ?? null
 
+    // Searching every page: matches by label, description or key; picking
+    // one opens its page, scrolls it into view and pulses it (flashKey).
+    property string query: ""
+    property string flashKey: ""
+    readonly property var matches: {
+        const q = query.trim().toLowerCase();
+        if (!q)
+            return [];
+        const out = [];
+        for (const pg of Settings.pages)
+            for (const it of Settings.itemsOf(pg.name))
+                if (it.shown && `${it.label} ${it.description} ${it.key} ${it.section}`.toLowerCase().includes(q))
+                    out.push({
+                        page: pg,
+                        item: it
+                    });
+        return out.slice(0, 40);
+    }
+
+    function reveal(page: var, item: var): void {
+        ShellState.settingsPage = page.name;
+        flashKey = "";
+        flashKey = item.key;
+        search.text = "";
+    }
+
     // A number as its setting reads it.
     function readNumber(item: var, v: real): string {
         if (v === 0 && item.zeroLabel)
@@ -85,12 +111,66 @@ Panel {
         }
 
 
+        // ── Search over every page ──
+        TextField {
+            id: search
+
+            width: 200
+            implicitHeight: 36
+            placeholder: "Search settings"
+            onTextChanged: root.query = text
+            keyFilter: event => {
+                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.matches.length) {
+                    root.reveal(root.matches[0].page, root.matches[0].item);
+                    event.accepted = true;
+                }
+            }
+        }
+
+        // What matches, in place of the pages while searching.
+        Strip {
+            id: results
+
+            anchors.top: search.bottom
+            anchors.topMargin: Tokens.spacing.small
+            width: 200
+            height: parent.height - search.height - Tokens.spacing.small
+            visible: root.query.trim() !== ""
+            orientation: ListView.Vertical
+            spacing: Tokens.spacing.tiny
+            model: root.matches
+
+            delegate: ListRow {
+                required property var modelData
+
+                width: results.width
+                icon: modelData.item.icon
+                title: modelData.item.label
+                subtitle: modelData.page.title
+                onClicked: root.reveal(modelData.page, modelData.item)
+            }
+        }
+
+        StyledText {
+            anchors.top: search.bottom
+            anchors.topMargin: Tokens.spacing.large
+            visible: root.query.trim() !== "" && root.matches.length === 0
+            width: 200
+            text: "Nothing matches"
+            color: Colours.palette.m3onSurfaceVariant
+            font.pixelSize: Tokens.font.small
+            horizontalAlignment: Text.AlignHCenter
+        }
+
         // ── The pages (a Strip: it scrolls once they outgrow the panel) ──
         Strip {
             id: list
 
+            anchors.top: search.bottom
+            anchors.topMargin: Tokens.spacing.small
             width: 200
-            height: parent.height
+            height: parent.height - search.height - Tokens.spacing.small
+            visible: root.query.trim() === ""
             orientation: ListView.Vertical
             spacing: Tokens.spacing.tiny
             model: Settings.pages
@@ -205,6 +285,8 @@ Panel {
                                 item: modelData
                                 values: Settings.valuesOf(items.modelData.name)
                                 width: items.width
+                                flashKey: root.flashKey
+                                scroller: flick
                             }
                         }
                     }
@@ -224,7 +306,51 @@ Panel {
         required property var item
         required property var values
         required property int index
+        // A search picked it: scrolled into view and pulsed.
+        property string flashKey
+        property Flickable scroller
         readonly property var value: values[item.key]
+        onFlashKeyChanged: if (flashKey !== "" && flashKey === item.key)
+            Qt.callLater(() => {
+                const at = row.mapToItem(scroller.contentItem, 0, 0);
+                scroller.contentY = Math.max(0, Math.min(scroller.contentHeight - scroller.height, at.y - Tokens.spacing.large));
+                flash.x = at.x - 6;
+                flash.y = at.y - 6;
+                pulse.restart();
+            })
+
+        // The pulse: a hairline of the accent round it, fading.
+        Rectangle {
+            id: flash
+
+            // Over the page's content (in the row's Column it'd be laid out).
+            parent: row.scroller?.contentItem ?? null
+            width: row.width + 12
+            height: row.height + 12
+            radius: Tokens.rounding.normal
+            color: Qt.alpha(Colours.palette.m3primary, 0.08)
+            border.width: 2
+            border.color: Colours.palette.m3primary
+            opacity: 0
+            z: 10
+
+            SequentialAnimation on opacity {
+                id: pulse
+
+                running: false
+                NumberAnimation {
+                    to: 1
+                    duration: Tokens.anim.fast
+                }
+                PauseAnimation {
+                    duration: 900
+                }
+                NumberAnimation {
+                    to: 0
+                    duration: Tokens.anim.slow
+                }
+            }
+        }
         readonly property bool modified: item.key in Settings.values && JSON.stringify(Settings.values[item.key]) !== JSON.stringify(item.def)
 
         visible: item.shown
