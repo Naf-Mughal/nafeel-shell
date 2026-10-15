@@ -134,8 +134,11 @@ Column {
             subtitle: root.shot ? "Screenshot" : "Screen recording"
         }
 
+        // Screenshot or record: switched on hover, like the connect panel's
+        // Wi-Fi and Bluetooth.
         ButtonGroup {
             width: parent.width
+            switchOnHover: true
             current: root.p.kind
             model: [
                 {
@@ -162,7 +165,10 @@ Column {
             spacing: Tokens.spacing.small
 
             Repeater {
-                model: root.shot ? [
+                // One model for both (Annotate only for a screenshot): a model
+                // changing with the kind rebuilt the tiles on every switch, and
+                // the kind switches on hover.
+                model: [
                     {
                         value: "region",
                         icon: "crop",
@@ -178,17 +184,6 @@ Column {
                         icon: "draw",
                         label: "Annotate"
                     }
-                ] : [
-                    {
-                        value: "region",
-                        icon: "crop",
-                        label: "Region"
-                    },
-                    {
-                        value: "screen",
-                        icon: "desktop_windows",
-                        label: "Screen"
-                    }
                 ]
 
                 Tile {
@@ -200,6 +195,7 @@ Column {
                     width: (root.width - Tokens.spacing.small * (root.shot ? 2 : 1)) / (root.shot ? 3 : 2)
                     icon: modelData.icon
                     label: modelData.label
+                    visible: root.shot || modelData.value !== "edit"
                     stacked: root.shot
                     checked: current === modelData.value
                     onClicked: root.cap.setPref(root.shot ? "shot" : "area", modelData.value)
