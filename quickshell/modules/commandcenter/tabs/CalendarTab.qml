@@ -232,7 +232,7 @@ Item {
             spacing: Tokens.spacing.small
 
             function add(): void {
-                Events.add(titleField.text, root.picked, timeField.text, timeField.text.trim() ? 10 : -1);
+                Events.add(titleField.text, root.picked, timeField.text, timeField.text.trim() ? Events.remindBefore : -1);
                 titleField.text = "";
                 timeField.text = "";
             }
