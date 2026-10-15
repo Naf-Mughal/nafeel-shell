@@ -10,8 +10,8 @@ import qs.components
 // The lock's panels, grown out of its frame as the desktop's drawers grow
 // out of the bars (each is one of the frame's panel slots, so its paper is
 // the frame's, merged with it): out of the top, the OSD and the
-// notifications; out of the left, capture (the capture keys open it: a
-// region screenshot first). Over everything, the region picker.
+// notifications; out of the left, your capture panel (the capture keys open
+// it: a region screenshot first). Over everything, the region picker.
 Item {
     id: root
 
@@ -178,38 +178,16 @@ Item {
     }
 
     // ── Out of the left: capture ──
+    // Your capture panel (the bar's), as it is: the capture keys open it
+    // while locked, on what they ask for (a region screenshot for the snip
+    // key); a region it asks for is picked with the lock's picker.
     property bool capOpen: false
-    property int capIndex: 0
     property Item _focusWas: null
-    readonly property var capChoices: [
-        {
-            icon: "screenshot_region",
-            title: "Screenshot a region",
-            event: "screenshot",
-            region: true
-        },
-        {
-            icon: "fullscreen",
-            title: "Screenshot the screen",
-            event: "screenshot",
-            region: false
-        },
-        {
-            icon: "screen_record",
-            title: "Record a region",
-            event: "record",
-            region: true
-        },
-        {
-            icon: "videocam",
-            title: "Record the screen",
-            event: "record",
-            region: false
-        }
-    ]
 
     function openCapture(preset: string): void {
-        capIndex = preset === "record-region" ? 2 : 0;
+        const record = preset === "record-region";
+        root.capture?.setPref("kind", record ? "record" : "screenshot");
+        root.capture?.setPref(record ? "area" : "shot", "region");
         _focusWas = Window.window?.activeFocusItem ?? null;
         capOpen = true;
         capKeys.forceActiveFocus();
@@ -220,15 +198,6 @@ Item {
         _focusWas?.forceActiveFocus();
     }
 
-    function choose(i: int): void {
-        const c = capChoices[i];
-        closeCapture();
-        if (c.region)
-            pick(c.event);
-        else
-            take(c.event, null);
-    }
-
     Connections {
         target: root.capture
 
@@ -236,12 +205,15 @@ Item {
             root.ctx?.poke();
             root.openCapture(preset);
         }
+        function onLockPickRequested(event: string): void {
+            root.pick(event);
+        }
     }
 
     Item {
         id: cap
 
-        readonly property real full: 300
+        readonly property real full: 360
         property real shown: root.capOpen ? full : 0
 
         Behavior on shown {
@@ -255,94 +227,35 @@ Item {
         x: root.leftInset
         y: (parent.height - height) / 2
         width: shown
-        height: capBody.implicitHeight + root.pad * 2
+        height: (capPanel.item?.implicitHeight ?? 300) + root.pad * 2
         clip: true
         visible: shown > 0.5
 
+        // Esc closes it (whatever in it has the keyboard).
         Item {
             id: capKeys
 
             focus: root.capOpen
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape)
-                    root.closeCapture();
-                else if (event.key === Qt.Key_Up)
-                    root.capIndex = (root.capIndex + root.capChoices.length - 1) % root.capChoices.length;
-                else if (event.key === Qt.Key_Down || event.key === Qt.Key_Tab)
-                    root.capIndex = (root.capIndex + 1) % root.capChoices.length;
-                else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
-                    root.choose(root.capIndex);
-                else
-                    return;
-                event.accepted = true;
-            }
+            Keys.onEscapePressed: root.closeCapture()
         }
 
-        Column {
-            id: capBody
+        Loader {
+            id: capPanel
 
             x: root.pad - (cap.full - cap.shown)
             y: root.pad
             width: cap.full - root.pad * 2
-            spacing: Tokens.spacing.small
+            active: root.capture !== null
+            source: Qt.resolvedUrl("../capture/CapturePopout.qml")
+            onLoaded: item.width = Qt.binding(() => width)
+        }
 
-            Row {
-                spacing: Tokens.spacing.small
+        Connections {
+            target: capPanel.item
+            ignoreUnknownSignals: true
 
-                StyledText {
-                    anchors.baseline: capTitle.baseline
-                    text: "影"
-                    color: Colours.palette.m3primary
-                    font.family: Tokens.font.cjk
-                    font.pixelSize: 20
-                }
-
-                StyledText {
-                    id: capTitle
-
-                    text: "Capture"
-                    font.family: Tokens.font.serif
-                    font.pixelSize: Tokens.font.title
-                }
-            }
-
-            Item {
-                width: parent.width
-                height: rows.height
-
-                ListGoo {
-                    id: goo
-
-                    anchors.fill: rows
-                    container: rows
-                }
-
-                Column {
-                    id: rows
-
-                    width: parent.width
-
-                    Repeater {
-                        model: root.capChoices
-
-                        ListRow {
-                            required property var modelData
-                            required property int index
-
-                            width: rows.width
-                            implicitHeight: 42
-                            goo: goo
-                            picked: index === root.capIndex
-                            icon: modelData.icon
-                            title: modelData.title
-                            onClicked: root.choose(index)
-                        }
-                    }
-                }
-            }
-
-            MicroLabel {
-                text: "↑ ↓ to pick · Enter · Esc"
+            function onTaken(): void {
+                root.closeCapture();
             }
         }
     }

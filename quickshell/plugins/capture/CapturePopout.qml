@@ -31,7 +31,11 @@ Column {
     }, root.cap?.prefs ?? {})
     readonly property bool shot: p.kind !== "record"
 
+    // Its action was taken (the lock's panel closes on it).
+    signal taken
+
     function take(): void {
+        taken();
         if (root.shot && ShellState.pinned === "bar:capture") {
             root.cap.go(80);
             return;

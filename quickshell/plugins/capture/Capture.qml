@@ -191,6 +191,9 @@ Scope {
     // else can draw over the lock): `preset` is what's picked first
     // ("screenshot-region" | "record-region").
     signal lockPanelRequested(string preset)
+    // Locked, a region to pick: the lock's own picker ("screenshot" |
+    // "record"), which comes back through lockedCapture.
+    signal lockPickRequested(string event)
 
     function request(action: string, arg: string): void {
         arg = (arg ?? "").trim();
@@ -265,7 +268,12 @@ Scope {
 
     function shot(mode: string, delayMs: int): void {
         if (ShellState.locked) {
-            lockedShot(null);
+            if (mode === "screen") {
+                lockedShotTimer.interval = Math.max(1, delayMs);
+                lockedShotTimer.restart();
+            } else {
+                lockPickRequested("screenshot");
+            }
             return;
         }
         Quickshell.execDetached(["mkdir", "-p", shotDir]);
@@ -327,6 +335,10 @@ Scope {
     function startRecording(mode: string, delayMs: int): void {
         if (recording || state.starting)
             return;
+        if (ShellState.locked && mode !== "screen") {
+            lockPickRequested("record");
+            return;
+        }
         setState({
             starting: true
         });
@@ -436,6 +448,12 @@ Scope {
             else
                 root.shot(root.prefs.shot, (root.prefs.delay ?? 0) * 1000);
         }
+    }
+
+    Timer {
+        id: lockedShotTimer
+
+        onTriggered: root.lockedShot(null)
     }
 
     Timer {
