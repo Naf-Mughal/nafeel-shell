@@ -431,6 +431,11 @@ Item {
                 }
                 Keys.onPressed: event => root.keys(event)
 
+                // The caret's cut when it jumps (Kitty's cursor trail).
+                CaretTrail {
+                    target: edit
+                }
+
                 StyledText {
                     visible: edit.text === ""
                     text: root.note?.scratch ? "Dump anything here. It's kept as you type." : "Write anything. Markdown works (Ctrl+E to preview)."

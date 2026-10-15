@@ -466,6 +466,38 @@ Item {
             }
 
             Entry {
+                num: "16"
+                name: "Text area · caret trail"
+                note: "the cut when the caret jumps: Enter, Ctrl+arrows, Home/End, a click"
+
+                Spec {
+                    caption: "type, jump around"
+                    Surface {
+                        level: 2
+                        width: 520
+                        height: 150
+
+                        TextEdit {
+                            id: area
+
+                            anchors.fill: parent
+                            anchors.margins: Tokens.spacing.normal
+                            wrapMode: TextEdit.Wrap
+                            color: Colours.palette.m3onSurface
+                            selectionColor: Colours.palette.m3primary
+                            selectedTextColor: Colours.palette.m3onPrimary
+                            font.pixelSize: Tokens.font.row
+                            text: "The brush moves before the thought.\nClick anywhere, or press Enter, Home, End,\nCtrl+Left / Ctrl+Right to watch the caret cut across."
+
+                            CaretTrail {
+                                target: area
+                            }
+                        }
+                    }
+                }
+            }
+
+            Entry {
                 num: "10"
                 name: "Progress"
                 note: "LinearProgress, CircularProgress, Gauge, Sparkline"
