@@ -17,6 +17,8 @@ QtObject {
     readonly property real radiusSmall: Tokens.rounding.small
     readonly property real radiusNormal: Tokens.rounding.normal
     readonly property real radiusMorph: Tokens.rounding.morph
+    readonly property real paperFibre: Tokens.paperTexture
+    readonly property real paperInk: Tokens.immersive ? 1 : 0.55
     // A card's paper, as the panels' (frosted: translucent).
     readonly property color paperFill: Qt.alpha(Colours.roleFill("paper", "soft", 2), Tokens.transparency.base)
     // Motion: the theme's timings at the shell's tempo, none when reduced.

@@ -3,8 +3,9 @@ import "modules/lock"
 import "modules/lock/themes/xianxia"
 
 // The login screen's session (desktop) picker, bottom left: a carousel on
-// one card, made like the cultivator's (the paper, the cover's ink fade, a
-// seal with the session's initial, its name large). Scroll, swipe up or
+// one card, made like the cultivator's (CoverCard: the paper, the
+// wallpaper's cover under an ink fade; a seal with the session's initial,
+// its name large). Scroll, swipe up or
 // down, or click to flip; the card in front is what SDDM logs into
 // (ctx.sessionIndex); dots on the right say where you are.
 Item {
@@ -53,20 +54,11 @@ Item {
         width: 300 * root.sc
         height: 100 * root.sc
 
-        Paper {
+        // The card as the cultivator's: paper, the wallpaper's cover.
+        CoverCard {
             anchors.fill: parent
-            border.color: area.containsMouse ? Xian.alpha(Xian.gold, 0.4) : Xian.alpha(Xian.paper, 0.08)
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 1
-                radius: parent.radius
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0; color: Xian.alpha(Xian.ink, 0.55) }
-                    GradientStop { position: 1; color: Xian.alpha(Xian.ink, 0.1) }
-                }
-            }
+            sc: root.sc
+            hovered: area.containsMouse
         }
 
         // The front card, swapped with a short rise (or fall) and a fade.
@@ -85,35 +77,10 @@ Item {
                 spacing: 16 * root.sc
 
                 // The session's initial, a seal as the cultivator's face.
-                Item {
+                SealMark {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 62 * root.sc
-                    height: width
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: width / 2
-                        color: Xian.alpha(Xian.ink, 0.6)
-                        border.width: 1
-                        border.color: Xian.alpha(Xian.gold, 0.55)
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: 4 * root.sc
-                        radius: width / 2
-                        color: "transparent"
-                        border.width: 1
-                        border.color: Xian.alpha(Xian.gold, 0.25)
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.nameAt(root.index).charAt(0).toUpperCase()
-                        font.family: Xian.serif
-                        font.pixelSize: 28 * root.sc
-                        color: Xian.goldHi
-                    }
+                    sc: root.sc
+                    letter: root.nameAt(root.index).charAt(0).toUpperCase()
                 }
 
                 Column {

@@ -42,6 +42,9 @@ QtObject {
     readonly property real radiusSmall: host?.radiusSmall ?? 8
     readonly property real radiusNormal: host?.radiusNormal ?? 10
     readonly property real radiusMorph: host?.radiusMorph ?? 14
+    // The panels' paper texture: its fibre and ink wash.
+    readonly property real paperFibre: host?.paperFibre ?? 0.5
+    readonly property real paperInk: host?.paperInk ?? 0.55
     readonly property color ember: follow ? m3.m3secondary : "#ff9d4d"
 
     // The host's motion: the shell's tempo (0 under reduced motion); 1 with

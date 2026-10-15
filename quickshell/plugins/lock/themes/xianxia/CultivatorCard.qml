@@ -1,8 +1,7 @@
 import QtQuick
-import QtQuick.Effects
 import "../.."
 
-// The cultivator, as the dashboard's user card: the wallpaper as the cover,
+// The cultivator, as the dashboard's user card (CoverCard): the wallpaper as the cover,
 // qi building up over it from the left as far as this level's cultivation
 // (it runs up during an unlock's reward), the face or the name's initial in
 // a seal, the name, the realm; on the right the realm's layer large, the qi
@@ -18,40 +17,13 @@ Item {
     width: 480 * sc
     height: 100 * sc
 
-    // Cover and qi, clipped to the card's corners.
-    Item {
-        id: cover
-
+    // The cover, and qi gathered over it from the left up to the
+    // cultivation.
+    CoverCard {
         anchors.fill: parent
-        visible: false
-        layer.enabled: true
+        sc: card.sc
 
-        Rectangle {
-            anchors.fill: parent
-            color: Xian.paperFill
-        }
-
-        Image {
-            anchors.fill: parent
-            source: card.xian.host.wallpaperStill
-            sourceSize: Qt.size(Math.max(64, Math.ceil(width)), Math.max(64, Math.ceil(height)))
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            opacity: 0.45
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0; color: Xian.alpha(Xian.ink, 0.88) }
-                GradientStop { position: 1; color: Xian.alpha(Xian.ink, 0.25) }
-            }
-        }
-
-        // Qi, gathered from the left up to the cultivation.
-        Rectangle {
+        underlay: Rectangle {
             width: parent.width * card.progress
             height: parent.height
             gradient: Gradient {
@@ -73,91 +45,18 @@ Item {
         }
     }
 
-    Rectangle {
-        id: corners
-
-        anchors.fill: parent
-        radius: Xian.radiusNormal
-        visible: false
-        layer.enabled: true
-    }
-
-    MultiEffect {
-        anchors.fill: parent
-        source: cover
-        maskEnabled: true
-        maskSource: corners
-        maskThresholdMin: 0.5
-        maskSpreadAtMin: 1.0
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: Xian.radiusNormal
-        color: "transparent"
-        border.width: 1
-        border.color: Xian.alpha(Xian.paper, 0.08)
-    }
-
     Row {
         anchors.left: parent.left
         anchors.leftMargin: 18 * card.sc
         anchors.verticalCenter: parent.verticalCenter
         spacing: 16 * card.sc
 
-        // The face, or the name's initial as a seal.
-        Item {
+        // The face, or the name's initial, as a seal.
+        SealMark {
             anchors.verticalCenter: parent.verticalCenter
-            width: 62 * card.sc
-            height: width
-
-            Rectangle {
-                id: faceMask
-
-                anchors.fill: parent
-                radius: width / 2
-                visible: false
-                layer.enabled: true
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: Xian.alpha(Xian.gold, 0.16)
-                border.width: 1
-                border.color: Xian.alpha(Xian.gold, 0.5)
-            }
-
-            Text {
-                anchors.centerIn: parent
-                visible: face.status !== Image.Ready
-                text: card.name.charAt(0)
-                font.family: Xian.serif
-                font.pixelSize: 28 * card.sc
-                color: Xian.goldHi
-            }
-
-            Image {
-                id: face
-
-                anchors.fill: parent
-                source: card.xian.host.avatar
-                sourceSize: Qt.size(width * 2, height * 2)
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: false
-                visible: false
-            }
-
-            MultiEffect {
-                anchors.fill: face
-                source: face
-                visible: face.status === Image.Ready
-                maskEnabled: true
-                maskSource: faceMask
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1.0
-            }
+            sc: card.sc
+            source: card.xian.host.avatar
+            letter: card.name.charAt(0)
         }
 
         Column {

@@ -47,6 +47,8 @@ Singleton {
             radiusSmall: Tokens.rounding.small,
             radiusNormal: Tokens.rounding.normal,
             radiusMorph: Tokens.rounding.morph,
+            paperFibre: Tokens.paperTexture,
+            paperInk: Tokens.immersive ? 1 : 0.55,
             paperFill: Qt.alpha(Colours.roleFill("paper", "soft", 2), Tokens.transparency.base).toString(),
             h24: Time.h24,
             xp: LockStats.xp,

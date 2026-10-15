@@ -22,6 +22,8 @@ QtObject {
     readonly property real radiusSmall: data?.radiusSmall ?? 8
     readonly property real radiusNormal: data?.radiusNormal ?? 10
     readonly property real radiusMorph: data?.radiusMorph ?? 14
+    readonly property real paperFibre: data?.paperFibre ?? 0.5
+    readonly property real paperInk: data?.paperInk ?? 0.55
     readonly property color paperFill: data?.paperFill ?? Qt.rgba(0.08, 0.09, 0.12, 0.85)
 
     readonly property bool follow: data?.follow ?? false
