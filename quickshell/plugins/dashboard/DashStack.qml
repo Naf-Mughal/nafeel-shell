@@ -9,8 +9,8 @@ import qs.components
 
 // A stack of small widgets in one card (the dashboard's corner, after the
 // phones' smart stacks): Focus, System, Network, Agenda. Scroll or swipe up
-// and down to flip through them; the next one's edge peeks under the card,
-// dots on the side say where you are. Only the card in front does any work.
+// and down to flip through them; dots on the side say where you are (it
+// stays inside its card: an edge peeking under it read as spilling out). Only the card in front does any work.
 Item {
     id: root
 
@@ -23,16 +23,6 @@ Item {
     function flip(step: int): void {
         dir = step;
         index = (index + step + cards.length) % cards.length;
-    }
-
-    // The next card's edge, under this one.
-    StyledRect {
-        x: Tokens.spacing.normal
-        y: root.height - radius
-        width: root.width - Tokens.spacing.normal * 2
-        height: radius + 6
-        radius: Tokens.rounding.normal
-        color: Qt.alpha(Colours.roleFill("paper", "soft", 3), 0.7)
     }
 
     Surface {
