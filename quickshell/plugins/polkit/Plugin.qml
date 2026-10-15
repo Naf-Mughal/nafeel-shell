@@ -9,6 +9,10 @@
 // deviation, and the request is dismissed. Esc leaves. Switched off, the
 // shell has no agent.
 //
+// Its other style (Settings → Authentication: "Floating"): the formation
+// and its prompt alone, floating over the desktop on a pool of ink, in its
+// own window above everything; nothing grabbed, nothing soaked.
+//
 //   qs -p <shell> ipc call polkit preview    (a pretend request: "wrong" is
 //                                             refused, anything else granted;
 //                                             no PAM, no XP)
@@ -18,7 +22,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import Quickshell.Services.Polkit
+import qs.config
 import qs.services
 import "../lock"
 import "../lock/themes/xianxia"
@@ -27,6 +33,38 @@ Scope {
     id: root
 
     readonly property alias agent: agent
+
+    readonly property SettingsPage settings: SettingsPage {
+        name: "polkit"
+        title: "Authentication"
+        gloss: "授权"
+        icon: "admin_panel_settings"
+        order: 60
+        description: "How an admin action asks for your password."
+
+        SettingItem {
+            key: "polkit.style"
+            icon: "style"
+            label: "Style"
+            description: "Lock: the lock itself inside the frame, the screen soaking into ink. Floating: the formation alone over the desktop on a pool of ink."
+            def: "lock"
+            options: [
+                {
+                    value: "lock",
+                    icon: "lock",
+                    label: "Lock"
+                },
+                {
+                    value: "floating",
+                    icon: "bubble_chart",
+                    label: "Floating"
+                }
+            ]
+        }
+    }
+    readonly property bool floating: settings.v["polkit.style"] === "floating"
+    // The style of the request that's up (a change waits for the next).
+    property bool floatingNow: false
     readonly property alias ctx: lockCtx
     // The request being answered (kept: the agent lets go of its flow the
     // moment it completes, before a success could be heard through it).
@@ -40,7 +78,7 @@ Scope {
     // The desktop as it was, for the ink to soak (and recede back to).
     readonly property var capture: grab.item
 
-    onShowingChanged: ShellState.takeover = showing ? screenName : ""
+    onShowingChanged: ShellState.takeover = showing && !floatingNow ? screenName : ""
 
     function _start(): void {
         if (showing)
@@ -51,6 +89,12 @@ Scope {
         lockCtx.reward = null;
         lockCtx.buffer = "";
         lockCtx.cells = 0;
+        floatingNow = floating;
+        // Floating: nothing to soak, up at once.
+        if (floatingNow) {
+            _show();
+            return;
+        }
         // Grab the screen first, then show (a beat at most).
         grab.active = false;
         grab.active = true;
@@ -183,5 +227,42 @@ Scope {
         function state(): string {
             return `${root.showing} ${lockCtx.phase} ${lockCtx.ambient} ${lockCtx.ambientTime.toFixed(1)}`;
         }
+    }
+
+    // Floating: its own window over everything on the focused screen.
+    Variants {
+        model: root.showing && root.floatingNow ? Quickshell.screens.filter(s => s.name === root.screenName).slice(0, 1) : []
+
+        PanelWindow {
+            required property ShellScreen modelData
+
+            screen: modelData
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.layer: WlrLayer.Overlay
+            // Not "nafeel-shell…": the frosted-paper rule would blur behind
+            // the pool of ink, edged where it turns 5% opaque.
+            WlrLayershell.namespace: "nafeel-polkit"
+            WlrLayershell.keyboardFocus: lockCtx.phase === "exiting" ? WlrKeyboardFocus.None : WlrKeyboardFocus.Exclusive
+
+            XianxiaSurface {
+                anchors.fill: parent
+                compact: true
+                floating: true
+                ctx: lockCtx
+                host: floatHost
+                idleLine: root.preview ? "A pretend request: “wrong” is refused, anything else granted" : (root.flow?.message ?? "") + ((root.flow?.identities?.length ?? 0) > 1 ? `  ·  as ${root.flow.selectedIdentity?.displayName || root.flow.selectedIdentity?.name || ""}` : "")
+            }
+        }
+    }
+
+    ShellLockHost {
+        id: floatHost
     }
 }

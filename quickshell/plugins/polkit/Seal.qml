@@ -13,7 +13,7 @@ Item {
 
     property ShellScreen shellScreen
     readonly property var polkit: Plugins.instance("polkit")
-    readonly property bool here: (polkit?.showing ?? false) && polkit.screenName === (shellScreen?.name ?? "")
+    readonly property bool here: (polkit?.showing ?? false) && !polkit.floatingNow && polkit.screenName === (shellScreen?.name ?? "")
 
     anchors.fill: parent
     z: -1
