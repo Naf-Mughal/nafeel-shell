@@ -408,6 +408,17 @@ Singleton {
 
     // What plays for a live wallpaper: the file (resolution "original"), or
     // the indexer's copy at 1080p / 720p once it exists.
+    // What the lock plays: it paints the wallpaper at half the screen's
+    // resolution, so the indexer's copy (1080p or 720p) shows exactly the
+    // same there, at a fraction of the decoding (a 4K original took ~140 MB
+    // of video memory and ~14% CPU on the lock). The file when there's none.
+    function lockPlayOf(path: string): string {
+        if (!isVideo(path))
+            return path;
+        const live = all.find(w => w.path === path)?.live ?? "";
+        return live !== "" ? live : path;
+    }
+
     function playOf(path: string): string {
         if (liveQuality === "original" || !isVideo(path))
             return path;

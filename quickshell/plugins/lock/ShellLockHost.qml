@@ -35,8 +35,26 @@ QtObject {
     readonly property url wallpaper: CaveAbode.wallpaper
     readonly property bool wallpaperLive: Wallpapers.isVideo(wallpaperPath)
     readonly property url wallpaperStill: wallpaperLive ? "file://" + Wallpapers.stillOf(wallpaperPath) : wallpaper
+    // The theme sets `source` (the wallpaper) and `run`; the player takes
+    // the lock's copy of it (Wallpapers.lockPlayOf).
     readonly property Component liveComponent: Component {
-        VideoLayer {}
+        Item {
+            id: lockPlayer
+
+            property url source
+            property bool run: true
+            signal firstFrame
+
+            VideoLayer {
+                anchors.fill: parent
+                source: {
+                    const s = lockPlayer.source.toString();
+                    return s ? "file://" + Wallpapers.lockPlayOf(s.startsWith("file://") ? s.slice(7) : s) : "";
+                }
+                run: lockPlayer.run
+                onFirstFrame: lockPlayer.firstFrame()
+            }
+        }
     }
 
     readonly property url avatar: CaveAbode.avatar
