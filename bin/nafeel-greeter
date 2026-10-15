@@ -28,18 +28,19 @@ assemble() {
     for f in Glyph HoldArea CaptureImage LockInput LockTheme; do
         cp "$lock/$f.qml" "$out/modules/lock/"
     done
-    for f in Xian XianxiaSurface Formation IncenseSticks; do
+    for f in Xian XianxiaSurface Formation IncenseSticks SealPrompt; do
         cp "$lock/themes/xianxia/$f.qml" "$out/modules/lock/themes/xianxia/"
     done
-    # The live wallpaper's player (QtQuick + QtMultimedia only).
-    cp "$root/quickshell/modules/background/VideoLayer.qml" "$out/modules/background/"
+    # The live wallpaper's player: the greeter's own (QtQuick + QtMultimedia
+    # only; the shell's needs its native module, which SDDM hasn't).
+    cp "$root/sddm/VideoLayer.qml" "$out/modules/background/"
     echo "VideoLayer 1.0 VideoLayer.qml" >"$out/modules/background/qmldir"
     cp "$root/quickshell/shaders/lock_ink_backdrop.frag.qsb" "$root/quickshell/shaders/lock_ink_dissolve.frag.qsb" "$out/shaders/"
     # Plain Qt (no Quickshell) needs the types listed, singletons marked.
     printf '%s\n' "singleton LockTheme 1.0 LockTheme.qml" "Glyph 1.0 Glyph.qml" "HoldArea 1.0 HoldArea.qml" \
         "CaptureImage 1.0 CaptureImage.qml" "LockInput 1.0 LockInput.qml" >"$out/modules/lock/qmldir"
     printf '%s\n' "singleton Xian 1.0 Xian.qml" "XianxiaSurface 1.0 XianxiaSurface.qml" "Formation 1.0 Formation.qml" \
-        "IncenseSticks 1.0 IncenseSticks.qml" >"$out/modules/lock/themes/xianxia/qmldir"
+        "IncenseSticks 1.0 IncenseSticks.qml" "SealPrompt 1.0 SealPrompt.qml" >"$out/modules/lock/themes/xianxia/qmldir"
 }
 
 case "${1:-}" in
