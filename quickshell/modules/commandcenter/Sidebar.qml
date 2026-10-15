@@ -16,6 +16,9 @@ Item {
     // only the pointer's own moves switch (a layout shift under a still
     // pointer doesn't).
     property double switchedTime: 0
+    // Where the pointer was at the last switch: the next needs it to have
+    // travelled from there (a resize can't switch twice in a row).
+    property point switchedAt: Qt.point(-999, -999)
 
     Timer {
         id: dwell
@@ -25,6 +28,10 @@ Item {
             const t = goo.hovered;
             if (!t || ShellState.ccTab === t.modelData.id || Date.now() - root.switchedTime < 250)
                 return;
+            const at = t.hoverScene;
+            if (Math.hypot(at.x - root.switchedAt.x, at.y - root.switchedAt.y) < 8)
+                return;
+            root.switchedAt = at;
             root.switchedTime = Date.now();
             ShellState.ccTab = t.modelData.id;
         }

@@ -67,6 +67,9 @@ Item {
     }
     readonly property Item hoverSeg: pointer.current
     property double switchedTime: 0
+    // Where the pointer was at the last switch: the next needs it to have
+    // travelled from there (a resize can't switch twice in a row).
+    property point switchedAt: Qt.point(-999, -999)
 
     Timer {
         id: dwell
@@ -78,6 +81,10 @@ Item {
                 return;
             if (Date.now() - root.switchedTime < 250)
                 return;
+            const at = s.hoverScene;
+            if (Math.hypot(at.x - root.switchedAt.x, at.y - root.switchedAt.y) < 8)
+                return;
+            root.switchedAt = at;
             root.switchedTime = Date.now();
             root.selected(s.modelData.value);
         }

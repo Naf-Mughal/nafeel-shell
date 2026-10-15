@@ -16,7 +16,7 @@ QtObject {
     property point _last: Qt.point(-999, -999)
 
     // Every item's hover and where on it (re-read as any of them changes).
-    readonly property var _probe: items.map(it => it ? [it.hovered, it.hoverAt?.x ?? -1, it.hoverAt?.y ?? -1] : null)
+    readonly property var _probe: items.map(it => it ? [it.hovered, it.hoverScene?.x ?? -1, it.hoverScene?.y ?? -1, it.hoverAt?.x ?? -1] : null)
     on_ProbeChanged: update()
 
     function update(): void {
@@ -24,7 +24,9 @@ QtObject {
             if (!it || !it.hovered || !it.visible)
                 continue;
             const at = it.hoverAt;
-            const sp = it.mapToItem(null, at.x, at.y);
+            // The event's own window position (an item's transform, a drawer
+            // squashing as it resizes, doesn't move a still pointer).
+            const sp = it.hoverScene;
             if (Math.abs(sp.x - _last.x) < 1 && Math.abs(sp.y - _last.y) < 1)
                 return;
             _last = sp;
