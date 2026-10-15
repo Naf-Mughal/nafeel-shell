@@ -10,9 +10,11 @@ Item {
     id: root
 
     required property var wall
-    readonly property var shop: wall.provider === "motionbgs" ? Plugins.instance("wallpaper")?.motionbgs : Plugins.instance("wallpaper")?.wallhaven
-    readonly property string state: shop.status[wall.id] ?? (shop.local[wall.id] ? "done" : "")
-    readonly property real progress: shop.progress[wall.id] ?? 0
+    // Library cards have no store; neither does anything before the
+    // plugin's root attaches (the prewarm builds cards first).
+    readonly property var shop: !(wall.remote ?? false) ? null : wall.provider === "motionbgs" ? Plugins.instance("wallpaper")?.motionbgs : Plugins.instance("wallpaper")?.wallhaven
+    readonly property string state: shop ? (shop.status[wall.id] ?? (shop.local[wall.id] ? "done" : "")) : ""
+    readonly property real progress: shop?.progress[wall.id] ?? 0
 
     visible: wall.remote ?? false
 

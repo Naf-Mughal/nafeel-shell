@@ -24,7 +24,8 @@ import qs.plugins.osd
 Item {
     id: root
 
-    // The plugin's stores and rotation (its root).
+    // The plugin's stores and rotation (its root): null for a moment at
+    // start, while the prewarm builds the picker before the root attaches.
     readonly property var studio: Plugins.instance("wallpaper")
     // The room the drawer has (set by the frame for content-sized drawers):
     // the picker sizes itself to its view, as Ryoku's slice band runs nearly
@@ -233,7 +234,7 @@ Item {
                         views: "visibility",
                         favorites: "favorite"
                     })
-                readonly property string mode: root.store ? root.studio.wallhaven.sorting : Wallpapers.sortMode
+                readonly property string mode: root.store ? (root.studio?.wallhaven.sorting ?? "") : Wallpapers.sortMode
 
                 icon: icons[mode] ?? "sort"
                 size: 36
@@ -251,8 +252,8 @@ Item {
             IconButton {
                 icon: "autorenew"
                 size: 36
-                filled: root.rotating || root.studio.rotation.enabled
-                caption: root.studio.rotation.enabled ? root.every(root.studio.rotation.minutes) : ""
+                filled: root.rotating || (root.studio?.rotation.enabled ?? false)
+                caption: root.studio?.rotation.enabled ? root.every(root.studio.rotation.minutes) : ""
                 onClicked: root.rotating = !root.rotating
             }
 
@@ -307,6 +308,8 @@ Item {
     }
 
     readonly property var rotationChips: {
+        if (!root.studio)
+            return [];
         const folders = Wallpapers.folders;
         const froms = ["all", "favourites", "shown", ...folders.map(f => "folder:" + f)];
         const fromName = f => f === "all" ? "Everything" : f === "favourites" ? "Favourites" : f === "shown" ? "What's shown" : f.slice(7);
@@ -365,6 +368,8 @@ Item {
             act: () => Wallpapers.useProvider(root.live ? "wallhaven" : "motionbgs")
         })
     readonly property var storeChips: {
+        if (!root.studio)
+            return [];
         if (root.live)
             return [providerChip, {
                     text: root.studio.motionbgs.quality === "4k" ? "4K when offered" : "HD (1080p)",
@@ -518,7 +523,7 @@ Item {
 
                     required property int index
                     readonly property int bucket: index < 12 ? index : 99
-                    readonly property int selectedColour: root.store ? root.studio.wallhaven.colour : Wallpapers.filterColour
+                    readonly property int selectedColour: root.store ? (root.studio?.wallhaven.colour ?? -1) : Wallpapers.filterColour
                     readonly property bool on: selectedColour === bucket
 
                     anchors.verticalCenter: parent.verticalCenter

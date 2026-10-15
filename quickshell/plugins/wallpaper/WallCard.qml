@@ -52,7 +52,8 @@ Item {
             sourceSize: Qt.size(Math.round(root.width * 1.2), Math.round(root.height * 1.2))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            cache: true
+            // Not into Qt's cache: browsing doesn't pile up what was passed.
+            cache: false
             opacity: status === Image.Ready ? 1 : 0
 
             Behavior on opacity {
