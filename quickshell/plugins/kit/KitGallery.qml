@@ -379,7 +379,8 @@ Item {
                                 }
                                 return null;
                             }
-                            hoverFill: Qt.alpha(Colours.palette.m3onSurface, 0.08)
+                            fill: Colours.palette.m3onSurface
+                            strength: 0.08
                             radius: Tokens.rounding.normal
                         }
                     }

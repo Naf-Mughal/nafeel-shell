@@ -53,7 +53,6 @@ Item {
             return null;
         }
         fill: Colours.roleFill("secondary", "soft", 0)
-        hoverFill: Qt.alpha(Colours.palette.m3onSurface, 0.1)
         radius: Tokens.rounding.morph
     }
 

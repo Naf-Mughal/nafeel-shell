@@ -5,24 +5,25 @@ import Nafeel
 import qs.config
 
 // The bar's goo for any group of items (a button group, a chip row, a tile
-// grid): a blob that springs to the selected item, stretching along its
-// travel, and splits as it goes (a tail stays where it was and shrinks away,
-// joined by a neck that thins and snaps); and a fainter one that follows the
-// hovered item the same way. Lay it under the items, filling their
-// container; items are found wherever they sit inside it.
+// grid): one blob, like the bar's pill. It sits on the selected item, goes to
+// the hovered one, and back to the selected when the pointer leaves the
+// group; as it moves it parts like ink (a tail stays behind and thins into a
+// neck after it). Lay it under the items, filling their container; items are
+// found wherever they sit inside it. Labels take their ink from `covers()`.
 //
 //   GooIndicator { anchors.fill: parent; selected: current; hovered: hoveredItem
-//                  fill: …; hoverFill: …; radius: … }
+//                  fill: …; radius: … }
 Item {
     id: root
 
-    // The item the selection blob sits on (null: none, it fades).
+    // Where the blob rests (null: nowhere, it fades when nothing's hovered).
     property Item selected: null
-    // The item the hover blob sits on (null: none). A hover on the selected
-    // item shows nothing more.
+    // Where the pointer is (null: off the group).
     property Item hovered: null
     property color fill
-    property color hoverFill
+    // The blob's opacity (the blob ignores a colour's alpha): a faint one
+    // laid over items (a tile grid's hover) rather than under their labels.
+    property real strength: 1
     // The blobs' corner radius; -1: a pill for each item's size.
     property real radius: -1
     // Shrinks each blob inside its item.
@@ -32,7 +33,7 @@ Item {
     // labels take the selected ink from this, so they turn as the fill
     // arrives and leaves (not when the choice changes: white on white).
     function covers(it: Item): bool {
-        if (!it || !selection.at)
+        if (!it || !selection.at || root.strength < 1)
             return false;
         const r = rectOf(it);
         const ox = Math.max(0, Math.min(r.x + r.width, selection.bx + selection.bw) - Math.max(r.x, selection.bx));
@@ -64,7 +65,7 @@ Item {
         property real bh
 
         anchors.fill: parent
-        opacity: at ? 1 : 0
+        opacity: at ? root.strength : 0
 
         function place(): void {
             bx = target.x;
@@ -212,14 +213,9 @@ Item {
     }
 
     Mover {
-        colour: root.hoverFill
-        at: root._hoverAt && root._hoverAt !== root.selected ? root._hoverAt : null
-    }
-
-    Mover {
         id: selection
 
         colour: root.fill
-        at: root.selected
+        at: root._hoverAt ?? root.selected
     }
 }
