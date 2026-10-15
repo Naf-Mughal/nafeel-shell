@@ -862,8 +862,9 @@ every control and state on, then the controls, then moving panels onto them, mot
   LockPreview: wrong passcode, right passcode, outro, release.
 - [ ] **K2 Interaction on the primitives**: the 10 raw MouseAreas onto Surface (or StateLayer +
   PressBounce), so hover, press, cursor and the state layer are the same everywhere.
-- [ ] **K3 Gallery**: every primitive in every state (rest, hover, pressed, focused, disabled,
-  checked, error), light and dark, reachable by IPC (`shell open kit`), for reviewing K4-K7.
+- [~] **K3 Gallery** (2026-10-15, first cut: plugins/kit, `shell open kit`, not warm): the
+  existing primitives numbered 1-14 in their states, working on local state. Grows with K4-K7.
+  The user guides every primitive, existing and new: review in the gallery, by number, first.
 - [ ] **K4 Controls upgraded** into the ink-and-paper language (roles, not raw M3 colours):
   Switch, Slider, TextField (label, leading/trailing icon, clear, helper/error, focus ring),
   Chip, ButtonGroup; a shared focus ring.

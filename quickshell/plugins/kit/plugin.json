@@ -1,0 +1,20 @@
+{
+  "id": "kit",
+  "name": "Kit",
+  "gloss": "器",
+  "icon": "widgets",
+  "description": "Every primitive in its states, numbered, for reviewing the design kit (IPC shell open kit).",
+  "default": true,
+  "drawers": [
+    {
+      "name": "kit",
+      "entry": "KitGallery.qml",
+      "edge": "top",
+      "width": 1180,
+      "height": 820,
+      "keyboard": true,
+      "hoverZone": false,
+      "warm": false
+    }
+  ]
+}
