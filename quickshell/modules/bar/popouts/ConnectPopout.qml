@@ -31,10 +31,44 @@ Column {
         onSelected: v => ShellState.connectTab = v
     }
 
+    // Each list made the first time it's shown and then kept, the other
+    // hidden: the tabs switch on hover, and making a list on every switch
+    // (rows, icons, switches) cost frames. Hidden, Wi-Fi stops scanning (its
+    // `visible`) and a Bluetooth scan started here stops (as it did when the
+    // list went away).
+    readonly property bool onBluetooth: ShellState.connectTab === "bluetooth"
+    property bool madeWifi: !onBluetooth
+    property bool madeBluetooth: onBluetooth
+    onOnBluetoothChanged: {
+        if (onBluetooth)
+            madeBluetooth = true;
+        else
+            madeWifi = true;
+        Qt.callLater(() => Choreo.cascade(root.onBluetooth ? bluetoothList.item : wifiList.item, 0));
+    }
+
     Loader {
+        id: wifiList
+
         width: parent.width
-        sourceComponent: ShellState.connectTab === "bluetooth" ? bluetooth : wifi
+        active: root.madeWifi
+        visible: !root.onBluetooth
+        sourceComponent: wifi
         onLoaded: Choreo.cascade(item, 0)
+    }
+
+    Loader {
+        id: bluetoothList
+
+        width: parent.width
+        active: root.madeBluetooth
+        visible: root.onBluetooth
+        sourceComponent: bluetooth
+        onLoaded: Choreo.cascade(item, 0)
+        onVisibleChanged: {
+            if (!visible && BluetoothState.adapter?.discovering)
+                BluetoothState.adapter.discovering = false;
+        }
     }
 
     Component {
