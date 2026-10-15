@@ -128,7 +128,7 @@ Item {
         anchors.bottomMargin: 6
         width: readout.implicitWidth + 16
         height: 26
-        radius: height / 2
+        radius: Math.min(height / 2, Tokens.rounding.morph)
         color: Colours.palette.m3inverseSurface
         opacity: root.grabbed ? 1 : 0
         scale: root.grabbed ? 1 : 0.6
