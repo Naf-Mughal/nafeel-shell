@@ -8,16 +8,18 @@ import qs.config
 import qs.services
 import qs.components
 
-// Sound, brightness and now playing in one panel: what's playing (when
+// Sound & Display: sound, brightness and now playing in one panel: what's playing (when
 // something is), the speaker and microphone, a slider per app playing sound,
 // the screen's brightness with its toggles, and the output devices.
 Panel {
     id: root
 
-    icon: Audio.muted ? "volume_off" : "volume_up"
-    title: "Sound"
-    gloss: Xian.gloss.audio
-    subtitle: `${Math.round(Audio.volume * 100)}%${Audio.muted ? " · muted" : ""} · ${Audio.sink?.description ?? ""}`
+    // Sound and the screen's light together (the user's call: one panel, a
+    // name that says both).
+    icon: Audio.muted ? "volume_off" : "tune"
+    title: "Sound & Display"
+    gloss: "声光"
+    subtitle: `${Math.round(Audio.volume * 100)}%${Audio.muted ? " · muted" : ""} · ${Audio.sink?.description ?? ""} · light ${Math.round(Brightness.level * 100)}%`
 
     property MprisPlayer player: Media.active
 
@@ -82,7 +84,8 @@ Panel {
             // The track's name brushed over when the song changes.
             InkSwap {
                 width: parent.width
-                text: root.player?.trackTitle || "Unknown track"
+                // No title (a browser tab, say): the player's own name.
+                text: root.player?.trackTitle || root.player?.identity || "Unknown track"
                 font.pixelSize: Tokens.font.row
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
@@ -90,7 +93,7 @@ Panel {
 
             StyledText {
                 width: parent.width
-                text: root.player?.trackArtist ?? ""
+                text: root.player?.trackArtist || (root.player && !root.player.trackTitle ? (root.player.isPlaying ? "Playing" : "Paused") : "")
                 visible: text !== ""
                 color: Colours.palette.m3onSurfaceVariant
                 font.pixelSize: Tokens.font.small
@@ -100,7 +103,8 @@ Panel {
             StyledSlider {
                 width: parent.width
                 implicitHeight: 8
-                visible: root.player?.lengthSupported ?? false
+                // Only with a length to show (a page playing reports none).
+                visible: (root.player?.lengthSupported ?? false) && (root.player?.length ?? 0) > 0
                 value: root.player?.position ?? 0
                 to: Math.max(1, root.player?.length ?? 1)
                 onMoved: v => {
@@ -114,7 +118,7 @@ Panel {
 
                 MicroLabel {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: root.player?.lengthSupported ?? false
+                    visible: (root.player?.lengthSupported ?? false) && (root.player?.length ?? 0) > 0
                     text: `${root.time(root.player?.position ?? 0)} / ${root.time(root.player?.length ?? 0)}`
                 }
 

@@ -15,6 +15,57 @@ Surface {
     property bool checked
     // Icon above the label, centred: for tiles three or more across.
     property bool stacked: false
+    // For what can't be undone (restart, shut down): held, ink fills it from
+    // the start over `holdMs` and `confirmed` fires when it's full; let go
+    // early and it drains. A click alone says "Hold to confirm".
+    property bool holdToConfirm: false
+    property int holdMs: 700
+    signal confirmed
+
+    property real hold: 0
+    property bool hinting: false
+    onPressedChanged: {
+        if (!holdToConfirm)
+            return;
+        if (pressed) {
+            drain.stop();
+            fill.duration = holdMs * (1 - hold);
+            fill.restart();
+        } else if (hold < 1) {
+            fill.stop();
+            drain.restart();
+        }
+    }
+    NumberAnimation {
+        id: fill
+
+        target: root
+        property: "hold"
+        to: 1
+        onFinished: {
+            root.hold = 0;
+            root.confirmed();
+        }
+    }
+    NumberAnimation {
+        id: drain
+
+        target: root
+        property: "hold"
+        to: 0
+        duration: Tokens.anim.normal
+        easing.type: Easing.OutCubic
+    }
+    onClicked: if (holdToConfirm) {
+        hinting = true;
+        hint.restart();
+    }
+    Timer {
+        id: hint
+
+        interval: 1600
+        onTriggered: root.hinting = false
+    }
 
     // The fill's spread: 0 off, 1 on.
     property real spread: checked ? 1 : 0
@@ -42,6 +93,16 @@ Surface {
         origin: root.pressPoint
         p: root.spread
         r1: root.radius
+    }
+
+    // The hold's ink, filling from the start.
+    StyledRect {
+        visible: root.hold > 0
+        width: Math.max(root.radius * 2, root.width * root.hold)
+        height: root.height
+        radius: root.radius
+        color: Colours.roleFill("error", "soft", 0)
+        opacity: 0.85
     }
 
     Column {
@@ -98,8 +159,8 @@ Surface {
 
             InkSwap {
                 width: parent.width
-                visible: root.sublabel !== ""
-                text: root.sublabel
+                visible: text !== ""
+                text: root.hold > 0 ? "Keep holding…" : root.hinting ? "Hold to confirm" : root.sublabel
                 color: root.subInk
                 font.pixelSize: 11
                 elide: Text.ElideRight

@@ -14,7 +14,6 @@ import qs.components
 Panel {
     id: root
 
-    property string armed: ""
     property string uptime: ""
 
 
@@ -35,12 +34,6 @@ Panel {
         }
     }
 
-    Timer {
-        id: disarm
-
-        interval: 4000
-        onTriggered: root.armed = ""
-    }
 
     Row {
         width: parent.width
@@ -122,15 +115,16 @@ Panel {
                 // The last tile (shut down) spans both columns.
                 width: index === 4 ? root.width : (root.width - Tokens.spacing.small) / 2
                 icon: modelData.icon
-                label: root.armed === modelData.action ? "Sure?" : modelData.label
-                sublabel: root.armed === modelData.action ? "Press again" : ""
-                checked: root.armed === modelData.action
+                label: modelData.label
+                // What can't be undone is held to confirm; the rest acts on a click.
+                holdToConfirm: modelData.confirm
                 onClicked: {
-                    if (modelData.confirm && root.armed !== modelData.action) {
-                        root.armed = modelData.action;
-                        disarm.restart();
+                    if (modelData.confirm)
                         return;
-                    }
+                    ShellState.close();
+                    Session.run(modelData.action);
+                }
+                onConfirmed: {
                     ShellState.close();
                     Session.run(modelData.action);
                 }
