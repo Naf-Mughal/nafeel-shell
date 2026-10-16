@@ -4,6 +4,11 @@
 // own render thread, so animations and input keep their pace on the GUI
 // thread (the basic loop swapped every window on it in turn).
 //@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
+// The shell's own Qt platform theme: qtengine (its icon theme and fonts), not
+// the apps' (KDE's, which would load the KDE frameworks into it). An Env
+// pragma is set after Quickshell keeps its starting environment for the
+// processes it runs, so the apps it starts still get theirs (bin/shell-env).
+//@ pragma Env QT_QPA_PLATFORMTHEME=qtengine
 
 // nafeel shell: every on-screen surface of the desktop (frame, bar, drawers,
 // dock, command center…) in one Quickshell process, on top of umbriel and

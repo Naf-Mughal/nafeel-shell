@@ -196,6 +196,14 @@ Singleton {
             def: false
         }
         SettingItem {
+            key: "theme.qtTranslucent"
+            kind: "toggle"
+            icon: "web_asset"
+            label: "Translucent Qt/KDE apps"
+            description: "Qt and KDE apps' menus, toolbars, tabs and Dolphin's panes take the app opacity too (the Darkly style; reopen apps to see it)."
+            def: false
+        }
+        SettingItem {
             key: "theme.core"
             kind: "multi"
             label: "Built-in templates"

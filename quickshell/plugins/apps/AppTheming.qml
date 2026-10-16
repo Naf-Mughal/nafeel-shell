@@ -1,12 +1,19 @@
-// Qt and KDE apps (Dolphin, …) in the shell's colours, as the app-theming
-// plugin did: Qt apps reach the KDE colour scheme the theme writes
-// (~/.local/share/color-schemes/noctalia.colors, nafeel-theme's kcolorscheme
-// template) through the qtengine platform theme. The shell writes
+// Qt and KDE apps (Dolphin, …) in the shell's colours: they run on KDE's
+// platform theme (plasma-integration), which reads the colour scheme
+// nafeel-theme merges into kdeglobals, and the style, icons and fonts set
+// here. KDE's rather than qtengine since 2026-10-16: under qtengine the
+// Darkly style's translucency never took (Translucent Qt/KDE apps), and it
+// needed a rebuild on every Qt minor update. The shell writes
 //
 //   ~/.config/umbriel/plugins/app-theming.toml  [environment]
-//       QT_QPA_PLATFORMTHEME=qtengine (included from umbriel's config; apps
-//       started after the next login get it)
-//   ~/.config/qtengine/config.json  the scheme, icon theme, style and fonts
+//       QT_QPA_PLATFORMTHEME=kde (included from umbriel's config; umbriel
+//       applies it at login), and the same now to the systemd/D-Bus
+//       activation environment; the shell's own launches get it from
+//       bin/shell-env at its next start (the shell itself stays on qtengine:
+//       an Env pragma in shell.qml)
+//   ~/.config/kdeglobals  [KDE] widgetStyle, SingleClick, [Icons] Theme,
+//       [General] font / fixed (kwriteconfig6)
+//   ~/.config/qtengine/config.json  the same for the shell's own qtengine
 //
 // from the Theme page's "Qt and KDE apps" section, only when they change.
 // The icon themes and styles offered are the ones installed.
@@ -43,7 +50,7 @@ Scope {
             icon: "widgets"
             section: "Qt and KDE apps"
             label: "Follow the theme"
-            description: "Qt apps like Dolphin take the palette through qtengine (apps started after the next login)."
+            description: "Qt and KDE apps like Dolphin take the palette, style, icons and fonts (KDE's platform theme; reopen apps to see it)."
             def: true
         }
         SettingItem {
@@ -100,7 +107,47 @@ Scope {
 
     readonly property bool qt: settings.v["apps.qt"] === true
 
-    readonly property string envText: "# Written by the shell (plugins/apps/AppTheming.qml); edits here are overwritten.\n" + (qt ? "[environment]\nQT_QPA_PLATFORMTHEME = \"qtengine\"\n" : "# Qt apps don't follow the theme (Settings: Theme).\n")
+    readonly property string envText: "# Written by the shell (plugins/apps/AppTheming.qml); edits here are overwritten.\n" + (qt ? "[environment]\nQT_QPA_PLATFORMTHEME = \"kde\"\n" : "# Qt apps don't follow the theme (Settings: Theme).\n")
+    readonly property string appsTheme: qt ? "kde" : ""
+
+    // kdeglobals: what KDE's platform theme reads besides the colours.
+    function font(family: string): string {
+        return `${family},${settings.v["apps.fontSize"]},-1,5,400,0,0,0,0,0,0,0,0,0,0,1`;
+    }
+    readonly property var kdeKeys: [
+        ["KDE", "widgetStyle", settings.v["apps.style"]],
+        ["KDE", "SingleClick", settings.v["apps.singleClick"] === true ? "true" : "false"],
+        ["KDE", "ShowIconsInMenuItems", "true"],
+        ["Icons", "Theme", settings.v["apps.iconTheme"]],
+        ["General", "font", font(settings.v["apps.font"].trim() || "Sans Serif")],
+        ["General", "menuFont", font(settings.v["apps.font"].trim() || "Sans Serif")],
+        ["General", "toolBarFont", font(settings.v["apps.font"].trim() || "Sans Serif")],
+        ["General", "fixed", font(settings.v["apps.fixedFont"].trim() || "Monospace")]
+    ]
+    readonly property string kdeText: JSON.stringify(kdeKeys)
+    property string kdeWritten: ""
+
+    function applyKde(): void {
+        if (!Settings.loaded || !qt || kdeText === kdeWritten)
+            return;
+        kdeWritten = kdeText;
+        const script = 'while [ $# -ge 3 ]; do kwriteconfig6 --file kdeglobals --group "$1" --key "$2" "$3"; shift 3; done; gdbus emit --session --object-path /KGlobalSettings --signal org.kde.KGlobalSettings.notifyChange 0 0 >/dev/null 2>&1';
+        Quickshell.execDetached(["sh", "-c", script, "sh"].concat(...kdeKeys));
+    }
+
+    // Apps D-Bus and systemd start from now on.
+    function applyEnv(): void {
+        if (!Settings.loaded)
+            return;
+        Quickshell.execDetached(["sh", "-c", appsTheme ? 'dbus-update-activation-environment --systemd QT_QPA_PLATFORMTHEME="$1"' : "systemctl --user unset-environment QT_QPA_PLATFORMTHEME", "sh", appsTheme]);
+    }
+    Component.onCompleted: {
+        applyEnv();
+        applyKde();
+    }
+    onAppsThemeChanged: applyEnv()
+    onKdeTextChanged: applyKde()
+    onQtChanged: applyKde()
     readonly property string qtengineText: JSON.stringify({
         theme: {
             colorScheme: scheme,
@@ -141,6 +188,8 @@ Scope {
         function onLoadedChanged(): void {
             root.write(envFile, root.envText);
             root.write(qtengineFile, root.qtengineText);
+            root.applyEnv();
+            root.applyKde();
         }
     }
 

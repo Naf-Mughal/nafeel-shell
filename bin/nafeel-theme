@@ -27,6 +27,9 @@ than only Material roles:
   {{ alpha.apps }} {{ alpha.gtk }}            apps' window opacity (the Theme
                                               page; gtk is 1 unless GTK apps
                                               are made translucent too)
+  {{ alpha.qt }}                              the same for Qt/KDE apps (also
+                                              written to the Darkly style's
+                                              darklyrc)
   {{ radius.control|card|panel|frame }}       the corner radius setting
   {{ font.sans|serif|mono|cjk }}              the type
   short forms: {{ paper.2.hex }}, {{ ink.sub.rgba }}, {{ accent.lead.hex }}
@@ -420,7 +423,8 @@ def build(scheme_path: Path, mode: str | None, out: Path = THEME_JSON, wallpaper
         "dark": mode_tokens(scheme["dark"], pigment, True),
         "light": mode_tokens(scheme["light"], pigment, False),
         "alpha": {"base": paper, "layers": min(1.0, paper + 0.05), "solid": paper >= 1.0, "apps": apps_alpha,
-                  "gtk": apps_alpha if settings.get("theme.gtkTranslucent", False) else 1.0},
+                  "gtk": apps_alpha if settings.get("theme.gtkTranslucent", False) else 1.0,
+                  "qt": apps_alpha if settings.get("theme.qtTranslucent", False) else 1.0},
         "radius": dict(shape),
         "font": dict(FONTS),
         "pigment": pigment,
@@ -772,6 +776,27 @@ def user_templates() -> list[Template]:
 def merge_kdeglobals(scheme: Path) -> None:
     """Ryoku / Noctalia: merge the colour scheme's groups into kdeglobals,
     keeping everything else the user has there; then tell KDE apps."""
+    if merge_kconfig(XDG_CONFIG / "kdeglobals", scheme.read_text()):
+        subprocess.run(
+            ["gdbus", "emit", "--session", "--object-path", "/KGlobalSettings", "--signal", "org.kde.KGlobalSettings.notifyChange", "0", "0"],
+            capture_output=True,
+            timeout=5,
+        )
+
+
+def apply_darkly(alpha: float) -> None:
+    """Qt/KDE apps' translucency (the Darkly style's own opacities, read as
+    apps start): the app opacity when they're made translucent, else solid.
+    Darkly blurs behind them through the compositor."""
+    pct = round(alpha * 100)
+    keys = ["MenuOpacity", "MenuBarOpacity", "ToolBarOpacity", "TabBarOpacity", "DolphinSidebarOpacity", "DolphinViewOpacity"]
+    lines = [f"{k}={pct}" for k in keys] + [f"TransparentDolphinView={'true' if pct < 100 else 'false'}"]
+    merge_kconfig(XDG_CONFIG / "darklyrc", "[Style]\n" + "\n".join(lines) + "\n")
+
+
+def merge_kconfig(target: Path, text: str) -> bool:
+    """Merge `text`'s groups and keys into the KConfig file `target`, keeping
+    everything else there. True if it changed."""
     def parse(text: str):
         prefix, sections, cur = [], [], None
         for line in text.splitlines():
@@ -785,13 +810,12 @@ def merge_kdeglobals(scheme: Path) -> None:
                 cur[1].append(line)
         return prefix, sections
 
-    target = XDG_CONFIG / "kdeglobals"
     try:
         old = target.read_text()
     except OSError:
         old = ""
     prefix, sections = parse(old)
-    _, new = parse(scheme.read_text())
+    _, new = parse(text)
     index = {h: s for h, s in sections}
     for header, lines in new:
         if header not in index:
@@ -816,12 +840,7 @@ def merge_kdeglobals(scheme: Path) -> None:
         while lines and not lines[-1].strip():
             lines.pop()
         out += ("\n\n" if out else "") + header + ("\n" + "\n".join(lines) if lines else "")
-    if write_if_changed(target, out.lstrip("\n") + "\n"):
-        subprocess.run(
-            ["gdbus", "emit", "--session", "--object-path", "/KGlobalSettings", "--signal", "org.kde.KGlobalSettings.notifyChange", "0", "0"],
-            capture_output=True,
-            timeout=5,
-        )
+    return write_if_changed(target, out.lstrip("\n") + "\n")
 
 
 def osc_sequences(doc: dict, mode: str) -> str:
@@ -927,6 +946,7 @@ def apply(force: bool, only: set[str] | None, dry: Path | None) -> int:
         run_hook(hook, label, wait)
 
     if not dry:
+        apply_darkly(float(doc.get("alpha", {}).get("qt", 1.0)))
         if cfg.get("live_terminals", True):
             recolour_terminals(doc, mode)
         if changed_any and cfg.get("post_hook"):

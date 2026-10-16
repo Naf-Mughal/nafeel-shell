@@ -22,3 +22,12 @@ export MALLOC_CONF="background_thread:true,dirty_decay_ms:500,muzzy_decay_ms:0,n
 #   window; 512x512 holds the shell's icons, bigger ones get their own.
 export QSG_NO_DEPTH_BUFFER=1
 export QSG_ATLAS_WIDTH=512 QSG_ATLAS_HEIGHT=512
+
+# The Qt platform theme of the apps the shell starts (launcher, dock): the
+# one the Theme page picked (plugins/apps/AppTheming.qml writes it for
+# umbriel, which only applies it at login), so a restarted shell hands out the
+# new one at once. The shell itself stays on qtengine (an Env pragma in
+# shell.qml).
+apps_qpa=$(sed -n 's/^QT_QPA_PLATFORMTHEME = "\(.*\)"$/\1/p' "${XDG_CONFIG_HOME:-$HOME/.config}/umbriel/plugins/app-theming.toml" 2>/dev/null)
+[ -n "$apps_qpa" ] && export QT_QPA_PLATFORMTHEME="$apps_qpa"
+unset apps_qpa
