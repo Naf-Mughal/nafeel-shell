@@ -47,6 +47,11 @@ public:
     // With NAFEEL_PRESENT_LOG: a line "M <ns> <what>" in the log (a close
     // starting, for measuring).
     Q_INVOKABLE void mark(const QString &what);
+    // An empty commit of the window's surface asking for a frame callback
+    // (nothing drawn). With umbriel's keep-alive flips (the shell's umbriel
+    // patch), a window touched at every vblank stays on the display's
+    // schedule as if it were redrawn, at none of the cost.
+    Q_INVOKABLE void touch(QQuickWindow *window);
     // NAFEEL_PRESENT_LOG's log, started (truncating <path>) or stopped on a
     // running shell (IPC: shell frameLog <path|"">).
     Q_INVOKABLE bool startLog(const QString &path);

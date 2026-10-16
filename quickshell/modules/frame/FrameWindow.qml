@@ -253,12 +253,22 @@ PanelWindow {
     // redraws and recomposites the surface); smooth panels come first, the
     // power pass revisits it. At rest (no panel) it's stopped.
     property real pumpPhase: 0
+    // With umbriel's keep-alive flips (the shell's umbriel patch, setting
+    // frame.pump "touch"): while a panel is open and nothing moves, the
+    // window isn't redrawn at every refresh (~12% CPU) but only touched (an
+    // empty commit asking for a frame callback), which umbriel answers at
+    // the vblank: the window stays on the display's schedule all the same.
+    readonly property bool touchPump: Settings.values["frame.pump"] === "touch"
+    FrameAnimation {
+        running: win.touchPump && (ShellState.pinned !== "" || ShellState.previewed !== "") && ShellState.moving === 0 && !ShellState.closePending
+        onTriggered: FramePacer.touch(win.quickWindow)
+    }
 
     NumberAnimation on pumpPhase {
         // From the grab before an open too: the window drawing in step at
         // every vblank before the motion's first frame (started with it,
         // the open's second or third refresh was skipped).
-        running: ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== ""
+        running: win.touchPump ? ShellState.closePending || ShellState.grabbing !== "" || ShellState.moving > 0 : ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== ""
         from: 0
         to: 1
         duration: 100

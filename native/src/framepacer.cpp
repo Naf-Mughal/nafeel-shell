@@ -503,6 +503,16 @@ private:
         armFallback();
     }
 
+public:
+    // A frame of `window`'s is due this tick (its update request held).
+    bool frameComing(QQuickWindow *window) const {
+        for (const auto &w : m_windows)
+            if (w.window == window)
+                return w.held;
+        return false;
+    }
+
+private:
     struct Watched {
         QPointer<QQuickWindow> window;
         bool allow;
@@ -672,4 +682,22 @@ void FramePacer::stopLog() {
 void FramePacer::attachWallpaper(QQuickWindow *window) {
     if (window && install())
         m_driver->watch(window, true);
+}
+
+void FramePacer::touch(QQuickWindow *window) {
+    // A real frame comes this tick: it commits (and asks for its callback).
+    if (!window || (g_driver && g_driver->frameComing(window)))
+        return;
+    auto *native = QGuiApplication::platformNativeInterface();
+    auto *surface = static_cast<wl_surface *>(native ? native->nativeResourceForWindow("surface", window) : nullptr);
+    auto *display = static_cast<wl_display *>(native ? native->nativeResourceForIntegration("wl_display") : nullptr);
+    if (!surface || !display)
+        return;
+    static const wl_callback_listener done = {
+        [](void *, wl_callback *cb, uint32_t) { wl_callback_destroy(cb); },
+    };
+    wl_callback *cb = wl_surface_frame(surface);
+    wl_callback_add_listener(cb, &done, nullptr);
+    wl_surface_commit(surface);
+    wl_display_flush(display);
 }
