@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Nafeel
 import qs.config
 import qs.services
 
@@ -63,6 +64,95 @@ Scope {
     readonly property bool contentOn: settings.v["files.content"] === true
     readonly property bool docsOn: settings.v["files.docs"] === true
     readonly property var roots: (settings.v["files.roots"] ?? "~").split(/\s+/).filter(Boolean).map(r => r === "~" ? home : r.startsWith("~/") ? home + r.slice(1) : r)
+
+    readonly property var icons: ({
+            pdf: "picture_as_pdf", doc: "description", docx: "description", odt: "description", txt: "article", md: "article", rtf: "article", epub: "menu_book",
+            xls: "table_chart", xlsx: "table_chart", ods: "table_chart", csv: "table_chart", ppt: "slideshow", pptx: "slideshow", odp: "slideshow",
+            png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", svg: "image", avif: "image", bmp: "image",
+            mp4: "movie", mkv: "movie", webm: "movie", mov: "movie", avi: "movie", mp3: "music_note", flac: "music_note", ogg: "music_note", wav: "music_note", m4a: "music_note", opus: "music_note",
+            zip: "folder_zip", tar: "folder_zip", gz: "folder_zip", xz: "folder_zip", zst: "folder_zip", "7z": "folder_zip", rar: "folder_zip",
+            js: "code", ts: "code", tsx: "code", jsx: "code", py: "code", rs: "code", go: "code", c: "code", cpp: "code", h: "code", qml: "code", java: "code", sh: "terminal", json: "data_object", toml: "settings", yaml: "settings", yml: "settings", html: "html", css: "css"
+        })
+
+    function iconFor(path: string): string {
+        if (path.endsWith("/"))
+            return "folder";
+        const i = path.lastIndexOf(".");
+        return i > path.lastIndexOf("/") ? icons[path.slice(i + 1).toLowerCase()] ?? "draft" : "draft";
+    }
+
+    function pretty(dir: string): string {
+        const h = Quickshell.env("HOME");
+        return dir.startsWith(h + "/") ? "~" + dir.slice(h.length) : dir;
+    }
+
+    // A launcher result for a file or folder: its icon or thumbnail, the
+    // preview, and the actions every file has. `name` is its title.
+    function fileResult(full: string, name: string, score: real): var {
+        const dir = full.endsWith("/");
+        const path = dir ? full.slice(0, -1) : full;
+        const parent = path.slice(0, path.lastIndexOf("/"));
+        return {
+            title: name,
+            subtitle: pretty(parent),
+            icon: iconFor(full),
+            // A picture's own thumbnail (decoded small, kept on the GPU).
+            image: !dir && /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path) ? Wallpapers.still(path, true) : "",
+            score: score,
+            preview: { kind: "file", path: path, title: name },
+            key: "file:" + path,
+            run: () => Open.open(path),
+            actions: [
+                {
+                    label: "Show in the file manager",
+                    icon: "folder_open",
+                    run: () => Quickshell.execDetached(["dolphin", "--select", path])
+                },
+                {
+                    label: "Copy the path",
+                    icon: "content_copy",
+                    run: () => Clipboard.copyText(path)
+                },
+                {
+                    label: "Open in VS Code",
+                    icon: "code",
+                    run: () => Quickshell.execDetached(["code", path])
+                },
+                {
+                    label: "Open a terminal here",
+                    icon: "terminal",
+                    run: () => Quickshell.execDetached(["foot", "-D", dir ? path : parent])
+                }
+            ]
+        };
+    }
+
+    // ── Recent files: opened lately, then changed lately ──
+    property var recent: []
+    property real recentAt: 0
+    readonly property bool recentStale: Date.now() - recentAt > 45000
+
+    function refreshRecent(): void {
+        if (recentProc.running || !Settings.loaded)
+            return;
+        recentProc.command = ["python3", Quickshell.shellDir + "/plugins/files/recent.py", ...roots];
+        recentProc.running = true;
+    }
+    signal recentListed
+
+    Process {
+        id: recentProc
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.recent = JSON.parse(text);
+                } catch (e) {}
+                root.recentAt = Date.now();
+                root.recentListed();
+            }
+        }
+    }
 
     // ── The list of names ──
     property var paths: []

@@ -24,8 +24,8 @@ Singleton {
 
     // The query after any keyword, and the provider it's scoped to (null:
     // every global one).
-    readonly property var scope: parse(text, providers).scope
-    readonly property string query: parse(text, providers).query
+    property var scope: null
+    property string query: ""
 
     // (A function, not those bindings, for refresh(): it runs on the text's
     // change before bindings over the text have caught up.)
@@ -35,10 +35,23 @@ Singleton {
             if (!k)
                 continue;
             if (/^[A-Za-z0-9]+$/.test(k) ? t.startsWith(k + " ") : t.startsWith(k))
-                return { scope: p, query: t.slice(k.length).trim() };
+                return { scope: p, query: t.slice(k.length).trim(), filter: "" };
         }
-        return { scope: null, query: t.trim() };
+        // "pdf: budget": a filter prefix some provider claims (its
+        // `prefixes`); not "https://…".
+        const m = /^([a-z0-9]{1,8}):(?!\/\/)\s*(.*)$/i.exec(t);
+        if (m) {
+            const f = m[1].toLowerCase();
+            for (const p of list)
+                if (p.prefixes.includes(f))
+                    return { scope: p, query: m[2].trim(), filter: f };
+        }
+        return { scope: null, query: t.trim(), filter: "" };
     }
+
+    // The filter prefix the search starts with ("pdf" for "pdf: budget"), set
+    // as the providers are asked (a binding would trail the text by a step).
+    property string filter: ""
 
     // Every provider's latest answer: { providerIndex: results }.
     property var answers: ({})
@@ -62,7 +75,9 @@ Singleton {
                     at: i * 1000 + at,
                     // `top`: what was asked for outright (a typed URL, a web
                     // keyword): above any fuzzy match.
-                    rank: empty ? use : r.top ? 1000 + (r.score ?? 0) : (r.score ?? 0) * p.weight + use
+                    // Nothing typed: used things first, then `idle` (recent
+                    // files), then the rest.
+                    rank: empty ? (r.idle ?? use) : r.top ? 1000 + (r.score ?? 0) : (r.score ?? 0) * p.weight + use
                 }));
             }
         });
@@ -104,7 +119,13 @@ Singleton {
         confirming = "";
         const s = ++seq;
         const next = {};
-        const { scope, query } = parse(text, providers);
+        // Set here, before the providers are asked (a binding on the text
+        // would trail it by a step, and they read these).
+        const parsed = parse(text, providers);
+        root.scope = parsed.scope;
+        root.query = parsed.query;
+        root.filter = parsed.filter;
+        const { scope, query } = parsed;
         providers.forEach((p, i) => {
             const asked = scope ? scope === p : p.global;
             if (!asked || (query === "" && !scope && !p.answersEmpty))

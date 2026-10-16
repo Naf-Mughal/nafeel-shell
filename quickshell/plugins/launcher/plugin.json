@@ -3,7 +3,7 @@
   "name": "Launcher",
   "gloss": "\u542f",
   "icon": "search",
-  "description": "The command center's search: apps, open windows, system actions, settings, the web, a calculator (=), commands (>), clipboard (cb), emoji (e) and processes (kill). Other plugins add their own providers.",
+  "description": "The command center's search: apps, open windows, system actions, settings, the web, a calculator (=), commands (>), clipboard (cb), emoji (e), processes (kill) and a question for Claude (ai). Other plugins add their own providers.",
   "default": true,
   "providers": [
     {
@@ -45,6 +45,10 @@
     {
       "id": "processes",
       "entry": "ProcessProvider.qml"
+    },
+    {
+      "id": "ask",
+      "entry": "AskProvider.qml"
     }
   ],
   "root": "Plugin.qml"

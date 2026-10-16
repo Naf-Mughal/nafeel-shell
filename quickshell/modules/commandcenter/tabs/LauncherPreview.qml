@@ -63,6 +63,36 @@ Surface {
         }
     }
 
+    // Prose (an answer): what was asked, then the text, wrapped.
+    Item {
+        anchors.fill: parent
+        anchors.margins: Tokens.spacing.large
+        visible: root.spec?.kind === "prose"
+        clip: true
+
+        Column {
+            width: parent.width
+            spacing: Tokens.spacing.normal
+
+            StyledText {
+                width: parent.width
+                text: root.spec?.title ?? ""
+                wrapMode: Text.Wrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                color: Colours.palette.m3onSurfaceVariant
+                font.pixelSize: Tokens.font.small
+            }
+
+            StyledText {
+                width: parent.width
+                text: root.spec?.text ?? ""
+                wrapMode: Text.Wrap
+                font.pixelSize: Tokens.font.row
+            }
+        }
+    }
+
     // An app, a window, anything described: an icon or live picture on top,
     // the name and the lines under it.
     Item {

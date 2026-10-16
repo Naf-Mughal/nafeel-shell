@@ -13,7 +13,10 @@ import QtQuick
 //                                          the first,
 //     confirm: "Shut down"                 a first Enter asks, a second runs,
 //     keepOpen: true                       the command center stays open,
-//     highlight: false                     no match highlighting in title }
+//     highlight: false                     no match highlighting in title,
+//     top: true                            above any fuzzy match (asked for),
+//     idle: N                              its place when nothing's typed
+//                                          (default: how much it's used) }
 //
 // Synchronous: return them from query(). Asynchronous (a process, the
 // network): return null and publish(seq, results) when they're ready, for
@@ -25,6 +28,9 @@ QtObject {
     // Its name in the results, and its keyword: "f report" asks only this
     // provider; a symbol (">", "=") needs no space after it.
     property string name
+    // Filter prefixes it claims ("pdf" for "pdf: budget": the search is
+    // scoped to it, and Launcher.filter says which).
+    property var prefixes: []
     // The search bar's icon while the search is scoped to it.
     property string icon: "search"
     property string keyword

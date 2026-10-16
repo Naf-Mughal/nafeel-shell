@@ -24,6 +24,25 @@ Scope {
             def: true
         }
         SettingItem {
+            key: "launcher.ask"
+            kind: "toggle"
+            icon: "auto_awesome"
+            section: "Ask Claude"
+            label: "Ask Claude from the launcher"
+            description: "\"ai <question>\": Enter sends it to Claude through the claude CLI (your login and plan; no tools, nothing saved). Nothing is sent while you type."
+            def: true
+        }
+        SettingItem {
+            key: "launcher.askModel"
+            kind: "text"
+            icon: "psychology"
+            label: "Model"
+            description: "Empty uses the CLI's default; a short alias like haiku answers faster and costs less."
+            placeholder: "haiku"
+            def: ""
+            shown: root.askOn
+        }
+        SettingItem {
             key: "launcher.webKeywords"
             kind: "text"
             icon: "language"
@@ -34,6 +53,9 @@ Scope {
             def: ""
         }
     }
+
+    readonly property bool askOn: settings.v["launcher.ask"] !== false
+    readonly property string askModel: settings.v["launcher.askModel"] ?? ""
 
     // keyword -> [name, "language", url].
     readonly property var webKeywords: {
