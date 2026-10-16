@@ -68,7 +68,7 @@ LauncherProvider {
                 image: !dir && /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path) ? Wallpapers.still(path, true) : "",
                 score: s,
                 key: "file:" + path,
-                run: () => Quickshell.execDetached(["xdg-open", path]),
+                run: () => Open.open(path),
                 actions: [
                     {
                         label: "Show in the file manager",

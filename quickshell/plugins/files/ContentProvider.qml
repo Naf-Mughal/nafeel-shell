@@ -106,7 +106,7 @@ LauncherProvider {
                 icon: inDoc ? "picture_as_pdf" : "manage_search",
                 score: b.s,
                 key: "",
-                run: () => Quickshell.execDetached(["xdg-open", origin]),
+                run: () => Open.open(origin),
                 actions: [
                     ...(inDoc ? [] : [{
                                 label: `Open at line ${b.n} in VS Code`,

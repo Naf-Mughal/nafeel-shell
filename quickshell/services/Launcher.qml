@@ -239,6 +239,17 @@ Singleton {
             root.text = text;
             return JSON.stringify(root.results.slice(0, 12).map(r => [r.provider, r.title, Math.round(r.rank)]));
         }
+        // Testing: run result `index` of a query as Enter would (synchronous
+        // providers only).
+        function pick(text: string, index: int): string {
+            root.text = text;
+            const r = root.results[index];
+            if (!r)
+                return "no result";
+            root.selected = index;
+            root.activate(false);
+            return r.title;
+        }
         function providers(): string {
             return JSON.stringify(root.providers.map(p => [p.name, p.keyword, p.global]));
         }

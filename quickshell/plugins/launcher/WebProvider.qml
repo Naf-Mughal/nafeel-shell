@@ -37,7 +37,7 @@ LauncherProvider {
         })
 
     function open(url: string): void {
-        Quickshell.execDetached(["xdg-open", url]);
+        Open.open(url);
     }
 
     function entry(label: string, icon: string, url: string, title: string, score: real, sub: string): var {
