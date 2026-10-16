@@ -502,7 +502,7 @@ void SceneVideo::geometryChange(const QRectF &n, const QRectF &o) {
 
 void SceneVideo::itemChange(ItemChange change, const ItemChangeData &data) {
     QQuickItem::itemChange(change, data);
-    if (change == ItemSceneChange || change == ItemVisibleHasChanged)
+    if (change == ItemSceneChange)
         push();
 }
 
@@ -510,7 +510,10 @@ void SceneVideo::itemChange(ItemChange change, const ItemChangeData &data) {
 void SceneVideo::push() {
     const qreal dpr = window() ? window()->effectiveDevicePixelRatio() : 1;
     const QSize pixels(qRound(width() * dpr * m_resolution), qRound(height() * dpr * m_resolution));
-    const bool shown = window() && isVisible();
+    // In a window, visible or not: an item drawn through a capture (a
+    // ShaderEffectSource with hideSource) is hidden yet shown; `playing`
+    // says when to play.
+    const bool shown = window() != nullptr;
     if (!m_worker) {
         if (m_source.isEmpty() || !shown)
             return;

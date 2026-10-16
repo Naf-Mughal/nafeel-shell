@@ -4,6 +4,7 @@ import QtQuick
 import qs.config
 import qs.services
 import qs.components
+import Nafeel
 
 // The slice carousel (after Ryoku's SliceDelegate and its slice list, MIT):
 // the library as slanted strips leaning against each other, the selected one
@@ -197,22 +198,49 @@ Item {
                     anchors.fill: parent
                     // Open (or opening) only: one full image at a time.
                     active: slice.isCurrent && root.awake
-                    // A live wallpaper moves here: its animated preview (the
-                    // indexer's, a few seconds as animated WebP), not the video.
+                    // A live wallpaper moves here: the video itself, decoded on
+                    // the GPU at the slice's size (Nafeel's SceneVideo, from
+                    // the indexer's copy when there is one). The indexer's few
+                    // seconds of animated WebP decoded on the CPU (~10%) only
+                    // where that can't run.
                     sourceComponent: (slice.modelData.video ?? false) ? livePreview : stillFull
                 }
 
                 Component {
                     id: livePreview
 
-                    AnimatedImage {
-                        source: slice.modelData.preview ? "file://" + slice.modelData.preview : ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        cache: false
-                        // Only while shown (the studio stays made, warm).
-                        playing: visible
-                        smooth: true
+                    Item {
+                        id: live
+
+                        property bool fellBack: false
+
+                        SceneVideo {
+                            anchors.fill: parent
+                            visible: !live.fellBack
+                            // No file while the picker's in: its decoder and frames
+                            // (video memory) let go.
+                            source: live.fellBack || !playing ? "" : "file://" + Wallpapers.lockPlayOf(slice.modelData.path)
+                            // Made only for the open slice while the picker's out
+                            // (the Loader): drawn through the slice's capture,
+                            // so never "visible" itself.
+                            playing: ShellState.pinned === "wallpapers" || ShellState.previewed === "wallpapers"
+                            onBroken: live.fellBack = true
+                            // The slice's capture of the picture takes each frame
+                            // (the frame is set just before the scene draws, past
+                            // where a live capture would notice it).
+                            onFrame: tex.scheduleUpdate()
+                        }
+
+                        AnimatedImage {
+                            anchors.fill: parent
+                            visible: live.fellBack
+                            playing: live.fellBack
+                            source: live.fellBack && slice.modelData.preview ? "file://" + slice.modelData.preview : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: false
+                            smooth: true
+                        }
                     }
                 }
 
