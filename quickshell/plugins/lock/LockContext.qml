@@ -294,6 +294,23 @@ Scope {
         }
     }
 
+    // The session's entrance (Entrance.qml): the login screen's grant carried
+    // on in the session (SDDM ends its greeter the moment the password is
+    // accepted). The 开 seal and the pillar, no reward, then the exit.
+    function enter() {
+        if (phase === "granted" || phase === "exiting")
+            return;
+        verifyTimeout.stop();
+        watchdog.start();
+        _resetAttempt();
+        reward = null;
+        phase = "granted";
+        granted();
+        cells = 0;
+        rewardTimer.interval = 650;
+        rewardTimer.restart();
+    }
+
     // Any key or click during the reward screen jumps straight to the exit.
     function skip() {
         if (phase !== "granted")

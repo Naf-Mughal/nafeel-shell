@@ -31,6 +31,21 @@ Singleton {
     readonly property bool live: Wallpapers.isVideo(Wallpapers.current)
     readonly property string wallpaperPath: live ? Wallpapers.playOf(Wallpapers.current) : Wallpapers.current
     readonly property string wallpaperName: wallpaperPath ? "wallpaper" + (wallpaperPath.match(/\.[A-Za-z0-9]+$/)?.[0] ?? "") : ""
+    // And the still at the (biggest) screen's size, a plain JPEG: what the
+    // login screen and the session's entrance paint first. A 4K quality-100
+    // original took ~0.6 s of a core to decode even at half size; this ~30 ms.
+    readonly property size screenPx: {
+        let w = 0, h = 0;
+        for (const s of Quickshell.screens) {
+            const r = s.devicePixelRatio || 1;
+            if (s.width * r * s.height * r > w * h) {
+                w = Math.round(s.width * r);
+                h = Math.round(s.height * r);
+            }
+        }
+        return Qt.size(w, h);
+    }
+    readonly property string screenStill: screenPx.width > 0 ? `wallpaper-${screenPx.width}x${screenPx.height}.jpg` : ""
 
     readonly property var data: {
         const m3 = {};
@@ -57,7 +72,10 @@ Singleton {
             achievable: LockStats.achievementDefs.length,
             wallpaper: wallpaperName,
             wallpaperLive: live,
-            wallpaperStill: live ? "wallpaper-still.jpg" : wallpaperName,
+            wallpaperStill: screenStill || (live ? "wallpaper-still.jpg" : wallpaperName),
+            // Which wallpaper it is (the copies' names never change): the
+            // shell's entrance keys its picture on it (Splash.qml).
+            wallpaperSource: Wallpapers.current,
             avatar: "avatar"
         };
     }
@@ -84,22 +102,29 @@ Singleton {
 put() {
   d="$1"
   mkdir -p "$d" 2>/dev/null && [ -w "$d" ] || return 0
-  printf '%s' "$2" > "$d/GreeterData.qml.tmp" && mv -f "$d/GreeterData.qml.tmp" "$d/GreeterData.qml"
   if [ -n "$3" ] && [ -f "$3" ]; then
     if ! cmp -s "$3" "$d/$4"; then
-      rm -f "$d"/wallpaper.* "$d/wallpaper-still.jpg"
+      rm -f "$d"/wallpaper.* "$d/wallpaper-still.jpg" "$d"/wallpaper-*x*.jpg
       cp -f "$3" "$d/$4.tmp" && mv -f "$d/$4.tmp" "$d/$4"
     fi
     if [ "$7" = true ] && [ ! -f "$d/wallpaper-still.jpg" ]; then
       ffmpeg -y -loglevel error -i "$d/$4" -frames:v 1 -q:v 3 "$d/wallpaper-still.jpg" </dev/null || true
     fi
+    if [ -n "$8" ] && [ ! -f "$d/$8" ]; then
+      src="$d/$4"
+      [ "$7" = true ] && src="$d/wallpaper-still.jpg"
+      rm -f "$d"/wallpaper-*x*.jpg
+      ffmpeg -y -loglevel error -i "$src" -vf "scale=$9:force_original_aspect_ratio=increase:flags=lanczos,crop=$9" -frames:v 1 -q:v 2 "$d/$8.tmp.jpg" </dev/null && mv -f "$d/$8.tmp.jpg" "$d/$8" || cp -f "$src" "$d/$8"
+    fi
   fi
+  # After the pictures: what it names is there when it lands.
+  printf '%s' "$2" > "$d/GreeterData.qml.tmp" && mv -f "$d/GreeterData.qml.tmp" "$d/GreeterData.qml"
   if [ -f "$HOME/.face" ]; then cmp -s "$HOME/.face" "$d/avatar" || cp -f "$HOME/.face" "$d/avatar"; else rm -f "$d/avatar"; fi
   chmod -R a+rX "$d" 2>/dev/null
 }
-put "$5" "$2" "$3" "$4" "" "" "$7"
-[ -d "$6" ] && put "$6" "$2" "$3" "$4" "" "" "$7"
-exit 0`, "sh", "", root.text, root.wallpaperPath, root.wallpaperName, root.stateDir, root.systemDir, String(root.live)];
+put "$5" "$2" "$3" "$4" "" "" "$7" "$8" "$9"
+[ -d "$6" ] && put "$6" "$2" "$3" "$4" "" "" "$7" "$8" "$9"
+exit 0`, "sh", "", root.text, root.wallpaperPath, root.wallpaperName, root.stateDir, root.systemDir, String(root.live), root.screenStill, `${root.screenPx.width}:${root.screenPx.height}`];
         writer.running = true;
     }
 

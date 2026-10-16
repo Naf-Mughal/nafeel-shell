@@ -85,6 +85,10 @@ Singleton {
     // folders aren't Quickshell modules (they can't hold singletons, and a
     // plugin's objects should go when it's switched off anyway).
     property var instances: ({})
+    // The first scan is in and every plugin that's on has its root made
+    // (shell.qml makes the desktop after: its panels use them as they're made).
+    property bool scanned: false
+    readonly property bool started: scanned && Settings.loaded && enabled.every(p => !p.root || instances[p.id] !== undefined)
 
     function instance(id: string): var {
         return instances[id] ?? null;
@@ -212,6 +216,7 @@ Singleton {
                 }
                 found.sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id));
                 root.all = found;
+                root.scanned = true;
                 console.info(`plugins: ${found.map(p => p.id + (root.isOn(p) ? "" : " (off)")).join(", ")}`);
             }
         }

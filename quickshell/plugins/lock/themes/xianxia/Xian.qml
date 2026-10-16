@@ -21,17 +21,19 @@ QtObject {
     // roles, so the lock is the same world as the desktop. It keeps the
     // original ink and gold when the Cave Abode setting asks for it, or on a
     // light palette (the theme always sits on a dark ink backdrop).
-    readonly property bool follow: host?.follow ?? false
-    readonly property var m3: host?.m3 ?? ({})
+    // (One binding on the host for both: as two, a new host's `follow` could
+    // land before its palette, and the colours read an empty one.)
+    readonly property var m3: (host?.follow ?? false) && host?.m3?.m3surface !== undefined ? host.m3 : null
+    readonly property bool follow: m3 !== null
 
-    readonly property color ink: follow ? m3.m3surface : "#0b0c11"
-    readonly property color night: follow ? m3.m3surfaceContainer : "#141826"
-    readonly property color mist: follow ? m3.m3onSurfaceVariant : "#aeb8c4"
-    readonly property color paper: follow ? m3.m3onSurface : "#eadfc6"
-    readonly property color paperDim: follow ? Qt.tint(m3.m3onSurfaceVariant, Qt.alpha(m3.m3surface, 0.18)) : "#a79f8d"
-    readonly property color gold: follow ? m3.m3primary : "#d9b35d"
-    readonly property color goldHi: follow ? m3.m3primaryFixed : "#f5dc95"
-    readonly property color jade: follow ? m3.m3tertiary : "#79c2ad"
+    readonly property color ink: m3 ? m3.m3surface : "#0b0c11"
+    readonly property color night: m3 ? m3.m3surfaceContainer : "#141826"
+    readonly property color mist: m3 ? m3.m3onSurfaceVariant : "#aeb8c4"
+    readonly property color paper: m3 ? m3.m3onSurface : "#eadfc6"
+    readonly property color paperDim: m3 ? Qt.tint(m3.m3onSurfaceVariant, Qt.alpha(m3.m3surface, 0.18)) : "#a79f8d"
+    readonly property color gold: m3 ? m3.m3primary : "#d9b35d"
+    readonly property color goldHi: m3 ? m3.m3primaryFixed : "#f5dc95"
+    readonly property color jade: m3 ? m3.m3tertiary : "#79c2ad"
     // The seal red never themes, in the lock or the shell (components/Seal).
     readonly property color cinnabar: "#c8372d"
 
@@ -45,7 +47,7 @@ QtObject {
     // The panels' paper texture: its fibre and ink wash.
     readonly property real paperFibre: host?.paperFibre ?? 0.5
     readonly property real paperInk: host?.paperInk ?? 0.55
-    readonly property color ember: follow ? m3.m3secondary : "#ff9d4d"
+    readonly property color ember: m3 ? m3.m3secondary : "#ff9d4d"
 
     // The host's motion: the shell's tempo (0 under reduced motion); 1 with
     // no host (the greeter's keeps the designed timing unless it says).

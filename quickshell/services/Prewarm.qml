@@ -44,6 +44,11 @@ Singleton {
         running: true
         interval: 2500
         onTriggered: {
+            // Not while the session's entrance plays (its frames first).
+            if (ShellState.entering) {
+                restart();
+                return;
+            }
             root.started = true;
             tick.start();
         }

@@ -48,6 +48,11 @@ Item {
     property bool floating: false
     // The prompt's idle line (compact: what's asking).
     property string idleLine: "Recite the incantation to break the seal"
+    // Bare (the shell's session entrance): the ink world and the formation
+    // with no words at all (no hour, title, prompt or cards): its first
+    // frame is kept as a picture to show at the next login, and a time in
+    // it would be stale.
+    property bool bare: false
 
     readonly property real sc: Math.max(minScale, Math.min(2, Math.min(width / 1920, height / 1080)))
     readonly property real edge: 60 * sc
@@ -85,6 +90,8 @@ Item {
     property int _seenLevel: 0
 
     readonly property bool granted: ctx.phase === "granted" || ctx.phase === "exiting"
+    // The wallpaper's painting is up (the shell's entrance waits for it).
+    readonly property bool backdropReady: wallItem.ready
     readonly property var reward: ctx.reward
 
     Component.onCompleted: {
@@ -92,7 +99,7 @@ Item {
         if (still) {
             draw = 1;
             dissolve = 1;
-            uiIn = 1;
+            uiIn = bare ? 0 : 1;
             sealOut = 1;
         } else if (shown) {
             startIntro();
@@ -372,7 +379,7 @@ Item {
             spin: xian.spin
             alarm: xian.alarm
             surge: xian.surge
-            hush: Math.max(xian.deviation, Math.min(1, xian.breakthrough), xian.openIn, xian.sealIn * (1 - xian.sealOut))
+            hush: Math.max(xian.bare ? 1 : 0, xian.deviation, Math.min(1, xian.breakthrough), xian.openIn, xian.sealIn * (1 - xian.sealOut))
             scale: 1 + 0.35 * xian.burst
             opacity: 1 - xian.burst
         }

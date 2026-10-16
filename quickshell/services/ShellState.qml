@@ -45,6 +45,11 @@ Singleton {
     property string settingsPage: "appearance"
     // The lock is up (Lock.qml keeps this).
     property bool locked: false
+    // A wallpaper is on screen (or failed to come): the session's entrance
+    // (plugins/lock/Entrance.qml) waits for it before opening.
+    property bool desktopShown: false
+    // The entrance is up (the rest of the start-up work waits for it).
+    property bool entering: false
     property string previewed: ""
 
     // The frame got the keyboard for a pinned drawer. A panel with a field

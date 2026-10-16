@@ -11,41 +11,107 @@
 
 import QtQuick
 import Quickshell
-import Nafeel
-import qs.services
-import qs.modules.frame
-import qs.modules.background
 
+// Nothing of the shell's own is imported here: what this file names is
+// compiled before its first frame. The rest comes from files loaded after.
 ShellRoot {
+    id: shell
+
     settings.watchFiles: true
 
-    // The theme follows the wallpaper from the start.
-    readonly property var theme: Theme
-    // The battery's saver and warnings run whether or not a panel shows.
-    readonly property var power: Power
+    // The session's start (bin/nafeel-shell: the first shell of a umbriel
+    // session), not a restart: the login screen carried on (Entrance: the
+    // grant, then the ink receding into the desktop) while the rest loads.
+    readonly property bool wanted: Quickshell.env("NAFEEL_ENTRANCE") === "1"
+    property bool entering: false
+    // Whether it's entering is known (at once when it isn't wanted).
+    property bool decided: !wanted
+    // The rest waits for the entrance's first frame (alongside, that frame
+    // came ~0.5 s later); never long.
+    readonly property bool holding: entering && !(entrance.item?.drawn ?? false) && !holdLimit.done
 
-    // Every enabled plugin's root (its services, settings, IPC): a plugin
-    // that's off loads nothing.
-    // A loader per plugin with a root, over every plugin found (a model that
-    // only changes on a rescan), so switching one plugin starts or stops just
-    // its own root; the rest keep their state.
-    Instantiator {
-        model: Plugins.withRoot
+    // Survives reloads: a reload isn't a login. (Its values are back once
+    // it's `loaded`, after Component.onCompleted.)
+    PersistentProperties {
+        reloadableId: "nafeel-entrance"
 
-        delegate: Loader {
-            required property var modelData
+        property bool played: false
 
-            active: Plugins.isEnabled(modelData.id)
-            source: Plugins.urlOf(modelData, modelData.root)
-            onLoaded: Plugins.attach(modelData.id, item)
-            onActiveChanged: if (!active)
-                Plugins.attach(modelData.id, null)
-            Component.onDestruction: Plugins.attach(modelData.id, null)
+        onLoaded: {
+            if (shell.wanted && !played) {
+                played = true;
+                shell.entering = true;
+                holdLimit.start();
+            }
+            shell.decided = true;
         }
     }
 
-    PluginModules {}
+    Timer {
+        id: holdLimit
 
-    Background {}
-    Frame {}
+        property bool done: false
+
+        interval: 1500
+        onTriggered: done = true
+    }
+
+    // Its first frame, as a picture, until it's drawn its own (and a moment
+    // more: gone the moment that frame was swapped, the desktop showed
+    // between the two for two frames).
+    Splash {
+        id: splash
+
+        active: shell.entering && !splashGone.done
+    }
+
+    Timer {
+        id: splashGone
+
+        property bool done: false
+
+        running: entrance.item?.drawn ?? false
+        interval: 150
+        onTriggered: done = true
+    }
+
+    // Made first at the session's start; otherwise after the desktop (for
+    // IPC `entrance play`).
+    Loader {
+        id: entrance
+
+        asynchronous: true
+        active: shell.entering && (splash.drawn || !splash.known) || desktop.item !== null
+        source: Qt.resolvedUrl("plugins/lock/Entrance.qml")
+        onItemChanged: {
+            if (!item)
+                return;
+            item.desktopMade = Qt.binding(() => desktop.item !== null);
+            item.coverFile = splash.file;
+            item.coverKnown = splash.known;
+            if (shell.entering)
+                item.play();
+        }
+    }
+
+    // The rest is made in the background (a little at a time between
+    // frames): the plugins' roots first (the panels use them as they're
+    // made), then the desktop. From files of their own, compiled off this
+    // thread as they load (inline, or with a LazyLoader's `source`, the whole
+    // shell compiled before its first frame: ~0.8 s).
+    Loader {
+        id: plugins
+
+        asynchronous: true
+        active: shell.decided && !shell.holding
+        source: Qt.resolvedUrl("PluginRoots.qml")
+    }
+
+    Loader {
+        id: desktop
+
+        asynchronous: true
+        active: plugins.item?.started ?? false
+        source: Qt.resolvedUrl("Desktop.qml")
+    }
 }

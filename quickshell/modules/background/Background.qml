@@ -98,6 +98,8 @@ Variants {
         // The spare slot has something to show (or never will): say so (the
         // transition waits).
         function loaded(slot: WallSlot): void {
+            if (slot === shown && (slot.ready || slot.failed))
+                ShellState.desktopShown = true;
             if (slot === spare && (slot.ready || slot.failed))
                 Bus.publish("wallpaper.loaded", {
                     path: slot.path,
