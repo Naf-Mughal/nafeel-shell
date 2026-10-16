@@ -29,17 +29,6 @@ Item {
     // The studio is open: every slice holds its picture; closed (it stays
     // made, warm), only the ten nearest the current one do, and no full one.
     property bool awake: true
-    // The thumbnails are decoded when the picker is first about to open (the
-    // keyboard being taken, a hover preview, a pin) and kept from then on
-    // (as textures: the native still provider lets the pixels go once drawn).
-    // Decoded at startup, the ones in a panel never shown held their pixels
-    // (~1.6 MB each at 853x480, ~10 MB in all) for as long as it stayed shut.
-    property bool used: false
-    readonly property bool wanted: ShellState.grabbing === "wallpapers" || ShellState.pinned === "wallpapers" || ShellState.previewed === "wallpapers"
-    onWantedChanged: {
-        if (wanted)
-            used = true;
-    }
     readonly property int count: model.length
     // For the store's paging (the picker asks for more near the end).
     readonly property bool atXEnd: count > 0 && currentIndex >= count - 3
@@ -196,7 +185,7 @@ Item {
                     id: img
 
                     anchors.fill: parent
-                    source: root.used && (root.awake || Math.abs(slice.idx - root.currentIndex) <= 5) ? Wallpapers.still(Wallpapers.picture(slice.modelData), true) : ""
+                    source: root.awake || Math.abs(slice.idx - root.currentIndex) <= 5 ? Wallpapers.still(Wallpapers.picture(slice.modelData), true) : ""
                     sourceSize: Qt.size(Math.round(root.expandedWidth), Math.round(root.height))
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
