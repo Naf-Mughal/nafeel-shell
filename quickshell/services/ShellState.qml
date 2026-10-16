@@ -447,8 +447,9 @@ Singleton {
     // panel open it ran 0.7 s after the open settled, and a close started
     // then (the dock's, after a quick look) lost a frame to it.
     // The idle file pages back to the page cache (Memory.trimFiles): the
-    // first call a while after the warm-up (it only starts the aging), then
-    // every few minutes, only while everything is closed and still.
+    // first call soon after the warm-up (it only starts the aging), the next
+    // 45 s later (the drop: ~2 min after a start), then every few minutes,
+    // only while everything is closed and still.
     Timer {
         id: fileTrim
 
@@ -457,7 +458,7 @@ Singleton {
 
         running: Prewarm.done && Settings.values["memory.trimFiles"] !== false
         repeat: true
-        interval: calls === 0 ? 90000 : calls === 1 ? 75000 : 180000
+        interval: calls === 0 ? 30000 : calls === 1 ? 45000 : 180000
         onTriggered: {
             if (root.still && root.resting && !root.locked)
                 calls++, Memory.trimFiles();
