@@ -87,7 +87,11 @@ Drawer {
         return Math.max(half, Math.min(len - half, at)) / len;
     }
     hoverZone: standalone.length > 0
-    panelWidth: Math.max(side && vertical ? pillLength : 0, widths[shownKind] ?? pluginPopouts[shownKind]?.width ?? 380)
+    // A panel's own width (where it's going, not the spring on the way).
+    function widthOf(k: string): real {
+        return Math.max(side && vertical ? pillLength : 0, widths[k] ?? pluginPopouts[k]?.width ?? 380);
+    }
+    panelWidth: widthOf(shownKind)
     panelHeight: Math.max(side ? (vertical ? 0 : pillLength) : minHeight, (loader?.item?.implicitHeight ?? 0) + pad * 2)
 
     Behavior on panelWidth {
@@ -131,7 +135,12 @@ Drawer {
 
             x: root.side || root.cornerRight ? root.pad : root.barPad
             y: root.pad
-            width: root.panelWidth - root.pad - (root.side ? root.pad : root.barPad)
+            // At its own width, not the animated one: on the springing width
+            // every warm panel here (shown or not) laid itself out again on
+            // every frame of a switch between two widths (cards, lists,
+            // pictures asked for at each size): seconds of stutter and a
+            // decode per frame.
+            width: root.widthOf(kind) - root.pad - (root.side ? root.pad : root.barPad)
             visible: shown
             // Its place in the warm-up queue, taken once.
             Component.onCompleted: turn = Prewarm.enlist(`popout ${kind} (${root.place})`)

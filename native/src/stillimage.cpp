@@ -5,19 +5,38 @@
 #include <QQuickWindow>
 #include <QRunnable>
 #include <QUrl>
+#include <atomic>
 #include <utility>
 
 namespace {
 
 class StillResponse : public QQuickImageResponse, public QRunnable {
 public:
-    StillResponse(QString path, QSize requested, bool crop)
-        : m_path(std::move(path)), m_requested(requested), m_crop(crop) {
+    StillResponse(QString path, QSize requested, bool crop, QThreadPool *pool)
+        : m_path(std::move(path)), m_requested(requested), m_crop(crop), m_pool(pool) {
         setAutoDelete(false);
     }
 
+    // An Image that no longer wants it (its source or size changed again):
+    // out of the queue if it hasn't started, else its result goes unread.
+    // Ignored, an Image resized every frame (a panel's width animating)
+    // queued a full decode per frame: two cores busy, memory piling up.
+    void cancel() override {
+        m_cancelled.store(true);
+        if (m_pool && m_pool->tryTake(this))
+            QMetaObject::invokeMethod(this, &QQuickImageResponse::finished, Qt::QueuedConnection);
+    }
+
     void run() override {
+        if (m_cancelled.load()) {
+            emit finished();
+            return;
+        }
         QImage image = StillProvider::load(m_path, m_requested, m_crop);
+        if (m_cancelled.load()) {
+            emit finished();
+            return;
+        }
         if (image.isNull())
             m_error = QStringLiteral("can't read %1").arg(m_path);
         else
@@ -40,6 +59,8 @@ private:
     bool m_crop;
     mutable QQuickTextureFactory *m_factory = nullptr;
     QString m_error;
+    QThreadPool *m_pool;
+    std::atomic<bool> m_cancelled{false};
 };
 
 } // namespace
@@ -111,7 +132,7 @@ QQuickImageResponse *StillProvider::requestImageResponse(const QString &id, cons
         path = QUrl(path).toLocalFile();
     if (!path.startsWith(QLatin1Char('/')))
         path.prepend(QLatin1Char('/'));
-    auto *response = new StillResponse(path, requestedSize, crop);
+    auto *response = new StillResponse(path, requestedSize, crop, &m_pool);
     m_pool.start(response);
     return response;
 }
