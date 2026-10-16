@@ -29,7 +29,10 @@ pragma Singleton
 //                              panel, opened as "bar:<name>",
 //       "tabs": [{ "id", "icon", "label", "entry", "popout" }]  command
 //                              center tabs, after the kernel's; "popout":
-//                              true centres a popout-sized panel in it }
+//                              true centres a popout-sized panel in it,
+//       "providers": [{ "id", "entry" }]  the launcher's search providers
+//                              (a LauncherProvider each: its name, keyword,
+//                              weight and query(); services/Launcher.qml) }
 //
 // A plugin that's off loads nothing: no root, drawers, overlays, slots or
 // popouts or tabs. bin/nafeel-shell imports every plugin folder at startup
@@ -109,6 +112,12 @@ Singleton {
     readonly property var overlays: all.reduce((out, p) => out.concat((p.overlays ?? []).map(f => ({
                     plugin: p.id,
                     url: urlOf(p, f)
+                }))), [])
+
+    // The enabled plugins' launcher providers: [{ id, plugin, url }].
+    readonly property var providers: enabled.reduce((out, p) => out.concat((p.providers ?? []).map(v => Object.assign({}, v, {
+                    plugin: p.id,
+                    url: urlOf(p, v.entry)
                 }))), [])
 
     // The enabled plugins' command center tabs: [{ id, icon, label, url, popout }].

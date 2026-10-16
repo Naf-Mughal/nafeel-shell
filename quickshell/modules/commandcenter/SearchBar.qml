@@ -4,9 +4,11 @@ import qs.services
 import qs.components
 
 // The command center's search, always at the top. Typing on any tab jumps to
-// the launcher; ">" runs a command, "=" calculates, ":" opens the clipboard.
-// Up/Down move through results, Enter runs the selected one, Ctrl+Tab /
-// Ctrl+Shift+Tab switch tabs, Esc closes.
+// the launcher (services/Launcher.qml): a provider's keyword scopes the
+// search to it (">" command, "=" calculate, "f " files, …); ":" opens the
+// clipboard. Up/Down move through results, Enter runs the selected one,
+// Shift+Enter its first action, Tab lists its actions (Shift+Tab / Esc back),
+// Ctrl+Tab / Ctrl+Shift+Tab switch tabs, Esc closes.
 StyledRect {
     id: root
 
@@ -28,7 +30,7 @@ StyledRect {
         anchors.left: parent.left
         anchors.leftMargin: Tokens.spacing.large
         anchors.verticalCenter: parent.verticalCenter
-        text: root.cc.mode === "command" ? "terminal" : root.cc.mode === "calc" ? "calculate" : "search"
+        text: ({ Command: "terminal", Calculator: "calculate", Files: "folder", Web: "language", Settings: "settings", System: "power_settings_new", Windows: "select_window", Apps: "apps" })[Launcher.scope?.name ?? ""] ?? "search"
         color: Colours.palette.m3onSurfaceVariant
     }
 
@@ -58,21 +60,26 @@ StyledRect {
             ShellState.ccQuery = text;
             if (text !== "")
                 ShellState.ccTab = "apps";
-            root.cc.selected = 0;
         }
 
         Keys.onPressed: event => {
             const ctrl = event.modifiers & Qt.ControlModifier;
+            const shift = event.modifiers & Qt.ShiftModifier;
             if (event.key === Qt.Key_Escape) {
-                ShellState.close();
+                if (!Launcher.hideActions())
+                    ShellState.close();
             } else if (event.key === Qt.Key_Down || (ctrl && event.key === Qt.Key_N)) {
                 root.cc.move(1);
             } else if (event.key === Qt.Key_Up || (ctrl && event.key === Qt.Key_P)) {
                 root.cc.move(-1);
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                root.cc.activate();
+                root.cc.activate(!!shift);
             } else if (ctrl && (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)) {
-                root.cc.cycleTab(event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier) ? -1 : 1);
+                root.cc.cycleTab(event.key === Qt.Key_Backtab || shift ? -1 : 1);
+            } else if (event.key === Qt.Key_Tab && ShellState.ccTab === "apps") {
+                Launcher.showActions();
+            } else if (event.key === Qt.Key_Backtab && ShellState.ccTab === "apps") {
+                Launcher.hideActions();
             } else {
                 return;
             }
@@ -82,7 +89,7 @@ StyledRect {
         StyledText {
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === ""
-            text: "Search apps   ·   > command   ·   = calculate   ·   : clipboard"
+            text: "Search apps, windows, settings, actions   ·   > command   ·   = calculate   ·   : clipboard"
             color: Colours.palette.m3onSurfaceVariant
             font.pixelSize: 14
         }

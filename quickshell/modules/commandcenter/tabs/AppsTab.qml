@@ -3,57 +3,91 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
+import Nafeel
 import qs.config
 import qs.services
 import qs.components
 
-// The launcher: apps matching the search (all of them when it's empty), or
-// the command / calculation the search starts with.
+// The launcher's results (services/Launcher.qml): every provider's, ranked;
+// with Tab, the selected one's actions instead.
 Item {
     id: root
 
     required property var cc
 
-    // ">" and "=": one row describing what Enter does.
-    Surface {
-        visible: root.cc.mode !== "apps"
-        width: parent.width
-        height: 72
-        role: "secondary"
-        shape: "large"
+    // The matched characters of a title, in the accent.
+    function marked(r: var): string {
+        const t = r.title ?? "";
+        if (Launcher.query === "" || r.highlight === false)
+            return t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        return Fuzzy.highlight(t, Launcher.query, `<font color="${Colours.palette.m3primary}">`, "</font>");
+    }
 
-        MaterialIcon {
-            id: modeIcon
+    // The selected result's actions (Tab): what it is, then each action.
+    Column {
+        anchors.fill: parent
+        visible: Launcher.actionsOf !== null
+        spacing: 2
 
-            anchors.left: parent.left
-            anchors.leftMargin: Tokens.spacing.large
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.cc.mode === "command" ? "terminal" : "calculate"
-            fill: 1
-            size: 28
-            color: Colours.palette.m3onSecondaryContainer
+        StyledText {
+            width: parent.width
+            bottomPadding: Tokens.spacing.small
+            text: `${Launcher.actionsOf?.title ?? ""}   ·   Esc or Shift+Tab goes back`
+            color: Colours.palette.m3onSurfaceVariant
+            font.pixelSize: Tokens.font.small
+            elide: Text.ElideRight
         }
 
-        Column {
-            anchors.left: modeIcon.right
-            anchors.leftMargin: Tokens.spacing.normal
-            anchors.right: parent.right
-            anchors.rightMargin: Tokens.spacing.large
-            anchors.verticalCenter: parent.verticalCenter
+        Repeater {
+            model: Launcher.actionsOf?.actions ?? []
 
-            StyledText {
+            delegate: Row {
+                id: action
+
+                required property var modelData
+                required property int index
+
                 width: parent.width
-                text: root.cc.mode === "command" ? (root.cc.query.slice(1).trim() || "Type a command") : (Calc.result || "Type an expression")
-                color: Colours.palette.m3onSecondaryContainer
-                font.pixelSize: root.cc.mode === "calc" ? 22 : 15
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
+                height: 48
 
-            StyledText {
-                text: root.cc.mode === "command" ? "Enter runs it" : "Enter copies the result"
-                color: Qt.alpha(Colours.palette.m3onSecondaryContainer, 0.8)
-                font.pixelSize: 12
+                StyledRect {
+                    width: parent.width
+                    height: parent.height
+                    radius: Tokens.rounding.normal
+                    color: action.index === Launcher.actionSelected ? Colours.palette.m3secondaryContainer : actionHover.hovered ? Colours.palette.m3surfaceContainerHigh : "transparent"
+
+                    MaterialIcon {
+                        id: actionIcon
+
+                        anchors.left: parent.left
+                        anchors.leftMargin: Tokens.spacing.large
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: action.modelData.icon || "chevron_right"
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+
+                    StyledText {
+                        anchors.left: actionIcon.right
+                        anchors.leftMargin: Tokens.spacing.normal
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: action.modelData.label
+                        color: action.index === Launcher.actionSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                        font.pixelSize: Tokens.font.row
+                    }
+
+                    HoverHandler {
+                        id: actionHover
+
+                        cursorShape: Qt.PointingHandCursor
+                    }
+
+                    TapHandler {
+                        onTapped: {
+                            Launcher.actionSelected = action.index;
+                            Launcher.activate(false);
+                        }
+                    }
+                }
             }
         }
     }
@@ -61,21 +95,22 @@ Item {
     ListView {
         id: list
 
-        visible: root.cc.mode === "apps"
+        visible: Launcher.actionsOf === null
         anchors.fill: parent
         clip: true
         spacing: 2
-        model: root.cc.results
-        currentIndex: root.cc.selected
+        model: Launcher.results
+        currentIndex: Launcher.selected
         highlightMoveDuration: 0
         boundsBehavior: Flickable.StopAtBounds
+        reuseItems: true
 
         onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
         StyledText {
             anchors.centerIn: parent
             visible: list.count === 0
-            text: "No matching apps"
+            text: Launcher.query === "" ? "" : `Nothing for “${Launcher.query}”`
             color: Colours.palette.m3onSurfaceVariant
         }
 
@@ -84,35 +119,52 @@ Item {
 
             required property var modelData
             required property int index
-            readonly property bool current: index === root.cc.selected
+            readonly property bool current: index === Launcher.selected
+            readonly property bool asking: current && !!modelData.confirm && Launcher.confirming === (modelData.key ?? modelData.title)
 
             width: list.width
             height: 56
             radius: Tokens.rounding.normal
-            color: current ? Colours.palette.m3secondaryContainer : hover.hovered ? Colours.palette.m3surfaceContainerHigh : "transparent"
+            color: asking ? Colours.palette.m3errorContainer : current ? Colours.palette.m3secondaryContainer : hover.hovered ? Colours.palette.m3surfaceContainerHigh : "transparent"
 
-            IconImage {
-                id: appIcon
+            // An app's (or window's) icon, else a Material Symbol.
+            Item {
+                id: lead
 
                 anchors.left: parent.left
                 anchors.leftMargin: Tokens.spacing.normal
                 anchors.verticalCenter: parent.verticalCenter
-                implicitSize: 36
-                source: Quickshell.iconPath(row.modelData.icon, "application-x-executable")
+                width: 36
+                height: 36
+
+                IconImage {
+                    anchors.fill: parent
+                    visible: !!row.modelData.image
+                    source: !row.modelData.image ? "" : row.modelData.image.startsWith("/") || row.modelData.image.includes("://") ? row.modelData.image : Quickshell.iconPath(row.modelData.image, "application-x-executable")
+                }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    visible: !row.modelData.image
+                    text: row.modelData.icon || "search"
+                    size: 24
+                    color: row.asking ? Colours.palette.m3onErrorContainer : row.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                }
             }
 
             Column {
-                anchors.left: appIcon.right
+                anchors.left: lead.right
                 anchors.leftMargin: Tokens.spacing.normal
-                anchors.right: parent.right
+                anchors.right: tag.left
                 anchors.rightMargin: Tokens.spacing.normal
                 anchors.verticalCenter: parent.verticalCenter
 
                 StyledText {
                     width: parent.width
-                    text: row.modelData.name
-                    color: row.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
-                    font.pixelSize: 14
+                    text: root.marked(row.modelData)
+                    textFormat: Text.StyledText
+                    color: row.asking ? Colours.palette.m3onErrorContainer : row.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                    font.pixelSize: Tokens.font.row
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -120,11 +172,25 @@ Item {
                 StyledText {
                     width: parent.width
                     visible: text !== ""
-                    text: row.modelData.comment || row.modelData.genericName || ""
-                    color: row.current ? Qt.alpha(Colours.palette.m3onSecondaryContainer, 0.8) : Colours.palette.m3onSurfaceVariant
-                    font.pixelSize: 12
+                    text: row.asking ? `Press Enter again to ${row.modelData.confirm.toLowerCase()}` : row.modelData.subtitle ?? ""
+                    color: row.asking ? Colours.palette.m3onErrorContainer : row.current ? Qt.alpha(Colours.palette.m3onSecondaryContainer, 0.8) : Colours.palette.m3onSurfaceVariant
+                    font.pixelSize: Tokens.font.small
                     elide: Text.ElideRight
                 }
+            }
+
+            // Where it's from; on the selected row, what the keys do.
+            StyledText {
+                id: tag
+
+                anchors.right: parent.right
+                anchors.rightMargin: Tokens.spacing.large
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.current ? (row.modelData.actions?.length ? "↵   ⇧↵   ⇥ more" : "↵") : row.modelData.provider ?? ""
+                color: row.current ? Qt.alpha(Colours.palette.m3onSecondaryContainer, 0.75) : Colours.palette.m3outline
+                font.family: Tokens.font.mono
+                font.pixelSize: Tokens.font.micro
+                font.letterSpacing: 0.6
             }
 
             HoverHandler {
@@ -135,8 +201,8 @@ Item {
 
             TapHandler {
                 onTapped: {
-                    root.cc.selected = row.index;
-                    root.cc.activate();
+                    Launcher.selected = row.index;
+                    Launcher.activate(false);
                 }
             }
         }

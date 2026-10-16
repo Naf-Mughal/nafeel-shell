@@ -1,0 +1,16 @@
+{
+  "id": "launcher",
+  "name": "Launcher",
+  "gloss": "启",
+  "icon": "search",
+  "description": "The command center's search: apps, open windows, system actions, settings, a calculator (=) and commands (>). Other plugins add their own providers.",
+  "default": true,
+  "providers": [
+    { "id": "apps", "entry": "AppsProvider.qml" },
+    { "id": "windows", "entry": "WindowsProvider.qml" },
+    { "id": "system", "entry": "SystemProvider.qml" },
+    { "id": "settings", "entry": "SettingsProvider.qml" },
+    { "id": "calc", "entry": "CalcProvider.qml" },
+    { "id": "command", "entry": "CommandProvider.qml" }
+  ]
+}

@@ -38,11 +38,13 @@ Item {
     readonly property real previewWidth: previewItem ? (vertical ? preview.implicitHeight : preview.implicitWidth) : 0
     readonly property int pad: Tokens.spacing.large
 
-    // Launcher state, shared with the search bar and the Apps tab.
-    readonly property string query: ShellState.ccQuery
-    readonly property string mode: query.startsWith(">") ? "command" : query.startsWith("=") ? "calc" : "apps"
-    property int selected: 0
-    readonly property var results: mode === "apps" ? Apps.search(query) : []
+    // The launcher (services/Launcher.qml) answers what's typed in the
+    // search.
+    Binding {
+        target: Launcher
+        property: "text"
+        value: ShellState.ccQuery
+    }
 
     // The kernel's tabs, then the plugins' (Plugins.tabs).
     readonly property var tabs: [
@@ -62,8 +64,7 @@ Item {
     function move(by: int): void {
         if (ShellState.ccTab !== "apps")
             ShellState.ccTab = "apps";
-        if (results.length > 0)
-            selected = (selected + by + results.length) % results.length;
+        Launcher.move(by);
     }
 
     function cycleTab(by: int): void {
@@ -71,28 +72,8 @@ Item {
         ShellState.ccTab = tabs[(i + by + tabs.length) % tabs.length].id;
     }
 
-    function activate(): void {
-        if (mode === "command") {
-            const cmd = query.slice(1).trim();
-            if (cmd)
-                Quickshell.execDetached(["sh", "-c", cmd]);
-        } else if (mode === "calc") {
-            if (Calc.result)
-                Clipboard.copyText(Calc.result);
-        } else {
-            const app = results[selected];
-            if (!app)
-                return;
-            Apps.launch(app);
-        }
-        ShellState.ccQuery = "";
-        ShellState.close();
-    }
-
-    // (`mode` may not have caught up with `query` yet here.)
-    onQueryChanged: {
-        if (query.startsWith("="))
-            Calc.evaluate(query.slice(1));
+    function activate(alternate: bool): void {
+        Launcher.activate(alternate);
     }
 
     Connections {

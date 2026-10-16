@@ -4,6 +4,7 @@
 #                 while it's visible, new frames only when the window changes
 #   Keyboard      the modifiers held right now (the switcher's Alt release)
 #   Memory        freed memory handed back to the system (malloc_trim)
+#   Fuzzy         the launcher's fuzzy matching (fzf-style scores, highlights)
 #   image://still pictures held only as textures (StillProvider)
 #   SurfaceFx     a Surface's interaction (hover, press, ripple, bounce, fades)
 #   SceneVideo    a video as a texture in the scene (VAAPI frames as EGLImages)
@@ -101,6 +102,7 @@ qt_add_qml_module(nafeelnative
         src/windowthumb.h src/windowthumb.cpp
         src/keyboard.h
         src/memory.h
+        src/fuzzy.h src/fuzzy.cpp
         src/stillimage.h src/stillimage.cpp
         src/surfacefx.h src/surfacefx.cpp
         src/probe.h
