@@ -189,6 +189,18 @@ Singleton {
         Quickshell.execDetached(["umbriel", "msg", action]);
     }
 
+    // Go to a window: its workspace first when it isn't the one showing on
+    // its output (a focus alone leaves the desktop where it was), then the
+    // window itself. One shell, so the two messages arrive in order.
+    function focusWindow(w: var): void {
+        const ws = workspaces.find(x => x.id === w.workspace);
+        const steps = [];
+        if (ws && !ws.active)
+            steps.push(`workspace-switch:${ws.name}/${ws.output}`);
+        steps.push(`window-focus:${w.id}`);
+        Quickshell.execDetached(["sh", "-c", 'for a in "$@"; do umbriel msg "$a"; done', "sh", ...steps]);
+    }
+
     // Most recently focused first: the focused window to the front, closed
     // ones out, new ones (never focused yet) at the back in layout order.
     function updateMru(): void {

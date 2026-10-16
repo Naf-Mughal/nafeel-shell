@@ -26,7 +26,7 @@ LauncherProvider {
                 image: app?.icon ?? w.app_id,
                 score: s,
                 key: "", // windows come and go: not ranked by use
-                run: () => Umbriel.dispatch("window-focus:" + w.id),
+                run: () => Umbriel.focusWindow(w),
                 actions: [
                     {
                         label: "Close window",

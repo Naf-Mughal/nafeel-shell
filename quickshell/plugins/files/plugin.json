@@ -1,0 +1,13 @@
+{
+  "id": "files",
+  "name": "Files",
+  "gloss": "文件",
+  "icon": "folder_open",
+  "description": "The launcher's file search: names (every folder you choose), the text inside files (ripgrep, live), and the text of PDFs and office documents (indexed at idle, only on the charger).",
+  "default": true,
+  "root": "Plugin.qml",
+  "providers": [
+    { "id": "files", "entry": "FilesProvider.qml" },
+    { "id": "content", "entry": "ContentProvider.qml" }
+  ]
+}
