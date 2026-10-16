@@ -368,10 +368,7 @@ Singleton {
     NumberAnimation {
         id: inTick
 
-        // A few refreshes with the frame window drawing in step (its pump
-        // runs while this does) before the close moves: an open, still panel
-        // no longer keeps it drawing every refresh.
-        duration: 50
+        duration: 1
         onFinished: {
             FramePacer.mark("close");
             root.letGo(root.closeAll);

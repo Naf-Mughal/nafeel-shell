@@ -253,11 +253,12 @@ PanelWindow {
     // redraws and recomposites the surface); smooth panels come first, the
     // power pass revisits it. At rest (no panel) it's stopped.
     property real pumpPhase: 0
+
     NumberAnimation on pumpPhase {
         // From the grab before an open too: the window drawing in step at
         // every vblank before the motion's first frame (started with it,
         // the open's second or third refresh was skipped).
-        running: ShellState.closePending || ShellState.grabbing !== "" || ShellState.moving > 0 || (Quickshell.env("NAFEEL_PUMP_OPEN") === "1" && (ShellState.pinned !== "" || ShellState.previewed !== ""))
+        running: ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== ""
         from: 0
         to: 1
         duration: 100
