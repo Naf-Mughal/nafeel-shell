@@ -47,6 +47,7 @@ Column {
 
     // Each section's Translate (an item takes no new properties from JS).
     property var _shifts: new Map()
+    property var _anims: new Map()
 
     function enter(): void {
         const mode = Tokens.contents;
@@ -70,11 +71,19 @@ Column {
             // After the panel's own opening has mostly played (its growth
             // and soak hid an entrance that started with it), one after
             // another.
-            entrance.createObject(root, {
-                target: c,
-                shift: t,
-                delay: Tokens.dur(230) + Tokens.dur(60) * i++
-            });
+            // Made once a child and played again on every show (a show
+            // made five animation objects a child, a hover switch's frame).
+            let anim = _anims.get(c);
+            if (!anim) {
+                anim = entrance.createObject(root, {
+                    target: c,
+                    shift: t
+                });
+                _anims.set(c, anim);
+            }
+            anim.stop();
+            anim.delay = Tokens.dur(230) + Tokens.dur(60) * i++;
+            anim.start();
         }
     }
 
@@ -94,8 +103,6 @@ Column {
             property Translate shift
             property int delay
 
-            running: true
-            onFinished: anim.destroy()
 
             PauseAnimation {
                 duration: anim.delay

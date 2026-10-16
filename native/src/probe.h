@@ -2,6 +2,8 @@
 
 #include <QGuiApplication>
 #include <functional>
+#include <QTimer>
+#include <memory>
 #include <QObject>
 #include <QWindow>
 #include <QColor>
@@ -69,6 +71,30 @@ public:
         return out;
     }
 
+    // Where the visible text `label` is in a window ("x y", its centre;
+    // "" if nowhere): to point at a tab wherever its panel puts it.
+    Q_INVOKABLE QString locate(int window, const QString &label) const {
+        const auto all = QGuiApplication::topLevelWindows();
+        auto *qw = window >= 0 && window < all.size() ? qobject_cast<QQuickWindow *>(all[window]) : nullptr;
+        if (!qw)
+            return QString();
+        QString found;
+        std::function<void(QQuickItem *)> walk = [&](QQuickItem *it) {
+            if (!found.isEmpty() || !it->isVisible() || it->opacity() <= 0.01)
+                return;
+            const QVariant t = it->property("text");
+            if (t.isValid() && t.toString() == label && it->width() > 0) {
+                const QPointF c = it->mapToScene(QPointF(it->width() / 2, it->height() / 2));
+                found = QStringLiteral("%1 %2").arg(qRound(c.x())).arg(qRound(c.y()));
+                return;
+            }
+            for (QQuickItem *c : it->childItems())
+                walk(c);
+        };
+        walk(qw->contentItem());
+        return found;
+    }
+
     // For `frames` scene frames of a window: which items are dirty when
     // each is synced (what makes it draw), written to `path`.
     Q_INVOKABLE void dirtyLog(int window, int frames, const QString &path) {
@@ -103,6 +129,23 @@ public:
                 file->deleteLater();
             }
         }, Qt::DirectConnection);
+    }
+
+    // The pointer moved from (x1, y1) to (x2, y2) in `steps` moves, one
+    // every `ms`, on a timer here: no IPC process starting mid-motion (each
+    // `qs ipc call` is a whole process, and they cost the motion frames).
+    Q_INVOKABLE void sweep(int window, qreal x1, qreal y1, qreal x2, qreal y2, int steps, int ms) {
+        auto *t = new QTimer(this);
+        auto n = std::make_shared<int>(0);
+        connect(t, &QTimer::timeout, this, [this, t, n, window, x1, y1, x2, y2, steps]() {
+            const int i = ++*n;
+            pointer(window, QStringLiteral("move"), x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps);
+            if (i >= steps) {
+                t->stop();
+                t->deleteLater();
+            }
+        });
+        t->start(std::max(1, ms));
     }
 
     // action: enter | move | press | release | leave (left button), at

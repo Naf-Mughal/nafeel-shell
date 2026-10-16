@@ -19,7 +19,10 @@ Panel {
     // Scans only while the list shows: counted from its making, the panel
     // being made ahead (warm) kept Wi-Fi scanning all the time (battery, and
     // a list re-sorted every few seconds behind whatever was animating).
-    property bool scanning: (visible && (ShellState.pinned === "bar:connect" || ShellState.previewed === "bar:connect")) || ShellState.grabbing === "bar:connect"
+    // While the connect panel is out, on either tab: stopped on the
+    // Bluetooth tab, the scan's results went and came back on every switch
+    // back, every row made again on the switch's frame (two lost frames).
+    property bool scanning: ShellState.pinned === "bar:connect" || ShellState.previewed === "bar:connect" || ShellState.grabbing === "bar:connect"
     onScanningChanged: Network.scanners += scanning ? 1 : -1
 
     // The networks shown: what the scan found, taken in only while no panel
@@ -237,7 +240,7 @@ Panel {
                             } else {
                                 root.asking = root.asking === entry.modelData.name ? "" : entry.modelData.name;
                                 if (root.asking)
-                                    Qt.callLater(() => password.focusInput());
+                                    Qt.callLater(() => passwordRow.item?.focusField());
                             }
                         }
 
@@ -257,48 +260,70 @@ Panel {
                             visible: entry.modelData.known
                             icon: "delete"
                             size: 32
-                            onClicked: forget.show()
+                            onClicked: {
+                                forget.active = true;
+                                forget.item.show();
+                            }
 
                             Tooltip {
                                 text: "Forget"
                             }
-                            Dialog {
+                            // Made when first asked for: a dialog in every row
+                            // was a dozen objects a network, made and let go
+                            // with each scan's comings and goings.
+                            Loader {
                                 id: forget
 
-                                from: forgetButton
-                                title: `Forget ${entry.modelData.name}?`
-                                text: "Its saved password goes with it; you'll need it again to connect."
-                                confirmText: "Forget"
-                                danger: true
-                                onAccepted: entry.modelData.forget()
+                                active: false
+                                sourceComponent: Dialog {
+                                    from: forgetButton
+                                    title: `Forget ${entry.modelData.name}?`
+                                    text: "Its saved password goes with it; you'll need it again to connect."
+                                    confirmText: "Forget"
+                                    danger: true
+                                    onAccepted: entry.modelData.forget()
+                                }
                             }
                         }
                     }
 
-                    Row {
+                    // The password, only for the network being asked about (a
+                    // field with its typing styles in every row, made and let
+                    // go as networks come and go in a scan, cost frames).
+                    Loader {
+                        id: passwordRow
+
                         width: parent.width
-                        visible: root.asking === entry.modelData.name
-                        spacing: Tokens.spacing.small
-
-                        TextField {
-                            id: password
-
-                            width: parent.width - 44 - Tokens.spacing.small
-                            placeholder: "Password"
-                            echoMode: TextInput.Password
-                            onAccepted: {
-                                entry.modelData.connectWithPsk(text);
-                                root.asking = "";
+                        active: root.asking === entry.modelData.name
+                        visible: active
+                        sourceComponent: Row {
+                            function focusField(): void {
+                                password.focusInput();
                             }
-                        }
 
-                        IconButton {
-                            icon: "arrow_forward"
-                            filled: true
-                            fillColour: Colours.palette.m3primary
-                            inkColour: Colours.palette.m3onPrimary
-                            size: 44
-                            onClicked: password.accepted()
+                            width: passwordRow.width
+                            spacing: Tokens.spacing.small
+
+                            TextField {
+                                id: password
+
+                                width: parent.width - 44 - Tokens.spacing.small
+                                placeholder: "Password"
+                                echoMode: TextInput.Password
+                                onAccepted: {
+                                    entry.modelData.connectWithPsk(text);
+                                    root.asking = "";
+                                }
+                            }
+
+                            IconButton {
+                                icon: "arrow_forward"
+                                filled: true
+                                fillColour: Colours.palette.m3primary
+                                inkColour: Colours.palette.m3onPrimary
+                                size: 44
+                                onClicked: password.accepted()
+                            }
                         }
                     }
                 }

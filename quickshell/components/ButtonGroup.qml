@@ -34,7 +34,10 @@ Item {
 
     // The segments' paper.
     Repeater {
-        model: root.model
+        // By count (each item reads its entry): a new array of the same
+        // length (an icon changing) updates the items, it doesn't make
+        // them again.
+        model: root.model.length
 
         StyledRect {
             required property int index
@@ -107,14 +110,17 @@ Item {
     Repeater {
         id: segs
 
-        model: root.model
+        // By count (each item reads its entry): a new array of the same
+        // length (an icon changing) updates the items, it doesn't make
+        // them again.
+        model: root.model.length
         onItemAdded: root._items++
         onItemRemoved: root._items++
 
         Surface {
             id: seg
 
-            required property var modelData
+            readonly property var modelData: root.model[index] ?? ({})
             required property int index
             readonly property bool on: modelData.value === root.current
             // Under the fill right now (the ink turns with the goo).

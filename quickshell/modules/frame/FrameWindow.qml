@@ -257,7 +257,7 @@ PanelWindow {
         // From the grab before an open too: the window drawing in step at
         // every vblank before the motion's first frame (started with it,
         // the open's second or third refresh was skipped).
-        running: ShellState.closePending || ShellState.pinned !== "" || ShellState.previewed !== "" || ShellState.grabbing !== ""
+        running: ShellState.closePending || ShellState.grabbing !== "" || ShellState.moving > 0 || (Quickshell.env("NAFEEL_PUMP_OPEN") === "1" && (ShellState.pinned !== "" || ShellState.previewed !== ""))
         from: 0
         to: 1
         duration: 100

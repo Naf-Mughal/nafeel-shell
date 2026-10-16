@@ -61,14 +61,17 @@ Item {
         Repeater {
             id: choices
 
-            model: root.model
+            // By count (each item reads its entry): a new array of the same
+        // length (an icon changing) updates the items, it doesn't make
+        // them again.
+        model: root.model.length
             onItemAdded: root._items++
             onItemRemoved: root._items++
 
             Item {
                 id: choice
 
-                required property var modelData
+                readonly property var modelData: root.model[index] ?? ({})
                 required property int index
                 readonly property bool on: index === root.index
                 readonly property Item dot: dotSpot

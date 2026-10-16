@@ -37,8 +37,14 @@ Column {
     // `visible`) and a Bluetooth scan started here stops (as it did when the
     // list went away).
     readonly property bool onBluetooth: ShellState.connectTab === "bluetooth"
-    property bool madeWifi: !onBluetooth
-    property bool madeBluetooth: onBluetooth
+    // Set, never bound: a binding (madeWifi: !onBluetooth) let the Wi-Fi
+    // list go every time Bluetooth showed, and made it again on the way back.
+    property bool madeWifi: false
+    property bool madeBluetooth: false
+    Component.onCompleted: {
+        madeWifi = !onBluetooth;
+        madeBluetooth = onBluetooth;
+    }
     onOnBluetoothChanged: {
         if (onBluetooth)
             madeBluetooth = true;

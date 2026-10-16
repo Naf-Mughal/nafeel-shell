@@ -368,7 +368,10 @@ Singleton {
     NumberAnimation {
         id: inTick
 
-        duration: 1
+        // A few refreshes with the frame window drawing in step (its pump
+        // runs while this does) before the close moves: an open, still panel
+        // no longer keeps it drawing every refresh.
+        duration: 50
         onFinished: {
             FramePacer.mark("close");
             root.letGo(root.closeAll);
@@ -486,6 +489,12 @@ Singleton {
         }
         function itemsAt(window: int, x: real, y: real): string {
             return Probe.itemsAt(window, x, y);
+        }
+        function sweep(window: int, x1: real, y1: real, x2: real, y2: real, steps: int, ms: int): void {
+            Probe.sweep(window, x1, y1, x2, y2, steps, ms);
+        }
+        function locate(window: int, label: string): string {
+            return Probe.locate(window, label);
         }
         function dirtyLog(window: int, frames: int, path: string): void {
             Probe.dirtyLog(window, frames, path);

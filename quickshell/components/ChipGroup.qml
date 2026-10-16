@@ -69,14 +69,18 @@ Item {
         Repeater {
             id: chips
 
-            model: root.model
+            // By count (each item reads its entry): a new array of the same
+        // length (an icon changing) updates the items, it doesn't make
+        // them again.
+        model: root.model.length
             onItemAdded: root._items++
             onItemRemoved: root._items++
 
             Chip {
                 id: chip
 
-                required property var modelData
+                required property int index
+                readonly property var modelData: root.model[index] ?? ({})
 
                 text: modelData.label
                 icon: modelData.icon ?? ""
