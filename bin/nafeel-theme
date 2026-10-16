@@ -151,7 +151,7 @@ SHAPES = {
     "generous": {"frame": 24, "panel": 24, "card": 18, "control": 16, "morph": 24},
 }
 PAPER_ALPHA = {"90": 0.9, "85": 0.85, "80": 0.8, "solid": 1.0}
-FONTS = {"sans": "Google Sans Flex", "serif": "Noto Serif", "cjk": "Noto Serif CJK SC", "mono": "JetBrainsMono Nerd Font"}
+FONTS = {"sans": "Noto Sans", "serif": "Noto Serif", "cjk": "Noto Serif CJK SC", "mono": "JetBrainsMono Nerd Font"}
 
 ANSI = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"]
 
@@ -427,7 +427,9 @@ def build(scheme_path: Path, mode: str | None, out: Path = THEME_JSON, wallpaper
                   "gtk": apps_alpha if settings.get("theme.gtkTranslucent", False) else 1.0,
                   "qt": apps_alpha if settings.get("theme.qtTranslucent", False) else 1.0},
         "radius": dict(shape),
-        "font": dict(FONTS),
+        # The UI sans and mono: the system-wide fonts (Theme page, Fonts).
+        "font": dict(FONTS, sans=(settings.get("apps.font") or "").strip() or FONTS["sans"],
+                     mono=(settings.get("apps.fixedFont") or "").strip() or FONTS["mono"]),
         "pigment": pigment,
     }
     write_if_changed(out, json.dumps(doc, indent=2) + "\n")

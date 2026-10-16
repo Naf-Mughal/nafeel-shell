@@ -68,20 +68,31 @@ Scope {
             shown: root.qt
         }
         SettingItem {
+            key: "apps.singleClick"
+            kind: "toggle"
+            icon: "ads_click"
+            label: "Open with one click"
+            description: "Files and folders open on a single click instead of a double one."
+            def: false
+            shown: root.qt
+        }
+        SettingItem {
             key: "apps.font"
             kind: "text"
+            icon: "match_case"
+            section: "Fonts"
             label: "Font"
-            placeholder: "Sans Serif"
-            def: "Sans Serif"
-            shown: root.qt
+            description: "System-wide: the shell, Qt and GTK apps, and everything that asks for the default sans (browsers, Electron apps)."
+            placeholder: "Noto Sans"
+            def: "Noto Sans"
         }
         SettingItem {
             key: "apps.fixedFont"
             kind: "text"
             label: "Fixed-width font"
-            placeholder: "Monospace"
-            def: "Monospace"
-            shown: root.qt
+            description: "System-wide monospace: code, terminals that use the default, and the shell's data labels."
+            placeholder: "JetBrainsMono Nerd Font"
+            def: "JetBrainsMono Nerd Font"
         }
         SettingItem {
             key: "apps.fontSize"
@@ -92,20 +103,13 @@ Scope {
             max: 18
             step: 1
             unit: " pt"
-            shown: root.qt
-        }
-        SettingItem {
-            key: "apps.singleClick"
-            kind: "toggle"
-            icon: "ads_click"
-            label: "Open with one click"
-            description: "Files and folders open on a single click instead of a double one."
-            def: false
-            shown: root.qt
         }
     }
 
     readonly property bool qt: settings.v["apps.qt"] === true
+    readonly property string sans: (settings.v["apps.font"] ?? "").trim() || "Noto Sans"
+    readonly property string mono: (settings.v["apps.fixedFont"] ?? "").trim() || "JetBrainsMono Nerd Font"
+    readonly property int fontSize: settings.v["apps.fontSize"]
 
     readonly property string envText: "# Written by the shell (plugins/apps/AppTheming.qml); edits here are overwritten.\n" + (qt ? "[environment]\nQT_QPA_PLATFORMTHEME = \"kde\"\n" : "# Qt apps don't follow the theme (Settings: Theme).\n")
     readonly property string appsTheme: qt ? "kde" : ""
@@ -119,10 +123,10 @@ Scope {
         ["KDE", "SingleClick", settings.v["apps.singleClick"] === true ? "true" : "false"],
         ["KDE", "ShowIconsInMenuItems", "true"],
         ["Icons", "Theme", settings.v["apps.iconTheme"]],
-        ["General", "font", font(settings.v["apps.font"].trim() || "Sans Serif")],
-        ["General", "menuFont", font(settings.v["apps.font"].trim() || "Sans Serif")],
-        ["General", "toolBarFont", font(settings.v["apps.font"].trim() || "Sans Serif")],
-        ["General", "fixed", font(settings.v["apps.fixedFont"].trim() || "Monospace")]
+        ["General", "font", font(root.sans)],
+        ["General", "menuFont", font(root.sans)],
+        ["General", "toolBarFont", font(root.sans)],
+        ["General", "fixed", font(root.mono)]
     ]
     readonly property string kdeText: JSON.stringify(kdeKeys)
     property string kdeWritten: ""
@@ -135,6 +139,31 @@ Scope {
         Quickshell.execDetached(["sh", "-c", script, "sh"].concat(...kdeKeys));
     }
 
+    // The rest of the system: GTK (its interface settings, which the GTK
+    // portal also hands sandboxed apps) and fontconfig's generic families,
+    // which browsers, Electron apps and anything asking for "sans-serif" or
+    // "monospace" get.
+    readonly property string fontconfigText: `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<!-- Written by the shell (plugins/apps/AppTheming.qml); edits here are overwritten. -->
+<fontconfig>
+  <alias binding="strong"><family>sans-serif</family><prefer><family>${sans}</family></prefer></alias>
+  <alias binding="strong"><family>Sans Serif</family><prefer><family>${sans}</family></prefer></alias>
+  <alias binding="strong"><family>monospace</family><prefer><family>${mono}</family></prefer></alias>
+  <alias binding="strong"><family>Monospace</family><prefer><family>${mono}</family></prefer></alias>
+</fontconfig>
+`
+    readonly property string gtkFonts: JSON.stringify([sans, mono, fontSize])
+    property string gtkWritten: ""
+    onFontconfigTextChanged: write(fontconfigFile, fontconfigText)
+    onGtkFontsChanged: applyGtkFonts()
+    function applyGtkFonts(): void {
+        if (!Settings.loaded || gtkFonts === gtkWritten)
+            return;
+        gtkWritten = gtkFonts;
+        Quickshell.execDetached(["sh", "-c", 'gsettings set org.gnome.desktop.interface font-name "$1 $3"; gsettings set org.gnome.desktop.interface document-font-name "$1 $3"; gsettings set org.gnome.desktop.interface monospace-font-name "$2 $3"', "sh", sans, mono, String(fontSize)]);
+    }
+
     // Apps D-Bus and systemd start from now on.
     function applyEnv(): void {
         if (!Settings.loaded)
@@ -144,6 +173,7 @@ Scope {
     Component.onCompleted: {
         applyEnv();
         applyKde();
+        applyGtkFonts();
     }
     onAppsThemeChanged: applyEnv()
     onKdeTextChanged: applyKde()
@@ -154,12 +184,12 @@ Scope {
             iconTheme: settings.v["apps.iconTheme"],
             style: settings.v["apps.style"],
             font: {
-                family: settings.v["apps.font"].trim() || "Sans Serif",
+                family: root.sans,
                 size: settings.v["apps.fontSize"],
                 weight: -1
             },
             fontFixed: {
-                family: settings.v["apps.fixedFont"].trim() || "Monospace",
+                family: root.mono,
                 size: settings.v["apps.fontSize"],
                 weight: -1
             }
@@ -190,6 +220,8 @@ Scope {
             root.write(qtengineFile, root.qtengineText);
             root.applyEnv();
             root.applyKde();
+            root.applyGtkFonts();
+            root.write(fontconfigFile, root.fontconfigText);
         }
     }
 
@@ -209,6 +241,26 @@ Scope {
         onLoadFailed: {
             ready = true;
             root.write(envFile, root.envText);
+        }
+    }
+
+    FileView {
+        id: fontconfigFile
+
+        property string current: ""
+        property bool ready: false
+
+        path: root.home + "/.config/fontconfig/conf.d/60-nafeel-fonts.conf"
+        printErrors: false
+        onLoaded: {
+            current = text();
+            ready = true;
+            root.write(fontconfigFile, root.fontconfigText);
+        }
+        onLoadFailed: {
+            ready = true;
+            Quickshell.execDetached(["mkdir", "-p", root.home + "/.config/fontconfig/conf.d"]);
+            root.write(fontconfigFile, root.fontconfigText);
         }
     }
 
