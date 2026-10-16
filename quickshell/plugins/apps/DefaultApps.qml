@@ -10,6 +10,10 @@
 //   ~/.config/xdg-desktop-portal/umbriel-portals.conf  the file picker apps
 //       open through the portal (VS Code's Open Folder, a browser's upload,
 //       save dialogs): Dolphin's (the KDE portal) with Dolphin, else GTK's
+//   ~/.config/systemd/user/plasma-xdg-desktop-portal-kde.service.d/nafeel.conf
+//       the KDE portal on KDE's platform theme: under qtengine its folder
+//       picker (a QFileDialog) fell back to Qt's bare widget dialog; colours
+//       still follow the theme (kdeglobals)
 //
 // from the Settings panel's Default apps page. Only installed file managers
 // are offered.
@@ -104,11 +108,16 @@ default=umbriel;gtk
 org.freedesktop.impl.portal.FileChooser=${chooser}
 `
 
+    readonly property string kdeDropIn: `# Written by the shell (plugins/apps/DefaultApps.qml); edits here are overwritten.
+[Service]
+Environment=QT_QPA_PLATFORMTHEME=kde
+`
+
     onAppChanged: apply()
     onChooserChanged: apply()
 
     function apply(): void {
-        if (!Settings.loaded || !app || !bindFile.ready || !dbusFile.ready || !portalFile.ready || !probed)
+        if (!Settings.loaded || !app || !bindFile.ready || !dbusFile.ready || !portalFile.ready || !dropInFile.ready || !probed)
             return;
         if (bindFile.current !== bindText) {
             bindFile.setText(bindText);
@@ -123,6 +132,11 @@ org.freedesktop.impl.portal.FileChooser=${chooser}
             portalFile.setText(portalText);
             portalFile.current = portalText;
             Quickshell.execDetached(["systemctl", "--user", "try-restart", "xdg-desktop-portal.service"]);
+        }
+        if (kdePortal && dropInFile.current !== kdeDropIn) {
+            dropInFile.setText(kdeDropIn);
+            dropInFile.current = kdeDropIn;
+            Quickshell.execDetached(["sh", "-c", "systemctl --user daemon-reload && systemctl --user try-restart plasma-xdg-desktop-portal-kde.service"]);
         }
         // Folders open in it; and whoever holds FileManager1, if it isn't
         // this one, makes way (D-Bus starts ours on the next request).
@@ -192,6 +206,26 @@ org.freedesktop.impl.portal.FileChooser=${chooser}
         onLoadFailed: {
             ready = true;
             Quickshell.execDetached(["mkdir", "-p", root.home + "/.config/xdg-desktop-portal"]);
+            root.apply();
+        }
+    }
+
+    FileView {
+        id: dropInFile
+
+        property string current: ""
+        property bool ready: false
+
+        path: root.home + "/.config/systemd/user/plasma-xdg-desktop-portal-kde.service.d/nafeel.conf"
+        printErrors: false
+        onLoaded: {
+            current = text();
+            ready = true;
+            root.apply();
+        }
+        onLoadFailed: {
+            ready = true;
+            Quickshell.execDetached(["mkdir", "-p", root.home + "/.config/systemd/user/plasma-xdg-desktop-portal-kde.service.d"]);
             root.apply();
         }
     }
