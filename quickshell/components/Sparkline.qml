@@ -13,9 +13,26 @@ Canvas {
     property real max: 0
     property color colour: Colours.palette.m3primary
 
-    onValuesChanged: requestPaint()
-    onColourChanged: requestPaint()
-    onWidthChanged: requestPaint()
+    onValuesChanged: repaint()
+    onColourChanged: repaint()
+    onWidthChanged: repaint()
+
+    // Painted only when it shows (Canvas paints on the CPU; warm panels
+    // repainted their graphs with every sample, hidden): a change while
+    // hidden is painted when it shows again.
+    property bool _stale: false
+    function repaint(): void {
+        if (visible)
+            requestPaint();
+        else
+            _stale = true;
+    }
+    onVisibleChanged: {
+        if (visible && _stale) {
+            _stale = false;
+            requestPaint();
+        }
+    }
 
     onPaint: {
         const ctx = getContext("2d");

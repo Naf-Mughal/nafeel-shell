@@ -86,9 +86,74 @@ Singleton {
         stat.reload();
         meminfo.reload();
         netdev.reload();
-        thermal.running = true;
-        extra.running = true;
-        drives.running = true;
+        // The sensors as files (found once: no process every 2 s); the
+        // disks, which change slowly, every 30 s (lsblk and df were a few
+        // processes each sample).
+        if (root.paths) {
+            if (root.paths.gpuBusy)
+                gpuBusy.reload();
+            if (root.paths.gpuTemp)
+                gpuTempFile.reload();
+            if (root.paths.cpuTemp)
+                cpuTempFile.reload();
+        } else if (!findPaths.running) {
+            findPaths.running = true;
+        }
+        if (root._disksAt === 0 || Date.now() - root._disksAt > 30000) {
+            root._disksAt = Date.now();
+            extra.running = true;
+            drives.running = true;
+        }
+    }
+
+    property double _disksAt: 0
+    // The sensors' files: {gpuBusy, gpuTemp, cpuTemp} ("" where there's none).
+    property var paths: null
+
+    Process {
+        id: findPaths
+
+        command: ["sh", "-c", 'g=""; for f in /sys/class/drm/card*/device/gpu_busy_percent; do [ -r "$f" ] && { g=$f; break; }; done; echo "$g"; t=""; c=""; for h in /sys/class/hwmon/hwmon*; do n=$(cat "$h/name"); case "$n" in amdgpu|nouveau|i915|xe) [ -z "$t" ] && [ -r "$h/temp1_input" ] && t=$h/temp1_input;; k10temp|coretemp|zenpower) [ -z "$c" ] && c=$h/temp1_input;; esac; done; if [ -z "$c" ]; then c=$(for z in /sys/class/thermal/thermal_zone*/temp; do echo "$(cat $z) $z"; done 2>/dev/null | sort -n | tail -1 | cut -d" " -f2); fi; echo "$t"; echo "$c"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const [g, t, c] = text.split("\n");
+                root.paths = {
+                    gpuBusy: (g ?? "").trim(),
+                    gpuTemp: (t ?? "").trim(),
+                    cpuTemp: (c ?? "").trim()
+                };
+                if (!root.paths.gpuBusy)
+                    root.gpu = -1;
+                root.sample();
+            }
+        }
+    }
+
+    FileView {
+        id: gpuBusy
+
+        path: root.paths?.gpuBusy ?? ""
+        printErrors: false
+        onLoaded: {
+            const v = parseInt(text());
+            root.gpu = isNaN(v) ? -1 : v / 100;
+        }
+    }
+
+    FileView {
+        id: gpuTempFile
+
+        path: root.paths?.gpuTemp ?? ""
+        printErrors: false
+        onLoaded: root.gpuTemp = (parseInt(text()) || 0) / 1000
+    }
+
+    FileView {
+        id: cpuTempFile
+
+        path: root.paths?.cpuTemp ?? ""
+        printErrors: false
+        onLoaded: root.temp = (parseInt(text()) || 0) / 1000
     }
 
     FileView {
@@ -200,14 +265,10 @@ Singleton {
     Process {
         id: extra
 
-        command: ["sh", "-c", 'g=-1; for f in /sys/class/drm/card*/device/gpu_busy_percent; do [ -r "$f" ] && { g=$(cat "$f"); break; }; done; echo "$g"; df -B1 --output=used,size / | tail -1; t=0; for h in /sys/class/hwmon/hwmon*; do case "$(cat "$h/name")" in amdgpu|nouveau|i915|xe) t=$(cat "$h/temp1_input" 2>/dev/null); break;; esac; done; echo "${t:-0}"']
+        command: ["sh", "-c", "df -B1 --output=used,size / | tail -1"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const [g, d, gt] = text.trim().split("\n");
-                root.gpuTemp = (parseInt(gt) || 0) / 1000;
-                const gv = parseInt(g);
-                root.gpu = isNaN(gv) || gv < 0 ? -1 : gv / 100;
-                const [used, size] = (d ?? "").trim().split(/\s+/).map(Number);
+                const [used, size] = text.trim().split(/\s+/).map(Number);
                 root.diskUsed = used || 0;
                 root.diskTotal = size || 0;
             }
@@ -226,14 +287,4 @@ Singleton {
         }
     }
 
-    // The CPU's own sensor (k10temp on AMD, coretemp on Intel), else the
-    // hottest thermal zone.
-    Process {
-        id: thermal
-
-        command: ["sh", "-c", 'for h in /sys/class/hwmon/hwmon*; do case "$(cat "$h/name")" in k10temp|coretemp|zenpower) cat "$h/temp1_input"; exit;; esac; done; cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | sort -n | tail -1']
-        stdout: StdioCollector {
-            onStreamFinished: root.temp = (parseInt(text) || 0) / 1000
-        }
-    }
 }

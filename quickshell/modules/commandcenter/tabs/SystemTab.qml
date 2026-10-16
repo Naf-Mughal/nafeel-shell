@@ -95,9 +95,25 @@ Item {
                 Anim {}
             }
 
-            onShownChanged: requestPaint()
-            onTrackChanged: requestPaint()
-            onFillChanged: requestPaint()
+            onShownChanged: repaint()
+            onTrackChanged: repaint()
+            onFillChanged: repaint()
+            // Painted only when it shows (Canvas paints on the CPU; warm panels
+            // repainted their graphs with every sample, hidden): a change while
+            // hidden is painted when it shows again.
+            property bool _stale: false
+            function repaint(): void {
+                if (visible)
+                    requestPaint();
+                else
+                    _stale = true;
+            }
+            onVisibleChanged: {
+                if (visible && _stale) {
+                    _stale = false;
+                    requestPaint();
+                }
+            }
 
             onPaint: {
                 const ctx = getContext("2d");
