@@ -1,6 +1,8 @@
 #!/bin/bash
 # The shell's memory soak (ROADMAP Stage O): every panel once, then rounds of
 # the heavy ones, measuring PSS after each, and the budget's verdict:
+#   - at no point over 450 MB PSS or 500 MB RSS (sampled every 0.5 s; the
+#     goal of 2026-10-16, a 4K live wallpaper playing);
 #   - after the soak, idle at most 400 MB (ROADMAP Stage O, reset 2026-10-14);
 #   - every panel opened once keeps at most 90 MB in all, measured once
 #     Qt's image cache has let go (it holds closed panels' images ~30 s).
@@ -17,6 +19,8 @@ set -u
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 qml=$root/quickshell
 idle_budget=400
+peak_pss_budget=450
+peak_rss_budget=500
 once_budget=90
 rounds=5
 restart=0
@@ -60,6 +64,16 @@ if [ "$restart" = 1 ]; then
     for _ in $(seq 60); do n=$(shell_pid); [ -n "$n" ] && [ "$n" != "$old" ] && break; sleep 0.5; done
     sleep 40
 fi
+# The peaks, sampled through the whole soak.
+peakfile=$(mktemp)
+( p=$(shell_pid); mp=0; mr=0
+  while kill -0 "$p" 2>/dev/null && [ -f "$peakfile" ]; do
+      read -r cp cr < <(awk '/^Pss:/ { p = int($2 / 1024) } /^Rss:/ { r = int($2 / 1024) } END { print p, r }' /proc/"$p"/smaps_rollup 2>/dev/null)
+      [ "${cp:-0}" -gt "$mp" ] && mp=$cp
+      [ "${cr:-0}" -gt "$mr" ] && mr=$cr
+      [ -f "$peakfile" ] && echo "$mp $mr" > "$peakfile"
+      sleep 0.5
+  done ) &
 last=$(pss)
 step "start"
 start=$last
@@ -96,6 +110,13 @@ step "idle 30 s"
 
 echo "== budget"
 ok=1
+read -r peak_pss peak_rss < "$peakfile"; rm -f "$peakfile"
+if [ "$peak_pss" -gt "$peak_pss_budget" ] || [ "$peak_rss" -gt "$peak_rss_budget" ]; then
+    echo "OVER: peak PSS $peak_pss MB, RSS $peak_rss MB (budget $peak_pss_budget / $peak_rss_budget)"
+    ok=0
+else
+    echo "ok: peak PSS $peak_pss MB, RSS $peak_rss MB (budget $peak_pss_budget / $peak_rss_budget)"
+fi
 if [ "$last" -gt "$idle_budget" ]; then
     echo "OVER: idle after the soak is $last MB (budget $idle_budget)"
     ok=0
