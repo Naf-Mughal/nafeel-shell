@@ -1216,6 +1216,35 @@ Item {
             }
 
             Entry {
+                num: "22"
+                name: "FontPicker"
+                note: "click to open: type to filter (fuzzy), arrows and Enter, or click; each family is drawn in its own typeface"
+
+                Spec {
+                    caption: "all fonts"
+                    FontPicker {
+                        id: fpDemo
+
+                        width: 380
+                        value: "Noto Sans"
+                        onPicked: f => value = f
+                    }
+                }
+                Spec {
+                    caption: "fixed-width only"
+                    FontPicker {
+                        id: fpFixed
+
+                        width: 380
+                        fixed: true
+                        value: "JetBrainsMono Nerd Font"
+                        sample: "0O 1lI {}[]() =>"
+                        onPicked: f => value = f
+                    }
+                }
+            }
+
+            Entry {
                 num: "14"
                 name: "EmptyState"
 

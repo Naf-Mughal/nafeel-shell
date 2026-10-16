@@ -8,6 +8,8 @@ import QtQuick
 //   text     free text (`placeholder`); `secret` hides it: a TextField
 //   number   `min`..`max` by `step`, shown with `unit` or `format`: a
 //            StyledSlider
+//   font     an installed font family (the FontPicker: searchable, each
+//            drawn in its own typeface); `fixed` lists fixed-width ones only
 //   action   not a value: a row that does `run()` when clicked
 // `section` starts a new group on the page; `shown` hides it while it
 // doesn't apply (a binding on other values).
@@ -33,4 +35,5 @@ QtObject {
     property string format
     property string zeroLabel
     property bool shown: true
+    property bool fixed: false
 }

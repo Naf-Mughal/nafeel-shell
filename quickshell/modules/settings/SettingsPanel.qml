@@ -491,7 +491,7 @@ Panel {
 
                 Loader {
                     width: parent.width
-                    sourceComponent: row.item.kind === "text" ? textField : row.item.kind === "number" ? number : row.item.kind === "multi" ? multi : choice
+                    sourceComponent: row.item.kind === "text" ? textField : row.item.kind === "font" ? fontPicker : row.item.kind === "number" ? number : row.item.kind === "multi" ? multi : choice
                 }
             }
         }
@@ -572,6 +572,17 @@ Panel {
                     const places = (String(row.item.step).split(".")[1] ?? "").length;
                     Settings.set(row.item.key, Number((Math.round(raw / row.item.step) * row.item.step).toFixed(places)));
                 }
+            }
+        }
+
+        // A font: the picker; the choice is kept at once.
+        Component {
+            id: fontPicker
+
+            FontPicker {
+                value: row.value ?? row.item.def
+                fixed: row.item.fixed
+                onPicked: family => Settings.set(row.item.key, family)
             }
         }
 

@@ -78,20 +78,19 @@ Scope {
         }
         SettingItem {
             key: "apps.font"
-            kind: "text"
+            kind: "font"
             icon: "match_case"
             section: "Fonts"
             label: "Font"
             description: "System-wide: the shell, Qt and GTK apps, and everything that asks for the default sans (browsers, Electron apps)."
-            placeholder: "Noto Sans"
             def: "Noto Sans"
         }
         SettingItem {
             key: "apps.fixedFont"
-            kind: "text"
+            kind: "font"
+            fixed: true
             label: "Fixed-width font"
             description: "System-wide monospace: code, terminals that use the default, and the shell's data labels."
-            placeholder: "JetBrainsMono Nerd Font"
             def: "JetBrainsMono Nerd Font"
         }
         SettingItem {
