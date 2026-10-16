@@ -67,6 +67,7 @@ LauncherProvider {
                 // A picture's own thumbnail (decoded small, kept on the GPU).
                 image: !dir && /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path) ? Wallpapers.still(path, true) : "",
                 score: s,
+                preview: { kind: "file", path: path, title: f.names[i] },
                 key: "file:" + path,
                 run: () => Open.open(path),
                 actions: [

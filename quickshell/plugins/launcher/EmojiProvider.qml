@@ -40,6 +40,7 @@ LauncherProvider {
             title: e[1],
             subtitle: e[2] ? e[2].replace(/ \| /g, ", ") : "",
             glyph: e[0],
+            preview: { kind: "glyph", glyph: e[0], title: e[1], lines: [[...e[0]].map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(" "), e[2] ? e[2].replace(/ \| /g, ", ") : ""].filter(Boolean) },
             score: s,
             key: "emoji:" + e[0],
             highlight: false,

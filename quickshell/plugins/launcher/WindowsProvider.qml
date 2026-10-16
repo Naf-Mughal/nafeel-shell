@@ -25,6 +25,7 @@ LauncherProvider {
                 title: title,
                 subtitle: `${appName}${ws ? " · workspace " + (ws.name || ws.index) : ""}`,
                 image: app?.icon ?? w.app_id,
+                preview: { kind: "window", id: w.id, title: title, lines: [appName] },
                 score: s,
                 key: "", // windows come and go: not ranked by use
                 run: () => Umbriel.focusWindow(w),

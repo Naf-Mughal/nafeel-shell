@@ -16,6 +16,14 @@ Scope {
         description: "What the command center's search looks through."
 
         SettingItem {
+            key: "launcher.preview"
+            kind: "toggle"
+            icon: "preview"
+            label: "Preview"
+            description: "A card beside the results with the selected one's content: file text around the match, pictures, documents, clipboard, emoji, apps, windows."
+            def: true
+        }
+        SettingItem {
             key: "launcher.webKeywords"
             kind: "text"
             icon: "language"

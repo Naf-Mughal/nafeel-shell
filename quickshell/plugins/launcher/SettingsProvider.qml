@@ -48,6 +48,7 @@ LauncherProvider {
                     icon: item.icon && item.icon !== "tune" ? item.icon : "tune",
                     score: s,
                     key: "setting:" + item.key,
+                    preview: { kind: "info", icon: item.icon && item.icon !== "tune" ? item.icon : "tune", title: item.label, lines: [`${title}${item.section ? " · " + item.section : ""}`, item.description ?? ""].filter(l => l) },
                     run: () => open(page.name)
                 });
             }

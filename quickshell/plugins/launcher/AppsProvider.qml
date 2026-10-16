@@ -24,6 +24,7 @@ LauncherProvider {
             title: app.name,
             subtitle: running.length > 0 ? `Running${running.length > 1 ? " · " + running.length + " windows" : ""}   ·   Enter goes to it` : app.comment || app.genericName || "",
             image: app.icon,
+            preview: { kind: "app", name: app.name, icon: app.icon, lines: [app.genericName, app.comment, running.length > 0 ? `Running · ${running.length} window${running.length > 1 ? "s" : ""}` : "", (app.categories ?? []).filter(c => c).join(", "), app.execString].filter(l => l) },
             score: score,
             key: "app:" + app.id,
             run: () => running.length > 0 ? Umbriel.focusWindow(running[0]) : Apps.launch(app),

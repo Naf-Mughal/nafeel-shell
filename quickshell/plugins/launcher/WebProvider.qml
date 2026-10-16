@@ -47,6 +47,7 @@ LauncherProvider {
             subtitle: sub,
             icon: icon,
             score: score,
+            preview: { kind: "info", icon: icon, title: title, lines: [url] },
             key: "",
             highlight: false,
             run: () => open(url),

@@ -36,6 +36,7 @@ LauncherProvider {
                 subtitle: `${e.pinned ? "Pinned   ·   " : ""}${e.image ? (e.mime ?? "") : (e.preview ?? "").length + " characters"}`,
                 icon: e.image ? "image" : e.pinned ? "keep" : "content_paste",
                 score: s,
+                preview: () => e.image ? { kind: "image", path: Clipboard.imageFile(index) } : { kind: "text", text: Clipboard.text(index, 3000) },
                 key: "",
                 highlight: !e.image,
                 run: () => {

@@ -92,11 +92,28 @@ Item {
         }
     }
 
+    // The preview card beside the results: while something's typed.
+    readonly property bool preview: Launcher.actionsOf === null && Launcher.query !== "" && Launcher.results.length > 0 && Settings.values["launcher.preview"] !== false
+
+    LauncherPreview {
+        id: previewCard
+
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: 272
+        visible: root.preview
+    }
+
     ListView {
         id: list
 
         visible: Launcher.actionsOf === null
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.right: root.preview ? previewCard.left : parent.right
+        anchors.rightMargin: root.preview ? Tokens.spacing.normal : 0
         clip: true
         spacing: 2
         model: Launcher.results

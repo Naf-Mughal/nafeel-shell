@@ -105,6 +105,8 @@ LauncherProvider {
                 subtitle: `${name}${inDoc ? "" : " : " + b.n}   ·   ${dir}`,
                 icon: inDoc ? "picture_as_pdf" : "manage_search",
                 score: b.s,
+                // A text file: around the matching line; a document: its text.
+                preview: { kind: "file", path: origin, line: inDoc ? 0 : b.n },
                 key: "",
                 run: () => Open.open(origin),
                 actions: [
