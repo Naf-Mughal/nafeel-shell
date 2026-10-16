@@ -36,9 +36,15 @@ if [[ "$root" != "$(readlink -f "$want")" ]]; then
 fi
 
 # --- Packages -----------------------------------------------------------------
-pkgs=(quickshell umbriel-git cmake base-devel qt6-base qt6-declarative qt6-shadertools
+# Dolphin + the KDE portal: the default file manager and the file picker apps
+# open through the portal (plugins/apps/DefaultApps.qml writes the choice).
+pkgs=(quickshell cmake base-devel qt6-base qt6-declarative qt6-shadertools
       wayland wayland-protocols libsodium libsecret libxkbcommon fftw libpipewire
-      pipewire wireplumber brightnessctl libnotify python gpu-screen-recorder)
+      pipewire wireplumber brightnessctl libnotify python gpu-screen-recorder
+      dolphin xdg-desktop-portal-kde)
+# Any umbriel will do (the dotfiles build a patched one, umbriel-nafeel-git,
+# which provides umbriel): only ask for umbriel-git when none is installed.
+pacman -T umbriel >/dev/null 2>&1 || pkgs+=(umbriel-git)
 if [[ "${1:-}" == "--packages" ]]; then
     say "installing packages"
     if command -v paru >/dev/null; then

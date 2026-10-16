@@ -7,6 +7,9 @@
 //   ~/.config/umbriel/plugins/file-manager.toml  Mod+E (included from
 //       umbriel's config, whose own keybinds win)
 //   ~/.local/share/dbus-1/services/org.freedesktop.FileManager1.service
+//   ~/.config/xdg-desktop-portal/umbriel-portals.conf  the file picker apps
+//       open through the portal (VS Code's Open Folder, a browser's upload,
+//       save dialogs): Dolphin's (the KDE portal) with Dolphin, else GTK's
 //
 // from the Settings panel's Default apps page. Only installed file managers
 // are offered.
@@ -30,32 +33,38 @@ Scope {
                 command: "dolphin",
                 desktop: "org.kde.dolphin.desktop",
                 dbus: "/usr/bin/dolphin --daemon",
-                process: "dolphin"
+                process: "dolphin",
+                portal: "kde"
             },
             thunar: {
                 label: "Thunar",
                 command: "thunar",
                 desktop: "thunar.desktop",
                 dbus: "/usr/bin/Thunar --gapplication-service",
-                process: "thunar"
+                process: "thunar",
+                portal: "gtk"
             },
             nemo: {
                 label: "Nemo",
                 command: "nemo",
                 desktop: "nemo.desktop",
                 dbus: "/usr/bin/nemo --no-default-window",
-                process: "nemo"
+                process: "nemo",
+                portal: "gtk"
             },
             nautilus: {
                 label: "Files (Nautilus)",
                 command: "nautilus",
                 desktop: "org.gnome.Nautilus.desktop",
                 dbus: "/usr/bin/nautilus --gapplication-service",
-                process: "nautilus"
+                process: "nautilus",
+                portal: "gtk"
             }
         })
     // The installed ones: [{ value, icon, label }].
     property var installed: []
+    // The KDE portal (xdg-desktop-portal-kde) is installed.
+    property bool kdePortal: false
 
     readonly property SettingsPage settings: SettingsPage {
         name: "apps"
@@ -88,10 +97,18 @@ Name=org.freedesktop.FileManager1
 Exec=${app.dbus}
 ` : ""
 
+    readonly property string chooser: app?.portal === "kde" && kdePortal ? "kde" : "gtk"
+    readonly property string portalText: `# Written by the shell (plugins/apps/DefaultApps.qml); edits here are overwritten.
+[preferred]
+default=umbriel;gtk
+org.freedesktop.impl.portal.FileChooser=${chooser}
+`
+
     onAppChanged: apply()
+    onChooserChanged: apply()
 
     function apply(): void {
-        if (!Settings.loaded || !app || !bindFile.ready || !dbusFile.ready)
+        if (!Settings.loaded || !app || !bindFile.ready || !dbusFile.ready || !portalFile.ready || !probed)
             return;
         if (bindFile.current !== bindText) {
             bindFile.setText(bindText);
@@ -100,6 +117,12 @@ Exec=${app.dbus}
         if (dbusFile.current !== dbusText) {
             dbusFile.setText(dbusText);
             dbusFile.current = dbusText;
+        }
+        // The portal reads its config at start only.
+        if (portalFile.current !== portalText) {
+            portalFile.setText(portalText);
+            portalFile.current = portalText;
+            Quickshell.execDetached(["systemctl", "--user", "try-restart", "xdg-desktop-portal.service"]);
         }
         // Folders open in it; and whoever holds FileManager1, if it isn't
         // this one, makes way (D-Bus starts ours on the next request).
@@ -153,17 +176,43 @@ Exec=${app.dbus}
         }
     }
 
+    FileView {
+        id: portalFile
+
+        property string current: ""
+        property bool ready: false
+
+        path: root.home + "/.config/xdg-desktop-portal/umbriel-portals.conf"
+        printErrors: false
+        onLoaded: {
+            current = text();
+            ready = true;
+            root.apply();
+        }
+        onLoadFailed: {
+            ready = true;
+            Quickshell.execDetached(["mkdir", "-p", root.home + "/.config/xdg-desktop-portal"]);
+            root.apply();
+        }
+    }
+
+    // Wait for the probe below, so the portal isn't set to GTK and back.
+    property bool probed: false
+
     Process {
         running: true
-        command: ["sh", "-c", 'for c in "$@"; do command -v "$c" >/dev/null && echo "$c"; done', "sh"].concat(Object.keys(root.known).map(k => root.known[k].command))
+        command: ["sh", "-c", '[ -e /usr/share/xdg-desktop-portal/portals/kde.portal ] && echo kde-portal; for c in "$@"; do command -v "$c" >/dev/null && echo "$c"; done', "sh"].concat(Object.keys(root.known).map(k => root.known[k].command))
         stdout: StdioCollector {
             onStreamFinished: {
                 const have = text.trim().split("\n");
+                root.kdePortal = have.includes("kde-portal");
                 root.installed = Object.keys(root.known).filter(k => have.includes(root.known[k].command)).map(k => ({
                             value: k,
                             icon: "folder_open",
                             label: root.known[k].label
                         }));
+                root.probed = true;
+                root.apply();
             }
         }
     }

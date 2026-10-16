@@ -201,24 +201,15 @@ Item {
     }
 
     // The soak layer's texture (the content at the panel's size, in VRAM)
-    // is made with the content and let go a while after it's hidden: warm
-    // panels held ~30 MB of them while closed. Made again as the content
-    // shows (on `preparing`, before the panel moves), a reopen within the
-    // while finds it still there.
+    // is made with the content and kept from then on (the user's call,
+    // 2026-10-16). Let go 20 s after a close it saved ~30 MB of VRAM across
+    // the warm panels, but a drawer that opens with no `preparing` first
+    // (the dock coming back on an empty workspace) made it mid-motion, and
+    // the closes after felt janky.
     property bool layerKept: false
     onContentShownChanged: {
-        if (contentShown) {
-            layerRelease.stop();
+        if (contentShown)
             layerKept = true;
-        } else {
-            layerRelease.restart();
-        }
-    }
-    Timer {
-        id: layerRelease
-
-        interval: Quickshell.env("NAFEEL_LAYER_KEEP_MS") ? parseInt(Quickshell.env("NAFEEL_LAYER_KEEP_MS")) : 20000
-        onTriggered: root.layerKept = root.contentShown
     }
 
     // About to open (ShellState.grabbing: the keyboard being taken first):
