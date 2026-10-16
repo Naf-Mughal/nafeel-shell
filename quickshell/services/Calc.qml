@@ -11,6 +11,8 @@ Singleton {
 
     property string result: ""
     property string pending: ""
+    // Every finished evaluation, even to the same answer.
+    signal answered
 
     function evaluate(expr: string): void {
         expr = expr.trim();
@@ -36,7 +38,10 @@ Singleton {
         id: proc
 
         stdout: StdioCollector {
-            onStreamFinished: root.result = text.trim()
+            onStreamFinished: {
+                root.result = text.trim();
+                root.answered();
+            }
         }
     }
 }

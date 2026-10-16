@@ -12,6 +12,7 @@ LauncherProvider {
     name: "Calculator"
     keyword: "="
     global: false
+    keepStale: false
 
     property int pending: -1
 
@@ -19,15 +20,16 @@ LauncherProvider {
         if (text === "")
             return [{ title: "Type an expression", subtitle: "Units and currency too: 5 km in miles, 20 usd in pkr", icon: "calculate", score: 1, key: "", highlight: false, keepOpen: true, run: () => {} }];
         pending = seq;
-        // "5 km in miles": qalc reads that "in" as inches; "to" converts.
-        Calc.evaluate(text.replace(/\s+in\s+([A-Za-z€$£¥]+)\s*$/, " to $1"));
+        // "5 km in miles": qalc reads that "in" as inches; "to" converts, and
+        // "to -miles" keeps it to one unit (not "3 mi + 188 yd + 2.39 in").
+        Calc.evaluate(text.replace(/\s+(?:in|to)\s+([A-Za-z€$£¥]+)\s*$/, " to -$1"));
         return null;
     }
 
     readonly property Connections calc: Connections {
         target: Calc
 
-        function onResultChanged(): void {
+        function onAnswered(): void {
             if (root.pending < 0 || !Calc.result)
                 return;
             const value = Calc.result;

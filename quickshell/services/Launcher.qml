@@ -55,7 +55,9 @@ Singleton {
                 const use = frecency(r.key);
                 out.push(Object.assign({}, r, {
                     provider: p.name,
-                    rank: empty ? use : (r.score ?? 0) * p.weight + use
+                    // `top`: what was asked for outright (a typed URL, a web
+                    // keyword): above any fuzzy match.
+                    rank: empty ? use : r.top ? 1000 + (r.score ?? 0) : (r.score ?? 0) * p.weight + use
                 }));
             }
         });
@@ -104,7 +106,7 @@ Singleton {
             const r = p.query(query, s);
             if (r)
                 next[i] = r;
-            else if (answers[i])
+            else if (answers[i] && p.keepStale)
                 next[i] = answers[i]; // asynchronous: the last answer stays until the new one
         });
         answers = next;

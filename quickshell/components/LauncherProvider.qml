@@ -32,6 +32,9 @@ QtObject {
     property real weight: 1
     // At most this many results from it.
     property int limit: 30
+    // An asynchronous provider's last answer stays up until the next comes
+    // (no flicker); off where an old answer would mislead (the calculator).
+    property bool keepStale: true
     // Answers the empty query (shown when nothing's typed, ranked by use).
     property bool answersEmpty: false
 
