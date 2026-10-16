@@ -140,8 +140,10 @@ pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 # ...or straight to the compositor (DmabufVideo): ffmpeg's VAAPI decode and
 # video processor, frames as dmabufs.
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET libavformat libavcodec libavfilter libavutil)
+# SceneVideo waits for the GPU's scaler (vaSyncSurface) before a frame is shown.
+pkg_check_modules(LIBVA REQUIRED IMPORTED_TARGET libva)
 target_include_directories(nafeelnative PRIVATE ${CMAKE_CURRENT_BINARY_DIR} src src/noctalia src/caelestia)
-target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::GuiPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBAV PkgConfig::LIBDRM Qt6::OpenGL)
+target_link_libraries(nafeelnative PRIVATE Qt6::Gui Qt6::Quick Qt6::QuickPrivate Qt6::GuiPrivate Qt6::DBus PkgConfig::WAYLAND PkgConfig::SODIUM PkgConfig::SECRET PkgConfig::XKB PkgConfig::FFTW PkgConfig::PIPEWIRE PkgConfig::MPV PkgConfig::LIBAV PkgConfig::LIBVA PkgConfig::LIBDRM Qt6::OpenGL)
 
 qt_add_shaders(nafeelnative "blob_shaders"
     BATCHABLE

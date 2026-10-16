@@ -27,6 +27,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_drm.h>
+#include <libavutil/hwcontext_vaapi.h>
 }
 
 namespace {
@@ -106,6 +107,13 @@ protected:
                 fail("decoding stopped");
                 continue;
             }
+            // Written through before it's shown: the scaler runs on the
+            // GPU asynchronously, and the frame's surface is one of a few
+            // reused in turn, so shown at once it still held the picture
+            // from its last turn (the slice flickered between stale frames).
+            // Here, before the wait for its time, which mostly covers it.
+            if (m_hw)
+                vaSyncSurface(reinterpret_cast<AVVAAPIDeviceContext *>(reinterpret_cast<AVHWDeviceContext *>(m_hw->data)->hwctx)->display, VASurfaceID(reinterpret_cast<uintptr_t>(f->data[3])));
             // On the file's own clock from where it (re)started.
             const qint64 now = nowUs();
             if (!m_anchor || pts * 1e6 + m_anchor < now - 200000)
