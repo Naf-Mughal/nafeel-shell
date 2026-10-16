@@ -91,7 +91,6 @@ COMMUNITY = XDG_DATA / "nafeel-shell/templates/community"
 APPLIED = STATE / "theme-applied.json"
 PALETTE = ROOT / "theme/palette/extract.py"
 VENV = XDG_DATA / "nafeel-shell/palette-venv"
-OLD_VENV = XDG_STATE / "noctalia/plugins/data/nafeel/wallpaper-palette/venv"
 PALETTE_CACHE = XDG_CACHE / "nafeel-shell/palette"
 PALETTE_KEY = STATE / "palette-key.json"
 
@@ -385,9 +384,8 @@ def load_settings() -> dict:
 def load_config() -> dict:
     if not CONFIG.exists():
         CONFIG.parent.mkdir(parents=True, exist_ok=True)
-        core, community = adopt_noctalia_ids()
-        CONFIG.write_text(DEFAULT_CONFIG.format(core=json.dumps(core), community=json.dumps(community)))
-        log(f"wrote {CONFIG} (templates taken from Noctalia's settings)")
+        CONFIG.write_text(DEFAULT_CONFIG.format(core=json.dumps(list(CORE_DEFAULT)), community=json.dumps([])))
+        log(f"wrote {CONFIG}")
     try:
         cfg = tomllib.loads(CONFIG.read_text())
     except tomllib.TOMLDecodeError as e:
@@ -400,16 +398,6 @@ def load_config() -> dict:
         if key in settings:
             cfg[name] = settings[key]
     return cfg
-
-
-def adopt_noctalia_ids() -> tuple[list[str], list[str]]:
-    """First run: the templates Noctalia had on, so nothing goes unthemed."""
-    try:
-        cfg = tomllib.loads((XDG_STATE / "noctalia/settings.toml").read_text())
-        tpl = cfg.get("theme", {}).get("templates", {})
-        return list(tpl.get("builtin_ids", CORE_DEFAULT)), list(tpl.get("community_ids", []))
-    except (OSError, tomllib.TOMLDecodeError):
-        return list(CORE_DEFAULT), []
 
 
 def build(scheme_path: Path, mode: str | None, out: Path = THEME_JSON, wallpaper: str | None = None) -> dict:
@@ -679,24 +667,12 @@ def community_templates(ids: list[str]) -> list[Template]:
             continue
         manifest = COMMUNITY / cid / "template.toml"
         if not manifest.exists():
-            adopt_community(cid)
-        if not manifest.exists():
             download_community(cid)
         if manifest.exists():
             out += manifest_templates(cid, manifest)
         else:
             log(f"community template {cid!r} isn't installed ({COMMUNITY / cid})")
     return out
-
-
-def adopt_community(cid: str) -> None:
-    """Take a community template Noctalia already downloaded."""
-    src = XDG_STATE / "noctalia/community-templates" / cid
-    if (src / "template.toml").exists():
-        import shutil
-
-        shutil.copytree(src, COMMUNITY / cid, dirs_exist_ok=True)
-        log(f"took community template {cid!r} from Noctalia's cache")
 
 
 def fetch(url: str, timeout: int = 20) -> bytes:
@@ -964,11 +940,9 @@ def apply(force: bool, only: set[str] | None, dry: Path | None) -> int:
 
 def python() -> str:
     """The palette's Python (materialyoucolor + pillow, as Caelestia's): the
-    shell's own venv, made on first use (needs the network once); until then
-    the one the wallpaper-palette plugin made."""
-    for venv in (VENV, OLD_VENV):
-        if (venv / ".ready").exists():
-            return str(venv / "bin/python")
+    shell's own venv, made on first use (needs the network once)."""
+    if (VENV / ".ready").exists():
+        return str(VENV / "bin/python")
     log("setting up the palette's Python (materialyoucolor, pillow)…")
     script = 'python3 -m venv "$1" && "$1/bin/pip" install -q --disable-pip-version-check materialyoucolor pillow && touch "$1/.ready"'
     subprocess.run(["sh", "-c", script, "sh", str(VENV)], check=True, timeout=600)

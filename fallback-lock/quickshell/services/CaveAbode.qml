@@ -3,10 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The bridge to the Noctalia plugin (nafeel/cave-abode). Its service writes,
-// into the plugin data dir (CAVE_ABODE_STATE):
+// The lock's state dir (CAVE_ABODE_STATE, ~/.local/state/nafeel-shell/lock):
 //   settings.json  { palette, wallpaper, greeter_session, ... }
-//   colors.json    Noctalia's palette mapped onto the theme's roles
+//   colors.json    the palette mapped onto the theme's roles
 // and the lock writes lockstats.json there itself. The greeter runs as the
 // `greeter` user and reads the copies the service mirrors into
 // /var/lib/cave-abode (greeter-setup.sh creates it).
@@ -16,7 +15,7 @@ Singleton {
     readonly property bool greeter: Quickshell.env("CAVE_ABODE_GREETER") === "1"
     readonly property string stateDir: Quickshell.env("CAVE_ABODE_STATE")
         || (greeter ? "/var/lib/cave-abode"
-                    : Quickshell.env("HOME") + "/.local/state/noctalia/plugins/data/nafeel/cave-abode")
+                    : Quickshell.env("HOME") + "/.local/state/nafeel-shell/lock")
 
     readonly property string wallpaper: greeter ? "file://" + stateDir + "/wallpaper"
         : settings.wallpaper ? "file://" + settings.wallpaper : ""
@@ -52,9 +51,9 @@ Singleton {
     })
 
     // ── Capture (plugin nafeel/capture) ─────────────────────────────
-    // The lock's record and screenshot tokens drive the Capture plugin over
-    // Noctalia IPC and mirror its recording state from the file it writes.
-    readonly property bool captureAvailable: !greeter
+    // No capture here: it was the Noctalia capture plugin's (retired); the
+    // shell's lock has its own.
+    readonly property bool captureAvailable: false
     property var capture: ({})
     readonly property bool recording: capture.recording === true
     readonly property bool recordingPaused: capture.paused === true
@@ -69,15 +68,6 @@ Singleton {
     }
 
     function captureCommand(event) {
-        Quickshell.execDetached(["noctalia", "msg", "plugin", "nafeel/capture:service", "all", event]);
-    }
-
-    FileView {
-        path: root.captureAvailable ? Quickshell.env("HOME") + "/.local/state/noctalia/plugins/data/nafeel/capture/state.json" : ""
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: root.capture = root._parse(text())
     }
 
     function _parse(text) {

@@ -217,11 +217,20 @@ Scope {
         }, null, 2) + "\n");
     }
 
+    // Started and stopped here only: a restart() also set `running` by hand,
+    // which cut a `running: enabled` binding, so the settings loading (the
+    // saved minutes) started it with rotation off and it changed the
+    // wallpaper a period after every shell start.
     onEnabledChanged: {
         if (enabled)
             tick.restart();
+        else
+            tick.stop();
     }
-    onMinutesChanged: tick.restart()
+    onMinutesChanged: {
+        if (enabled)
+            tick.restart();
+    }
     onFromChanged: {
         seen = [];
         save();
@@ -231,10 +240,15 @@ Scope {
     Timer {
         id: tick
 
-        running: root.enabled
         repeat: true
         interval: Math.max(1, root.minutes) * 60000
-        onTriggered: root.next()
+        Component.onCompleted: running = root.enabled
+        onTriggered: {
+            if (root.enabled)
+                root.next();
+            else
+                stop();
+        }
     }
 
     // Sunrise and sunset: with day/night on, the pool changes, so does the

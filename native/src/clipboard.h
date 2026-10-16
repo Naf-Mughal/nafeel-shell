@@ -17,7 +17,7 @@
 // ported 1:1 under src/noctalia (MIT, Copyright (c) 2026 noctalia-dev), run on
 // a worker thread with Noctalia's own poll loop and its own Wayland
 // connection. The history is the same files Noctalia keeps
-// (~/.local/state/noctalia/clipboard), with the same key from the keyring, so
+// (~/.local/state/nafeel-shell/clipboard), with the same key from the keyring, so
 // it carries over as it is.
 //
 // QML sees `entries` (newest first, pinned at the top, as Noctalia orders

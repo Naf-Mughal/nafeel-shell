@@ -504,6 +504,11 @@ Singleton {
         function battery(path: string): void {
             root.setBattery(path);
         }
+        // The one plugging in goes back to (set while on battery).
+        function charger(path: string): void {
+            root.charger = path;
+            root._save();
+        }
         // One screen's own wallpaper (another screen than the main one keeps
         // the colours as they are).
         function setFor(output: string, path: string): void {
@@ -552,13 +557,8 @@ Singleton {
                     Bus.retain("wallpaper.current", {
                         path: p
                     });
-                else
-                    adopt.running = true;
-            } catch (e) {
-                adopt.running = true;
-            }
+            } catch (e) {}
         }
-        onLoadFailed: adopt.running = true
     }
     // The state file has been read (or wasn't there): the battery switch
     // may act.
@@ -575,23 +575,6 @@ Singleton {
         }
     }
 
-    // First run: carry over Noctalia's wallpaper.
-    Process {
-        id: adopt
-
-        command: ["sh", "-c", 'mkdir -p "$1"; noctalia msg wallpaper-get', "sh", root.stateDir]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const p = text.trim();
-                if (p && !p.startsWith("error")) {
-                    root._remember(p);
-                    Bus.retain("wallpaper.current", {
-                        path: p
-                    });
-                }
-            }
-        }
-    }
 
     // ── The library ─────────────────────────────────────────────────────
     // The index (bin/nafeel-theme index -> theme/palette/library.py, after

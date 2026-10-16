@@ -11,10 +11,10 @@ import qs.config
 // on PrepareForSleep, locks, gives the lock a moment to cover the screens,
 // then lets the sleep go ahead (cave-abode's sleep watcher, as shell code).
 //
-// The greeter still reads what the Noctalia plugin (nafeel/cave-abode)
-// writes into its data dir (CAVE_ABODE_STATE):
+// Its state dir (CAVE_ABODE_STATE, ~/.local/state/nafeel-shell/lock; it was
+// the retired nafeel/cave-abode Noctalia plugin's data dir till 2026-10-16):
 //   settings.json  { palette, wallpaper, greeter_session, ... }
-//   colors.json    Noctalia's palette mapped onto the theme's roles
+//   colors.json    a palette mapped onto the theme's roles
 // and the lock writes lockstats.json there itself. The greeter runs as the
 // `greeter` user and reads the copies the service mirrors into
 // /var/lib/cave-abode (greeter-setup.sh creates it).
@@ -24,7 +24,7 @@ Singleton {
     readonly property bool greeter: Quickshell.env("CAVE_ABODE_GREETER") === "1"
     readonly property string stateDir: Quickshell.env("CAVE_ABODE_STATE")
         || (greeter ? "/var/lib/cave-abode"
-                    : Quickshell.env("HOME") + "/.local/state/noctalia/plugins/data/nafeel/cave-abode")
+                    : Quickshell.env("HOME") + "/.local/state/nafeel-shell/lock")
 
     // The wallpaper behind the lock: the shell's own (it used to be the
     // cave-abode plugin's copy of Noctalia's, which stopped following once
@@ -122,8 +122,8 @@ Singleton {
     })
 
     // ── Capture (plugin nafeel/capture) ─────────────────────────────
-    // The lock's record and screenshot tokens drive the Capture plugin over
-    // Noctalia IPC and mirror its recording state from the file it writes.
+    // The lock's record and screenshot tokens drive the shell's capture
+    // plugin and mirror its recording state.
     readonly property bool captureAvailable: !greeter && Plugins.instance("capture") !== null
     property var capture: ({})
     readonly property bool recording: capture.recording === true

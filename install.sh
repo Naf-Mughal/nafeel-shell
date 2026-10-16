@@ -6,14 +6,7 @@
 #   ~/.local/share/nafeel-shell/install.sh [--packages]
 #
 # Upgrade: `git pull && ./install.sh`. Safe to rerun.
-#
-# It also moves a desktop off the older layouts:
-#   - the nafeel/shell Noctalia plugin (~/.local/share/noctalia/plugins/shell),
-#     started by Noctalia or by umbriel;
-#   - Noctalia as umbriel's autostart;
-#   - greetd + noctalia-greeter as the login screen (optional, asked).
-# Everything it changes is backed up as *.bak-nafeel-shell-<time> first, or
-# moved under ~/.local/share/noctalia/retired-<time>.
+# Everything it changes is backed up as *.bak-nafeel-shell-<time> first.
 set -euo pipefail
 
 root=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
@@ -21,7 +14,6 @@ want="$HOME/.local/share/nafeel-shell"
 stamp=$(date +%Y%m%d-%H%M%S)
 umbriel_dir="$HOME/.config/umbriel"
 umbriel_conf="$umbriel_dir/config.toml"
-old_plugin="$HOME/.local/share/noctalia/plugins/shell"
 
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -59,18 +51,6 @@ for c in quickshell qs umbriel cmake brightnessctl wpctl notify-send python3; do
 done
 if ((${#missing[@]})); then
     warn "not found: ${missing[*]} (rerun with --packages, or install them yourself)"
-fi
-
-# --- The old layout: the nafeel/shell Noctalia plugin ----------------------------
-if [[ -d "$old_plugin" && ! -L "$old_plugin" ]]; then
-    say "found the old nafeel/shell Noctalia plugin; retiring it"
-    if pgrep -x noctalia >/dev/null && command -v noctalia >/dev/null; then
-        noctalia msg plugins disable nafeel/shell >/dev/null 2>&1 || true
-    fi
-    retired="$HOME/.local/share/noctalia/retired-$stamp"
-    mkdir -p "$retired"
-    mv "$old_plugin" "$retired/shell"
-    echo "    moved to $retired/shell"
 fi
 
 # --- Native module --------------------------------------------------------------
@@ -188,10 +168,7 @@ if [[ -n "${WAYLAND_DISPLAY:-}" ]] && command -v umbriel >/dev/null; then
         if ask "Restart the running shell now to load this version?"; then
             for p in $running; do qs kill --pid "$p" >/dev/null 2>&1 || true; done   # its supervisor starts it again
         fi
-    elif ask "Switch this session to the shell now (stops Noctalia and the old shell)?"; then
-        pkill -f "$HOME/.local/share/noctalia/plugins/shell/bin/nafeel-shell" 2>/dev/null || true
-        for p in $(qs_pids "noctalia/plugins/shell/"); do qs kill --pid "$p" >/dev/null 2>&1 || true; done
-        pkill -x noctalia 2>/dev/null || true
+    elif ask "Start the shell in this session now?"; then
         umbriel msg "spawn:$root/bin/nafeel-shell" >/dev/null
     fi
 fi

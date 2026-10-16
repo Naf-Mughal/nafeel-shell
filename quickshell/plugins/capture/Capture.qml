@@ -550,21 +550,6 @@ Scope {
                 root.prefs = Object.assign({}, root.prefs, JSON.parse(text()));
             } catch (e) {}
         }
-        // First run: the plugin's choices carry over.
-        onLoadFailed: oldPrefs.reload()
-    }
-
-    FileView {
-        id: oldPrefs
-
-        path: root.home + "/.local/state/noctalia/plugins/data/nafeel/capture/prefs.json"
-        printErrors: false
-        onLoaded: {
-            try {
-                root.prefs = Object.assign({}, root.prefs, JSON.parse(text()));
-                prefsFile.setText(JSON.stringify(root.prefs, null, 2));
-            } catch (e) {}
-        }
     }
 
     FileView {

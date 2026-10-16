@@ -386,18 +386,16 @@ namespace FileUtils {
     return {};
   }
 
+  // nafeel-shell: the shell's own state dir (it was Noctalia's till
+  // 2026-10-16; the clipboard history moved with it).
   [[nodiscard]] inline std::string stateDir() {
-    const char* noctalia = std::getenv("NOCTALIA_STATE_HOME");
-    if (noctalia != nullptr && noctalia[0] != '\0') {
-      return std::string(noctalia) + "/noctalia";
-    }
     const char* xdg = std::getenv("XDG_STATE_HOME");
     if (xdg != nullptr && xdg[0] != '\0') {
-      return std::string(xdg) + "/noctalia";
+      return std::string(xdg) + "/nafeel-shell";
     }
     const char* home = std::getenv("HOME");
     if (home != nullptr && home[0] != '\0') {
-      return std::string(home) + "/.local/state/noctalia";
+      return std::string(home) + "/.local/state/nafeel-shell";
     }
     return {};
   }
