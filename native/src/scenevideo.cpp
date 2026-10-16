@@ -131,6 +131,10 @@ protected:
                     continue;
                 }
             }
+            // Which pool it's from: the shown side's textures are kept per
+            // surface id, and a new pool (a new file, size, or the picker
+            // opened again) reuses the ids.
+            f->opaque = reinterpret_cast<void *>(quintptr(m_generation));
             QPointer<SceneVideo> item = m_item;
             if (item)
                 QMetaObject::invokeMethod(item, "takeFrame", Qt::QueuedConnection, Q_ARG(void *, f));
@@ -240,7 +244,11 @@ private:
             return false;
         if (avfilter_link(m_src, 0, scale, 0) < 0 || avfilter_link(scale, 0, m_sink, 0) < 0)
             return false;
-        return avfilter_graph_config(m_graph, nullptr) >= 0;
+        if (avfilter_graph_config(m_graph, nullptr) < 0)
+            return false;
+        // A new pool: its surfaces' ids repeat the old one's.
+        m_generation++;
+        return true;
     }
 
     // The next processed frame and its time (s, looped on), or none.
@@ -320,6 +328,7 @@ private:
     bool m_broken = false;
     qint64 m_anchor = 0;
     QSize m_pixels;
+    quint64 m_generation = 0;
 };
 
 // ── Showing (render thread) ─────────────────────────────────────────────
@@ -333,16 +342,7 @@ public:
     }
 
     ~SceneVideoNode() override {
-        // The scene graph's context is current while its nodes go.
-        auto *gl = QOpenGLContext::currentContext() ? QOpenGLContext::currentContext()->functions() : nullptr;
-        static auto destroyImage = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
-        for (auto &s : m_surfaces) {
-            delete s.texture;
-            if (gl)
-                gl->glDeleteTextures(1, &s.id);
-            if (destroyImage && s.image != EGL_NO_IMAGE_KHR)
-                destroyImage(s.display, s.image);
-        }
+        dropSurfaces();
         for (AVFrame *f : {m_pending, m_shown, m_before})
             if (f)
                 av_frame_free(&f);
@@ -361,6 +361,21 @@ public:
     }
 
 private:
+    // The textures made from a pool's surfaces (the scene graph's context is
+    // current: while nodes go, and in render()).
+    void dropSurfaces() {
+        auto *gl = QOpenGLContext::currentContext() ? QOpenGLContext::currentContext()->functions() : nullptr;
+        static auto destroyImage = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
+        for (auto &s : m_surfaces) {
+            delete s.texture;
+            if (gl)
+                gl->glDeleteTextures(1, &s.id);
+            if (destroyImage && s.image != EGL_NO_IMAGE_KHR)
+                destroyImage(s.display, s.image);
+        }
+        m_surfaces.clear();
+    }
+
     struct Surface {
         EGLDisplay display = EGL_NO_DISPLAY;
         EGLImageKHR image = EGL_NO_IMAGE_KHR;
@@ -373,6 +388,15 @@ private:
             return;
         AVFrame *f = m_pending;
         m_pending = nullptr;
+        // A new pool: the old textures show the old pool's pictures (the
+        // picker's slice, opened again, flickered between them and the new).
+        const auto generation = reinterpret_cast<quintptr>(f->opaque);
+        if (generation != m_generation) {
+            m_window->beginExternalCommands();
+            dropSurfaces();
+            m_window->endExternalCommands();
+            m_generation = generation;
+        }
         const auto key = reinterpret_cast<quintptr>(f->data[3]);
         auto it = m_surfaces.find(key);
         if (it == m_surfaces.end()) {
@@ -454,6 +478,7 @@ private:
     QPointer<SceneVideo> m_item;
     QQuickWindow *m_window;
     QHash<quintptr, Surface> m_surfaces;
+    quintptr m_generation = 0;
     AVFrame *m_pending = nullptr;
     AVFrame *m_shown = nullptr;
     AVFrame *m_before = nullptr;
