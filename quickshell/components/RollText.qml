@@ -1,5 +1,3 @@
-pragma ComponentBehavior: Bound
-
 import QtQuick
 import qs.config
 import qs.services
@@ -10,112 +8,93 @@ import qs.services
 // never for ones that change many times a second (a clock's seconds, live
 // stats). Digits keep one width (tabular), so nothing jostles.
 //   RollText { text: Math.round(volume * 100) + "%"; font.pixelSize: 15 }
-Row {
+//
+// At rest it's one Text. The per-character roller (RollRoller: an Item, an
+// animation and two Texts for every character, ~200 KB for "50%") is made
+// while a change rolls and let go after: there were ~220 of them warm.
+Item {
     id: root
 
     property string text
     property color color: Colours.palette.m3onSurface
+    // No kerning or ligatures: the roller sets each character alone, so the
+    // resting text has to lay out the same.
     property font font: Qt.font({
         family: Qt.application.font.family,
         pixelSize: Tokens.font.body,
+        kerning: false,
         features: {
-            tnum: 1
+            tnum: 1,
+            liga: 0,
+            clig: 0,
+            calt: 0
         }
     })
     // Which way this change rolls (the numbers in it compared).
     property bool up: true
-    property string _was: ""
+
+    // What the resting text shows (the old text while a change rolls).
+    property string _shown: ""
+    property bool _ready: false
+    property bool rolling: false
+
+    implicitWidth: idle.implicitWidth
+    implicitHeight: Math.round(font.pixelSize * 1.15)
 
     onTextChanged: {
-        const a = parseFloat(_was.replace(/[^0-9.\-]/g, "")), b = parseFloat(text.replace(/[^0-9.\-]/g, ""));
-        up = isNaN(a) || isNaN(b) || b >= a;
-        _was = text;
-        for (let i = 0; i < text.length; i++) {
-            if (i < chars.count) {
-                if (chars.get(i).ch !== text[i])
-                    chars.setProperty(i, "ch", text[i]);
-            } else {
-                chars.append({
-                    ch: text[i]
-                });
-            }
+        if (!_ready || Tokens.reduceMotion) {
+            _shown = text;
+            return;
         }
-        while (chars.count > text.length)
-            chars.remove(chars.count - 1);
+        if (text === _shown && !rolling)
+            return;
+        const a = parseFloat(_shown.replace(/[^0-9.\-]/g, "")), b = parseFloat(text.replace(/[^0-9.\-]/g, ""));
+        if (!rolling)
+            up = isNaN(a) || isNaN(b) || b >= a;
+        rolling = true;
+        settle.restart();
+        if (roller.item)
+            roller.item.text = text;
     }
-    // The first text may already have come through onTextChanged (a binding
-    // set while it's made): fill only what isn't there.
     Component.onCompleted: {
-        _was = text;
-        for (let i = chars.count; i < text.length; i++)
-            chars.append({
-                ch: text[i]
-            });
+        _shown = text;
+        _ready = true;
     }
 
-    ListModel {
-        id: chars
+    // The roller is let go a moment after the last change.
+    Timer {
+        id: settle
+
+        interval: Tokens.anim.normal + 120
+        onTriggered: {
+            root._shown = root.text;
+            root.rolling = false;
+        }
     }
 
-    Repeater {
-        model: chars
+    StyledText {
+        id: idle
 
-        Item {
-            id: slot
+        y: (root.height - implicitHeight) / 2
+        text: root.rolling ? root._shown : root.text
+        color: root.color
+        font: root.font
+        opacity: root.rolling ? 0 : 1
+    }
 
-            required property string ch
-            // What it showed before this change, and how far the roll is.
-            property string from: ""
-            property real p: 1
-            property bool up: true
+    Loader {
+        id: roller
 
-            // A window the glyphs' height (the line box is taller: the old
-            // digit would linger in view above the new one).
-            readonly property real base: (height - now.implicitHeight) / 2
-            width: now.implicitWidth
-            height: Math.round(root.font.pixelSize * 1.15)
-            clip: true
-
-            onChChanged: {
-                if (Tokens.reduceMotion) {
-                    now.text = ch;
-                    return;
-                }
-                from = now.text === ch ? from : now.text;
-                up = root.up;
-                roll.restart();
-            }
-            Component.onCompleted: now.text = ch
-
-            NumberAnimation {
-                id: roll
-
-                target: slot
-                property: "p"
-                from: 0
-                to: 1
-                duration: Tokens.anim.normal
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Tokens.anim.emphasizedDecel
-                onStarted: now.text = slot.ch
-            }
-
-            StyledText {
-                id: now
-
-                y: slot.base + (1 - slot.p) * slot.height * (slot.up ? 1 : -1)
-                color: root.color
-                font: root.font
-            }
-
-            StyledText {
-                visible: slot.p < 1
-                y: slot.base - slot.p * slot.height * (slot.up ? 1 : -1)
-                opacity: 1 - slot.p
-                color: root.color
-                font: root.font
-                text: slot.from
-            }
+        active: root.rolling
+        sourceComponent: RollRoller {
+            color: root.color
+            font: root.font
+            up: root.up
+        }
+        // Starts from what was showing, then rolls to the new text.
+        onLoaded: {
+            item.text = root._shown;
+            item.text = root.text;
         }
     }
 }

@@ -1,4 +1,5 @@
 #include "scenevideo.h"
+#include "vaapidevice.h"
 
 #include <QDeadlineTimer>
 #include <QOpenGLContext>
@@ -65,7 +66,8 @@ public:
 
 protected:
     void run() override {
-        if (av_hwdevice_ctx_create(&m_hw, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr, 0) < 0) {
+        m_hw = VaapiDevice::acquire();
+        if (!m_hw) {
             fail("no VAAPI device");
             return;
         }
@@ -142,7 +144,7 @@ protected:
                 av_frame_free(&f);
         }
         closeFile();
-        av_buffer_unref(&m_hw);
+        VaapiDevice::release(&m_hw);
     }
 
 private:

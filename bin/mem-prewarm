@@ -1,7 +1,9 @@
 #!/bin/bash
 # What each panel costs (ROADMAP Stage O): restarts the shell with the warm-up
 # slowed and logged (NAFEEL_PREWARM_LOG=1), and prints the shell's PSS growth
-# as each panel is built. The shell is restarted normally afterwards.
+# as each panel is built, with the allocator's live heap (what the panel's
+# objects hold, to 0.1 MB; PSS also moves with GC and mapped libraries). The
+# shell is restarted normally afterwards.
 set -u
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 . "$root/bin/shell-env"
@@ -9,6 +11,7 @@ qml=$root/quickshell
 log=${XDG_RUNTIME_DIR:-/tmp}/nafeel-shell-prewarm.log
 shell_pid() { qs list --all 2>/dev/null | awk -v c="Config path: $qml/shell.qml" '/Process ID:/ { p = $3 } index($0, c) { print p }'; }
 pss() { awk '/^Pss:/ { print int($2 / 1024) }' /proc/"$1"/smaps_rollup 2>/dev/null; }
+heap() { qs -p "$qml" ipc call shell mallocStats 2>/dev/null | sed -n 's/.*"allocated":\([0-9.]*\).*/\1/p'; }
 
 sup=$(pgrep -f "/bin/sh $root/bin/nafeel-shell" | head -1)
 [ -n "$sup" ] && kill "$sup"
@@ -16,21 +19,21 @@ old=$(shell_pid); [ -n "$old" ] && qs kill --pid "$old" >/dev/null 2>&1
 sleep 2
 NAFEEL_PREWARM_LOG=1 QML_IMPORT_PATH="$root/native/build/qml" setsid quickshell -p "$qml" >"$log" 2>&1 &
 for _ in $(seq 60); do p=$(shell_pid); [ -n "$p" ] && break; sleep 0.5; done
-last=$(pss "$p"); echo "start: $last MB"
+last=$(pss "$p"); lasth=$(heap); echo "start: PSS $last MB, heap ${lasth:-?} MB"
 seen=0
 while :; do
     n=$(grep -c 'prewarm:' "$log")
     if [ "$n" -gt "$seen" ]; then
         line=$(grep 'prewarm:' "$log" | sed -n "${n}p" | sed 's/.*prewarm: //; s/\x1b\[[0-9;]*m//g')
         sleep 1.4
-        now=$(pss "$p")
+        now=$(pss "$p"); nowh=$(heap)
         # The growth belongs to the panel built at the previous line.
-        [ "$seen" -gt 0 ] && printf "%+5d MB  %s\n" $((now - last)) "$prev"
-        last=$now; prev=$line; seen=$n
+        [ "$seen" -gt 0 ] && printf "%+5d MB PSS  %+6.1f MB heap  %s\n" $((now - last)) "$(echo "${nowh:-0} - ${lasth:-0}" | python3 -c 'import sys; print(eval(sys.stdin.read()))')" "$prev"
+        last=$now; lasth=$nowh; prev=$line; seen=$n
         [ "$line" = "done" ] && break
     fi
     sleep 0.2
 done
-echo "warm: $last MB"
+echo "warm: PSS $last MB, heap ${lasth:-?} MB"
 qs kill --pid "$p" >/dev/null 2>&1; sleep 1
 setsid "$root/bin/nafeel-shell" >/dev/null 2>&1 &

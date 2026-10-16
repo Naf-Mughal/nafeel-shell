@@ -17,6 +17,7 @@
 #include <QTextStream>
 #include <dlfcn.h>
 #include <malloc.h>
+#include <sys/mman.h>
 #include <thread>
 
 // Hands memory the shell has freed back to the system. glibc keeps what's
@@ -35,6 +36,110 @@ public:
 
     Q_INVOKABLE void trim() const {
         std::thread([] { malloc_trim(0); }).detach();
+    }
+
+    // Hands the idle file-backed pages (libraries, fonts: ~190 MB of the
+    // shell's resident set had not been touched in a minute) back to the page
+    // cache, where they stay for anyone who needs them and come back by a
+    // minor fault when the shell does. Aged in two steps: the first call
+    // clears the referenced bits (/proc/self/clear_refs); a later one drops
+    // the mappings that nothing touched since. Only read-only mappings of
+    // regular files with no copy-on-write page (no Anonymous, no dirty page:
+    // relocated data would be lost) are dropped (MADV_DONTNEED); a mapping
+    // whose pages were mostly touched is left. Off the GUI thread. The
+    // system's real memory use doesn't change: the page cache keeps them.
+    Q_INVOKABLE void trimFiles() const {
+        std::thread([] {
+            static bool aged = false;
+            struct Map { unsigned long start = 0, end = 0; bool ok = false; long rss = 0, ref = 0; };
+            QFile f(QStringLiteral("/proc/self/smaps"));
+            if (!f.open(QIODevice::ReadOnly))
+                return;
+            QList<Map> maps;
+            Map cur;
+            bool have = false;
+            long anon = 0, dirty = 0;
+            auto finish = [&] {
+                if (have && cur.ok && anon == 0 && dirty == 0 && cur.rss >= 64)
+                    maps.append(cur);
+            };
+            const QByteArray all = f.readAll();
+            for (const QByteArray &line : all.split('\n')) {
+                if (!line.isEmpty() && ((line[0] >= '0' && line[0] <= '9') || (line[0] >= 'a' && line[0] <= 'f')) && line.contains('-') && line.indexOf(' ') > 0 && line.indexOf(':') > line.indexOf(' ')) {
+                    // A header: start-end perms offset dev inode name
+                    finish();
+                    cur = Map();
+                    anon = dirty = 0;
+                    have = true;
+                    const QList<QByteArray> parts = line.split(' ');
+                    const QList<QByteArray> range = parts[0].split('-');
+                    cur.start = range[0].toULong(nullptr, 16);
+                    cur.end = range[1].toULong(nullptr, 16);
+                    const QByteArray perms = parts.value(1);
+                    const QByteArray name = line.mid(line.indexOf('/'));
+                    // Read-only, not shared-writable, a regular file by path.
+                    cur.ok = perms.size() >= 4 && perms[1] != 'w' && line.contains('/') && !name.contains("(deleted)") && !name.startsWith("/dev/") && !name.startsWith("/memfd") && !name.startsWith("/SYSV") && !name.startsWith("/proc/") && !name.startsWith("/run/") && !name.startsWith("/tmp/");
+                    continue;
+                }
+                if (line.startsWith("Rss:"))
+                    cur.rss = line.mid(4).trimmed().split(' ')[0].toLong();
+                else if (line.startsWith("Referenced:"))
+                    cur.ref = line.mid(11).trimmed().split(' ')[0].toLong();
+                else if (line.startsWith("Anonymous:"))
+                    anon = line.mid(10).trimmed().split(' ')[0].toLong();
+                else if (line.startsWith("Private_Dirty:") || line.startsWith("Shared_Dirty:"))
+                    dirty += line.mid(line.indexOf(':') + 1).trimmed().split(' ')[0].toLong();
+            }
+            finish();
+            long droppedKb = 0, keptKb = 0;
+            int n = 0;
+            if (aged) {
+                for (const Map &m : std::as_const(maps)) {
+                    // Cold: under a quarter of what's resident was touched.
+                    if (m.ref * 4 < m.rss) {
+                        if (madvise(reinterpret_cast<void *>(m.start), m.end - m.start, MADV_DONTNEED) == 0) {
+                            droppedKb += m.rss;
+                            n++;
+                        }
+                    } else {
+                        keptKb += m.rss;
+                    }
+                }
+            }
+            // Start the next aging window.
+            if (FILE *c = fopen("/proc/self/clear_refs", "w")) {
+                fputs("1", c);
+                fclose(c);
+            }
+            if (aged)
+                qInfo("memory: file pages handed back: %ld MB from %d mappings (%ld MB kept: touched lately)", droppedKb / 1024, n, keptKb / 1024);
+            aged = true;
+        }).detach();
+    }
+
+    // Measuring: jemalloc's own counters, in MB: `allocated` is what the
+    // program holds (live objects), `active` the pages those sit in,
+    // `resident` what the allocator keeps mapped, `retained` what it keeps
+    // for reuse. Allocated is the number to compare a change by: it moves
+    // with the code, not with fragmentation or what else is mapped.
+    Q_INVOKABLE QString stats() const {
+        using mallctl_t = int (*)(const char *, void *, size_t *, void *, size_t);
+        static auto fn = reinterpret_cast<mallctl_t>(dlsym(RTLD_DEFAULT, "mallctl"));
+        if (!fn)
+            return QStringLiteral("{}");
+        uint64_t epoch = 1;
+        size_t sz = sizeof(epoch);
+        fn("epoch", &epoch, &sz, &epoch, sz);
+        auto get = [&](const char *name) {
+            size_t v = 0, n = sizeof(v);
+            fn(name, &v, &n, nullptr, 0);
+            return double(v) / 1048576.0;
+        };
+        return QStringLiteral("{\"allocated\":%1,\"active\":%2,\"resident\":%3,\"retained\":%4}")
+            .arg(get("stats.allocated"), 0, 'f', 1)
+            .arg(get("stats.active"), 0, 'f', 1)
+            .arg(get("stats.resident"), 0, 'f', 1)
+            .arg(get("stats.retained"), 0, 'f', 1);
     }
 
     // Measuring: a jemalloc heap profile of what's live now (needs the shell

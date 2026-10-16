@@ -1,0 +1,17 @@
+#!/bin/bash
+# What a QML component costs in live heap (jemalloc's allocated), in a fresh
+# process with the shell's environment (measuring tool; ROADMAP Stage O):
+#   qml-cost <factory> [n]       n of one of CostTest.qml's primitives (item,
+#                                text, icon, rolltext, chip, group, slider, …)
+#   qml-cost file <path> [n]     n of a component file (relative to quickshell/)
+# n = 1 includes the one-time costs (compiling the QML, filling glyph caches,
+# starting the singletons it uses); compare n = 1 and n = 4 for the cost of
+# one more.
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+. "$root/bin/shell-env"
+export QML_IMPORT_PATH="$root/native/build/qml"
+if [ "${1:-}" = file ]; then
+    COST_URL=${2:?path} COST_N=${3:-1} timeout 30 quickshell -p "$root/quickshell/CostFile.qml"
+else
+    COST_WHAT=${1:?factory} COST_N=${2:-200} timeout 30 quickshell -p "$root/quickshell/CostTest.qml"
+fi 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'COSTRESULT|ReferenceError|TypeError|is not a type' | sed 's/.*COSTRESULT //' | head -3

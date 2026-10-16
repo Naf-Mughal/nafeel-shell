@@ -35,11 +35,17 @@ Surface {
         // A glyph has room around it; an app's icon fills its box.
         spacing: root.appId !== "" ? 1 : -2
 
-        AppIcon {
+        // Built only for an app's icon (most buttons have none): an
+        // AppIcon always made, hidden, held a Material icon, an Image of the
+        // placeholder icon and a tint Loader in every button.
+        Loader {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: root.appId !== ""
-            appId: root.appId
-            size: Math.round(root.size * (root.caption ? 0.36 : 0.55))
+            active: root.appId !== ""
+            visible: active
+            sourceComponent: AppIcon {
+                appId: root.appId
+                size: Math.round(root.size * (root.caption ? 0.36 : 0.55))
+            }
         }
 
         MaterialIcon {
@@ -61,14 +67,19 @@ Surface {
             }
         }
 
-        RollText {
+        // Made when there is a caption: a RollText (a Text per character)
+        // that was empty in nearly every button.
+        Loader {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: root.caption !== ""
-            text: root.caption
-            color: root.ink
-            font.family: Tokens.font.mono
-            font.pixelSize: Math.round(root.size * 0.25)
-            font.weight: Font.DemiBold
+            active: root.caption !== ""
+            visible: active
+            sourceComponent: RollText {
+                text: root.caption
+                color: root.ink
+                font.family: Tokens.font.mono
+                font.pixelSize: Math.round(root.size * 0.25)
+                font.weight: Font.DemiBold
+            }
         }
     }
 }

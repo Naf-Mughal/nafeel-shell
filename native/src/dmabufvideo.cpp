@@ -1,4 +1,5 @@
 #include "dmabufvideo.h"
+#include "vaapidevice.h"
 #include "framepacer.h"
 
 #include <QDeadlineTimer>
@@ -98,7 +99,7 @@ public:
 
 protected:
     void run() override {
-        if (!setupWayland() || av_hwdevice_ctx_create(&m_hw, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr, 0) < 0) {
+        if (!setupWayland() || !(m_hw = VaapiDevice::acquire())) {
             fail("no VAAPI device or dmabuf support");
             teardown();
             return;
@@ -749,7 +750,7 @@ private:
             wp_presentation_feedback_destroy(it.key());
         m_feedbacks.clear();
         if (m_hw)
-            av_buffer_unref(&m_hw);
+            VaapiDevice::release(&m_hw);
         if (m_viewporter)
             wp_viewporter_destroy(m_viewporter);
         if (m_presentation)

@@ -117,6 +117,15 @@ Singleton {
             unit: " px"
         }
         SettingItem {
+            key: "memory.trimFiles"
+            kind: "toggle"
+            icon: "memory"
+            section: "Memory"
+            label: "Hand idle library pages back"
+            description: "While everything is closed and still, the shell lets go of the library and font pages it hasn't touched for minutes (~120 MB of its resident memory). They stay in the system's page cache, so nothing is lost and system memory use is unchanged; the few the shell needs again come back in microseconds."
+            def: true
+        }
+        SettingItem {
             key: "switcher.revealDelay"
             kind: "number"
             section: "Window switcher"
@@ -437,6 +446,24 @@ Singleton {
     // A full collection only once everything is shut and still: with a
     // panel open it ran 0.7 s after the open settled, and a close started
     // then (the dock's, after a quick look) lost a frame to it.
+    // The idle file pages back to the page cache (Memory.trimFiles): the
+    // first call a while after the warm-up (it only starts the aging), then
+    // every few minutes, only while everything is closed and still.
+    Timer {
+        id: fileTrim
+
+        // 0: nothing yet (the next call starts the aging); 1: aged once.
+        property int calls: 0
+
+        running: Prewarm.done && Settings.values["memory.trimFiles"] !== false
+        repeat: true
+        interval: calls === 0 ? 90000 : calls === 1 ? 75000 : 180000
+        onTriggered: {
+            if (root.still && root.resting && !root.locked)
+                calls++, Memory.trimFiles();
+        }
+    }
+
     Timer {
         id: idleCollect
 
@@ -477,6 +504,17 @@ Singleton {
         function trim(): void {
             gc();
             Memory.trim();
+        }
+
+        // Hand the idle file pages back (two calls, a quiet minute apart).
+        function trimFiles(): void {
+            Memory.trimFiles();
+        }
+
+        // jemalloc's counters (MB) as JSON: allocated (live objects), active,
+        // resident, retained (measuring a change by what it allocates).
+        function mallocStats(): string {
+            return Memory.stats();
         }
 
         // What the warm shell is made of: objects by type and by file.
