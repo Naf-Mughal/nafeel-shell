@@ -143,7 +143,8 @@ CORE_DEFAULT = ["foot", "gtk3", "gtk4", "qt", "kcolorscheme", "umbriel", "btop",
 
 # The shell's settings, as the shell reads them (config/Tokens.qml).
 SHAPES = {
-    "tight": {"frame": 8, "panel": 4, "card": 4, "control": 4, "morph": 8},
+    # The shell's own presets (quickshell/config/Tokens.qml shapes): keep them the same.
+    "tight": {"frame": 8, "panel": 2, "card": 2, "control": 2, "morph": 4},
     "compact": {"frame": 12, "panel": 6, "card": 6, "control": 6, "morph": 12},
     "restrained": {"frame": 16, "panel": 12, "card": 10, "control": 8, "morph": 14},
     "relaxed": {"frame": 20, "panel": 16, "card": 14, "control": 12, "morph": 18},
@@ -784,10 +785,12 @@ def merge_kdeglobals(scheme: Path) -> None:
         )
 
 
-def apply_darkly(alpha: float) -> None:
-    """Qt/KDE apps' translucency (the Darkly style's own opacities, read as
-    apps start): the app opacity when they're made translucent, else solid.
-    Darkly blurs behind them through the compositor."""
+def apply_darkly(alpha: float, radius: int) -> None:
+    """Qt/KDE apps in the shell's shape and translucency (the Darkly style's
+    own settings, read as apps start): its corner radius is the shell's
+    control radius; its opacities the app opacity when they're made
+    translucent, else solid. Darkly blurs behind them through the compositor."""
+    merge_kconfig(XDG_CONFIG / "darklyrc", f"[Common]\nCornerRadius={max(1, min(16, radius))}\n")
     pct = round(alpha * 100)
     keys = ["MenuOpacity", "MenuBarOpacity", "ToolBarOpacity", "TabBarOpacity", "DolphinSidebarOpacity", "DolphinViewOpacity"]
     lines = [f"{k}={pct}" for k in keys] + [f"TransparentDolphinView={'true' if pct < 100 else 'false'}"]
@@ -946,7 +949,7 @@ def apply(force: bool, only: set[str] | None, dry: Path | None) -> int:
         run_hook(hook, label, wait)
 
     if not dry:
-        apply_darkly(float(doc.get("alpha", {}).get("qt", 1.0)))
+        apply_darkly(float(doc.get("alpha", {}).get("qt", 1.0)), int(doc.get("radius", {}).get("control", 8)))
         if cfg.get("live_terminals", True):
             recolour_terminals(doc, mode)
         if changed_any and cfg.get("post_hook"):

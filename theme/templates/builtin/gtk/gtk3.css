@@ -57,3 +57,87 @@
 @define-color theme_unfocused_base_color @window_bg_color;
 @define-color theme_unfocused_selected_bg_color @accent_bg_color;
 @define-color theme_unfocused_selected_fg_color @accent_fg_color;
+
+/*
+* nafeel: shapes, from the shell's corner rounding (Theme page): controls take
+* radius.control, cards and lists radius.card, popovers, menus and dialogs
+* radius.panel. User CSS outranks the theme whatever the selector, so linked
+* groups get their inner corners squared here again, and round things
+* (circular and pill buttons, window controls, switches' knobs) stay round.
+*/
+button, entry, spinbutton, dropdown > button, combobox > box > button,
+menubutton > button, splitbutton, splitbutton > button, splitbutton > menubutton > button,
+stackswitcher > button, tabbar tab, notebook > header tab, colorswatch,
+scale > trough, scale > trough > highlight, progressbar > trough, progressbar > trough > progress,
+levelbar > trough, levelbar > trough > block, textview, searchbar > revealer > box,
+infobar, banner, toast, tooltip, tooltip > *, popover.menu modelbutton, popover.menu menuitem,
+row.activatable, list.navigation-sidebar > row, .navigation-sidebar > row, placessidebar row,
+calendar, calendar > grid > label.day-number, switch, switch > slider, check, radio {
+    border-radius: {{ radius.control }}px;
+}
+radio { border-radius: 9999px; }
+
+.card, frame, .frame, list.boxed-list, .boxed-list, list.content, preferencesgroup > box > .boxed-list,
+viewport.view, .view.frame, picture.frame, overlay.frame, flowboxchild, gridview > child, listview > row {
+    border-radius: {{ radius.card }}px;
+}
+list.boxed-list > row:first-child, .boxed-list > row:first-child {
+    border-top-left-radius: {{ radius.card }}px;
+    border-top-right-radius: {{ radius.card }}px;
+}
+list.boxed-list > row:last-child, .boxed-list > row:last-child {
+    border-bottom-left-radius: {{ radius.card }}px;
+    border-bottom-right-radius: {{ radius.card }}px;
+}
+list.boxed-list > row:not(:first-child):not(:last-child), .boxed-list > row:not(:first-child):not(:last-child),
+list.boxed-list > row:first-child:not(:last-child), .boxed-list > row:first-child:not(:last-child) {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+list.boxed-list > row:last-child:not(:first-child), .boxed-list > row:last-child:not(:first-child) {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+popover > contents, popover > arrow, popover.menu > contents, menu, .menu, .context-menu,
+dialog > sheet, dialog.floating > sheet, window.dialog, messagedialog, window.messagedialog,
+.osd, toast, sheet, bottom-sheet > sheet {
+    border-radius: {{ radius.panel }}px;
+}
+
+/* Linked groups: square where they meet. */
+.linked:not(.vertical) > *:not(:first-child), .linked:not(.vertical) > *:not(:first-child) > button,
+.linked:not(.vertical) > *:not(:first-child) > box > button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.linked:not(.vertical) > *:not(:last-child), .linked:not(.vertical) > *:not(:last-child) > button,
+.linked:not(.vertical) > *:not(:last-child) > box > button {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.linked.vertical > *:not(:first-child), .linked.vertical > *:not(:first-child) > button {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+.linked.vertical > *:not(:last-child), .linked.vertical > *:not(:last-child) > button {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+splitbutton > button:not(:last-child), splitbutton > menubutton:not(:first-child) > button {
+    border-radius: 0;
+}
+splitbutton > button:first-child {
+    border-top-left-radius: {{ radius.control }}px;
+    border-bottom-left-radius: {{ radius.control }}px;
+}
+splitbutton > menubutton:last-child > button {
+    border-top-right-radius: {{ radius.control }}px;
+    border-bottom-right-radius: {{ radius.control }}px;
+}
+
+/* Round on purpose. */
+button.circular, button.pill, windowcontrols > button, .titlebutton, button.osd.circular,
+scale > trough > slider, spinner, avatar, badge, .badge {
+    border-radius: 9999px;
+}

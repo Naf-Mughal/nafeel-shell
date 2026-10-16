@@ -31,7 +31,10 @@ Singleton {
     // there (a full bar's, or the strip under a regions-mode bar, whose
     // bulges sit over windows like the dock). From the bar layout.
     readonly property string strutsText: `\n# The frame: windows keep clear of its edges (the bar layout).\n[layout.struts]\nleft = ${BarLayout.reserve("left")}\ntop = ${BarLayout.reserve("top")}\nright = ${BarLayout.reserve("right")}\nbottom = ${BarLayout.reserve("bottom")}\n`
-    readonly property string frostText: "# Written by the shell (services/Umbriel.qml); edits here are overwritten.\n" + "# Included from ~/.config/umbriel/config.toml.\n" + strutsText + (frosted ? "\n# Frosted paper: blur behind the shell's frame and panels.\n[[layer_rule]]\nmatch.namespace = \"^nafeel-shell\"\nblur = true\nblur_ignore_alpha = 0.05\nblur_optimized = false\n" : "\n# Paper is solid: no blur.\n")
+    // Windows' corners: the shell's panel radius (the Theme page's corner
+    // rounding), so apps' windows are shaped like its panels.
+    readonly property string cornersText: `\n# Windows' corners: the shell's panel radius.\n[appearance]\ncorner_radius = ${Tokens.shape.panel}\n`
+    readonly property string frostText: "# Written by the shell (services/Umbriel.qml); edits here are overwritten.\n" + "# Included from ~/.config/umbriel/config.toml.\n" + strutsText + cornersText + (frosted ? "\n# Frosted paper: blur behind the shell's frame and panels.\n[[layer_rule]]\nmatch.namespace = \"^nafeel-shell\"\nblur = true\nblur_ignore_alpha = 0.05\nblur_optimized = false\n" : "\n# Paper is solid: no blur.\n")
 
     function writeFrost(): void {
         if (Settings.loaded && frostFile.loadedText !== frostText) {
