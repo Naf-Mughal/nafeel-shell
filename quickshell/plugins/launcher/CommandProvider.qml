@@ -7,6 +7,7 @@ import qs.services
 // stays open (Shift+Enter / Tab).
 LauncherProvider {
     name: "Command"
+    icon: "terminal"
     keyword: ">"
     global: false
 

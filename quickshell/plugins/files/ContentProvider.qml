@@ -14,6 +14,7 @@ LauncherProvider {
     id: root
 
     name: "Text"
+    icon: "manage_search"
     keyword: "t"
     weight: 0.6
     limit: 12

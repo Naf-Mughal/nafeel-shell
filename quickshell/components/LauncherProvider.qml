@@ -5,6 +5,7 @@ import QtQuick
 //
 //   { title, subtitle,
 //     icon: a Material Symbol, or image: an icon theme name / file url,
+//     or glyph: text drawn large in the icon's place (an emoji),
 //     score: how well it matches (Fuzzy's scale; 0 = no match),
 //     key: a stable id, for ranking what's picked often and lately,
 //     run(): what Enter does,
@@ -24,6 +25,8 @@ QtObject {
     // Its name in the results, and its keyword: "f report" asks only this
     // provider; a symbol (">", "=") needs no space after it.
     property string name
+    // The search bar's icon while the search is scoped to it.
+    property string icon: "search"
     property string keyword
     // Answers queries without its keyword too, merged with the others.
     property bool global: true

@@ -12,12 +12,16 @@ LauncherProvider {
     id: root
 
     name: "Web"
+    icon: "language"
     keyword: "g"
     weight: 0.5
     limit: 6
 
+    // The built-in ones, then the user's (Settings: Launcher, Web keywords).
+    readonly property var sites: Object.assign({}, builtin, Plugins.instance("launcher")?.webKeywords ?? {})
+
     // keyword -> [label, icon, url with %s]
-    readonly property var sites: ({
+    readonly property var builtin: ({
             g: ["Google", "search", "https://www.google.com/search?q=%s"],
             yt: ["YouTube", "smart_display", "https://www.youtube.com/results?search_query=%s"],
             gh: ["GitHub", "code", "https://github.com/search?q=%s"],

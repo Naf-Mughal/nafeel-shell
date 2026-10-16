@@ -7,6 +7,7 @@ import qs.services
 // Open windows, by title or app: Enter goes to it (its workspace too).
 LauncherProvider {
     name: "Windows"
+    icon: "select_window"
     keyword: "w"
     weight: 1.05
 

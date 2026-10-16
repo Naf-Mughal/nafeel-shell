@@ -3,7 +3,7 @@
   "name": "Launcher",
   "gloss": "\u542f",
   "icon": "search",
-  "description": "The command center's search: apps, open windows, system actions, settings, the web (Google, yt, gh, maps\u2026), a calculator (=) and commands (>). Other plugins add their own providers.",
+  "description": "The command center's search: apps, open windows, system actions, settings, the web, a calculator (=), commands (>), clipboard (cb), emoji (e) and processes (kill). Other plugins add their own providers.",
   "default": true,
   "providers": [
     {
@@ -33,6 +33,19 @@
     {
       "id": "web",
       "entry": "WebProvider.qml"
+    },
+    {
+      "id": "clipboard",
+      "entry": "ClipboardProvider.qml"
+    },
+    {
+      "id": "emoji",
+      "entry": "EmojiProvider.qml"
+    },
+    {
+      "id": "processes",
+      "entry": "ProcessProvider.qml"
     }
-  ]
+  ],
+  "root": "Plugin.qml"
 }

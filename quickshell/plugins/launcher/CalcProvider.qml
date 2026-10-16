@@ -10,6 +10,7 @@ LauncherProvider {
     id: root
 
     name: "Calculator"
+    icon: "calculate"
     keyword: "="
     global: false
     keepStale: false

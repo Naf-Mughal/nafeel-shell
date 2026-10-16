@@ -10,6 +10,7 @@ import qs.services
 // power profiles, the shell's panels.
 LauncherProvider {
     name: "System"
+    icon: "power_settings_new"
     keyword: "s"
     weight: 1.1
 

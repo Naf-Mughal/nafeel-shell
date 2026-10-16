@@ -9,6 +9,7 @@ import qs.services
 // nothing typed, all of them, the most used on top.
 LauncherProvider {
     name: "Apps"
+    icon: "apps"
     keyword: "a"
     weight: 1
     limit: 40

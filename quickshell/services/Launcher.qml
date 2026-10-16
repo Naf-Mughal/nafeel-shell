@@ -51,17 +51,23 @@ Singleton {
             const list = answers[i];
             if (!list)
                 return;
-            for (const r of list.slice(0, p.limit)) {
+            // Best first, then the provider's limit (a provider needn't
+            // sort: the best match may be last in its list). Empty search:
+            // its own order (newest, busiest).
+            const best = empty ? list : list.slice().sort((x, y) => (y.score ?? 0) - (x.score ?? 0));
+            for (const [at, r] of best.slice(0, p.limit).entries()) {
                 const use = frecency(r.key);
                 out.push(Object.assign({}, r, {
                     provider: p.name,
+                    at: i * 1000 + at,
                     // `top`: what was asked for outright (a typed URL, a web
                     // keyword): above any fuzzy match.
                     rank: empty ? use : r.top ? 1000 + (r.score ?? 0) : (r.score ?? 0) * p.weight + use
                 }));
             }
         });
-        out.sort((a, b) => b.rank - a.rank || (a.title ?? "").localeCompare(b.title ?? ""));
+        // Ties keep the provider's own order (newest first, busiest first).
+        out.sort((a, b) => b.rank - a.rank || a.at - b.at);
         // The same thing twice (two settings with one label on one page):
         // once.
         const seen = new Set();

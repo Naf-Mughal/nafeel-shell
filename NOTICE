@@ -79,3 +79,6 @@ Dashboard (modules/dashboard), visualiser and lyrics
     that folder), Material 3 Expressive shapes with morphing, a port of
     androidx.graphics.shapes; built as its own M3Shapes QML module.
   - quickshell/assets/bongocat.gif: from Caelestia (GPL-3.0).
+  - quickshell/assets/emoji.json: names and keywords from Unicode CLDR's
+    English annotations (Unicode License v3, Copyright Unicode, Inc.), built by
+    bin/build-emoji.

@@ -30,7 +30,7 @@ StyledRect {
         anchors.left: parent.left
         anchors.leftMargin: Tokens.spacing.large
         anchors.verticalCenter: parent.verticalCenter
-        text: ({ Command: "terminal", Calculator: "calculate", Files: "folder", Web: "language", Settings: "settings", System: "power_settings_new", Windows: "select_window", Apps: "apps" })[Launcher.scope?.name ?? ""] ?? "search"
+        text: Launcher.scope?.icon ?? "search"
         color: Colours.palette.m3onSurfaceVariant
     }
 

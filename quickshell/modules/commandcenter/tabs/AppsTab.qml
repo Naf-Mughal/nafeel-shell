@@ -143,9 +143,17 @@ Item {
                     source: !row.modelData.image ? "" : row.modelData.image.startsWith("/") || row.modelData.image.includes("://") ? row.modelData.image : Quickshell.iconPath(row.modelData.image, "application-x-executable")
                 }
 
+                // An emoji (or any text) as the icon, large.
+                StyledText {
+                    anchors.centerIn: parent
+                    visible: !!row.modelData.glyph
+                    text: row.modelData.glyph ?? ""
+                    font.pixelSize: 26
+                }
+
                 MaterialIcon {
                     anchors.centerIn: parent
-                    visible: !row.modelData.image
+                    visible: !row.modelData.image && !row.modelData.glyph
                     text: row.modelData.icon || "search"
                     size: 24
                     color: row.asking ? Colours.palette.m3onErrorContainer : row.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant

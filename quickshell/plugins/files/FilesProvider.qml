@@ -11,6 +11,7 @@ LauncherProvider {
     id: root
 
     name: "Files"
+    icon: "folder_open"
     keyword: "f"
     weight: 0.9
     limit: 15
@@ -63,6 +64,8 @@ LauncherProvider {
                 title: f.names[i],
                 subtitle: pretty(parent),
                 icon: iconFor(full),
+                // A picture's own thumbnail (decoded small, kept on the GPU).
+                image: !dir && /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path) ? Wallpapers.still(path, true) : "",
                 score: s,
                 key: "file:" + path,
                 run: () => Quickshell.execDetached(["xdg-open", path]),

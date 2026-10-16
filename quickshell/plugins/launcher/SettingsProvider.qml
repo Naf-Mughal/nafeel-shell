@@ -10,6 +10,7 @@ import qs.services
 // Settings on that page.
 LauncherProvider {
     name: "Settings"
+    icon: "settings"
     keyword: "set"
     weight: 0.9
 
