@@ -16,6 +16,14 @@ Item {
     width: 1920
     height: 1080
 
+    // On a fresh install the shell hasn't exported yet and SDDM has no last
+    // user: take the first real account SDDM lists (its NameRole).
+    function firstUser(): string {
+        if (userModel.count < 1)
+            return "";
+        return userModel.data(userModel.index(0, 0), 0x101) || "";
+    }
+
     Loader {
         id: exported
 
@@ -32,7 +40,7 @@ Item {
     GreeterContext {
         id: greeterCtx
 
-        userName: exported.item?.userName || userModel.lastUser || ""
+        userName: exported.item?.userName || userModel.lastUser || root.firstUser()
         sessionIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
         h24: exported.item?.h24 ?? false
         preview: config.testMode === "true"

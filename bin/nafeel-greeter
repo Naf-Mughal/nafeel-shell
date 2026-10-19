@@ -94,6 +94,11 @@ install)
     mkdir -p /etc/sddm.conf.d
     cat >/etc/sddm.conf.d/10-nafeel.conf <<EOF
 # Written by nafeel-greeter install: the shell's lock as the login screen.
+# No user is named here: the greeter takes the account from the shell's
+# export, SDDM's last user, or the first account it lists.
+[General]
+Numlock=on
+
 [Theme]
 Current=nafeel
 EOF
@@ -101,9 +106,16 @@ EOF
     ;;
 switch)
     [ "$(id -u)" = 0 ] || { echo "run with sudo" >&2; exit 1; }
-    systemctl disable greetd.service
-    systemctl enable sddm.service
-    echo "greetd off, SDDM on: it takes over at the next boot (or: systemctl stop greetd; systemctl start sddm)"
+    command -v sddm >/dev/null || { echo "sddm isn't installed (pacman -S sddm qt6-multimedia qt6-svg)" >&2; exit 1; }
+    # Whatever display manager is on now (greetd, plasma-login-manager, gdm...)
+    # gives way; only one can own display-manager.service.
+    current=$(basename "$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null)" 2>/dev/null || true)
+    if [ -n "$current" ] && [ "$current" != sddm.service ] && [ "$current" != display-manager.service ]; then
+        systemctl disable "$current" || true
+    fi
+    systemctl disable greetd.service 2>/dev/null || true
+    systemctl enable --force sddm.service
+    echo "SDDM enabled (was: ${current:-none}); it takes over at the next boot"
     ;;
 *)
     sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'

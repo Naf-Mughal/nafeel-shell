@@ -35,7 +35,8 @@ fi
 pkgs=(quickshell cmake base-devel qt6-base qt6-declarative qt6-shadertools
       wayland wayland-protocols libsodium libsecret libxkbcommon fftw libpipewire
       pipewire wireplumber brightnessctl libnotify python gpu-screen-recorder
-      dolphin xdg-desktop-portal-kde plasma-integration kconfig darkly-bin)
+      dolphin xdg-desktop-portal-kde plasma-integration kconfig darkly-bin
+      sddm qt6-multimedia qt6-svg)
 # Any umbriel will do (the dotfiles build a patched one, umbriel-nafeel-git,
 # which provides umbriel): only ask for umbriel-git when none is installed.
 pacman -T umbriel >/dev/null 2>&1 || pkgs+=(umbriel-git)
