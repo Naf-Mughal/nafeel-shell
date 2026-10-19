@@ -113,8 +113,14 @@ switch)
     if [ -n "$current" ] && [ "$current" != sddm.service ] && [ "$current" != display-manager.service ]; then
         systemctl disable "$current" || true
     fi
-    systemctl disable greetd.service 2>/dev/null || true
+    systemctl disable --now greetd.service 2>/dev/null || true
     systemctl enable --force sddm.service
+    # The old greeters and Noctalia itself are retired: drop the packages
+    # and greetd's config (pacman only lists what's installed).
+    old=$(pacman -Qq greetd greetd-tuigreet noctalia-greeter noctalia-shell noctalia-qs 2>/dev/null || true)
+    # shellcheck disable=SC2086
+    [ -z "$old" ] || pacman -Rns --noconfirm $old || echo "couldn't remove: $old" >&2
+    rm -rf /etc/greetd
     echo "SDDM enabled (was: ${current:-none}); it takes over at the next boot"
     ;;
 *)

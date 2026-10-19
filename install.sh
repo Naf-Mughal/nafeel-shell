@@ -150,6 +150,19 @@ elif ask "Use the shell's lock as the login screen (SDDM; replaces greetd if it'
     sudo "$root/bin/nafeel-greeter" switch
 fi
 
+# --- Old Noctalia remains ----------------------------------------------------------
+# Its config and plugins are dead weight. (~/.cache/noctalia and
+# ~/.local/state/noctalia stay: the theme outputs and app theming still use them.)
+old_noctalia=()
+for d in "$HOME/.config/noctalia" "$HOME/.local/share/noctalia"; do
+    [[ -e "$d" ]] && old_noctalia+=("$d")
+done
+if ((${#old_noctalia[@]})) && ask "Delete old Noctalia config and plugins (${old_noctalia[*]})?"; then
+    tar --zstd -cf "$HOME/.local/share/noctalia-retired-$(date +%Y%m%d).tar.zst" "${old_noctalia[@]}" 2>/dev/null || true
+    rm -rf "${old_noctalia[@]}"
+    say "removed old Noctalia files (backup: ~/.local/share/noctalia-retired-*.tar.zst)"
+fi
+
 # --- Power tuning (laptops) -----------------------------------------------------------
 # Charger-following system tuning: wifi power save, USB autosuspend, writeback
 # on battery (udev rule + service; system/power-tune).
